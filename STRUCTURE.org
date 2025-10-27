@@ -1,7 +1,7 @@
-#+title: Структура и задачи проекта
+#+title: Project Structure and Tasks
 
-[[file:README.org][← назад в README]]
+[[file:README.org][← back to README]]
 
-1. [ ] Создать структуры данных
-2. [ ] Создать парсер (класс, заполняющий структуры данных параметрами из файла)
-3. [ ] Создать решение в формате ParaView
+1. [ ] Create data structures
+2. [ ] Create parser (a class that populates data structures with parameters from a file)
+3. [ ] Create solution in ParaView format
