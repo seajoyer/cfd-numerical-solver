@@ -5,11 +5,13 @@
 ** File structure
 #+begin_example monospace
 cfd-numerical-solver/
+├── .gitignore
+├── README.org
 ├── CMakeLists.txt
-├── solver_options.yaml.txt
+├── options.yaml
 ├── docs/
-│   ├── Doxyfile
-│   └── ...
+│   ├── ...
+│   └── Doxyfile
 ├── include/
 │   ├── data/
 │   │   └── ...
@@ -32,12 +34,14 @@ cfd-numerical-solver/
 │   │   └── config_parser.cpp
 │   └── main.cpp
 ├── tests/
-│   ├── CMakeLists.txt
-│   └── ...
+│   ├── ...
+│   └── CMakeLists.txt
 ├── data/
 │   ├── input/
 │   └── output/
-└── README.md
+└── external/
+    ├── STRUCTURE.org
+    └── VARIABLES.org
 #+end_example
 
 ** Tasks

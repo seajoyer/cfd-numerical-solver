@@ -1,5 +1,5 @@
 #+title: Readme
 
-[[file:STRUCTURE.org][Project Structure and Tasks]]
+[[file:external/STRUCTURE.org][Project Structure and Tasks]]
 
-[[file:VARIABLES.org][Variable Standards]]
+[[file:external/VARIABLES.org][Variable Standards]]
