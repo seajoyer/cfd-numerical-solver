@@ -2,6 +2,46 @@
 
 [[file:README.org][← back to README]]
 
+** File structure
+#+begin_example monospace
+cfd-numerical-solver/
+├── CMakeLists.txt
+├── solver_options.yaml.txt
+├── docs/
+│   ├── Doxyfile
+│   └── ...
+├── include/
+│   ├── data/
+│   │   └── ...
+│   ├── solver/
+│   │   └── ...
+│   ├── visualization/
+│   │   └── ...
+│   └── config/
+│       ├── ...
+│       └── config_parser.hpp
+├── src/
+│   ├── data/
+│   │   └── ...
+│   ├── solver/
+│   │   └── ...
+│   ├── visualization/
+│   │   └── ...
+│   ├── config/
+│   │   ├── ...
+│   │   └── config_parser.cpp
+│   └── main.cpp
+├── tests/
+│   ├── CMakeLists.txt
+│   └── ...
+├── data/
+│   ├── input/
+│   └── output/
+└── README.md
+#+end_example
+
+** Tasks
+
 1. [ ] Create data structures
 2. [ ] Create parser (a class that populates data structures with parameters from a file)
 3. [ ] Create solution in ParaView format
