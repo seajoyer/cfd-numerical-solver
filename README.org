@@ -1,0 +1,4 @@
+#+title: Readme
+
+[[file:STRUCTURE.org][Структура проекта и задачи]]
+[[file:VARIABLES.org][Стандарт переменных]]
