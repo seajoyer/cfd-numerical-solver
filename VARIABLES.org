@@ -1,29 +1,28 @@
-#+title: Стандарт переменных
+#+title: Variable Standards
 
-[[file:README.org][← назад в README]]
+[[file:README.org][← back to README]]
 
-** Внутренние параметры
-- ~P~ - давление
-- ~u~ - скорости
-- ~m~ - масса
-- ~xb~ - координаты границ
-- ~xc~ - координаты центров
-- ~U~ - внутренняя энергия
-- ~e~ - удельная полная энергия
-- ~rho~ - плотность
-- ~p~ - импульс
-- ~V~ - удельный объем
-*** Итераторы
-- ~l~ - пространство вдоль X
-- ~m~ - пространство вдоль Y
-- ~n~ - пространство вдоль Z
-- ~t~ - текущее время
+** Internal Parameters
+- ~P~ - pressure
+- ~u~ - velocity
+- ~m~ - mass
+- ~xb~ - boundary coordinates
+- ~xc~ - center coordinates
+- ~U~ - internal energy
+- ~e~ - specific total energy
+- ~rho~ - density
+- ~p~ - momentum
+- ~V~ - specific volume
+*** Iterators
+- ~l~ - space along X
+- ~m~ - space along Y
+- ~n~ - space along Z
+- ~t~ - current time
 
-** Глобальные параметры
-- ~gamma~ - показатель адиабаты
-- ~CFL~ - число Куранта
-- ~c~ - скорость звука
-- ~N~ - количество ячеек
-- ~t_end~ - время расчета
-- ~L_x~, ~L_y~, ~L_z~ - размер расчетной области
-
+** Global Parameters
+- ~gamma~ - adiabatic index
+- ~CFL~ - Courant number
+- ~c~ - speed of sound
+- ~N~ - number of cells
+- ~t_end~ - computation time
+- ~L_x~, ~L_y~, ~L_z~ - computational domain size
