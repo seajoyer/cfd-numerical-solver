@@ -39,8 +39,8 @@ public:
      * @param uInf   External velocity (u∞) in the freestream.
      * @param pInf   External pressure (P∞) in the freestream.
      */
-    FreeStreamBoundary(double rhoInf, double uInf, double pInf)
-        : rhoInf(rhoInf), uInf(uInf), pInf(pInf) {
+    FreeStreamBoundary(double rho_inf, double u_inf, double p_inf)
+        : rho_inf_(rho_inf), u_inf_(u_inf), p_inf_(p_inf) {
     }
 
     /**
@@ -60,9 +60,9 @@ public:
     void Apply(DataLayer &layer, int axis, Side side) const override;
 
 private:
-    double rhoInf;
-    double uInf;
-    double pInf;
+    double rho_inf_;
+    double u_inf_;
+    double p_inf_;
 };
 
 #endif // FREESTREAMBOUNDARY_HPP

@@ -6,11 +6,11 @@ void OutletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     (void) axis;
 
     const int pad = layer.GetPadding();
-    const int coreStart = layer.GetCoreStart();
-    const int coreEnd = layer.GetCoreEndExclusive();
+    const int core_start = layer.GetCoreStart();
+    const int core_end = layer.GetCoreEndExclusive();
 
-    if (side == Side::Min) {
-        int src = coreStart;
+    if (side == Side::kMin) {
+        int src = core_start;
         for (int g = 0; g < pad; ++g) {
             int dst = g;
             layer.rho(dst) = layer.rho(src);
@@ -25,9 +25,9 @@ void OutletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
             layer.xc(dst) = layer.xc(src);
         }
     } else {
-        int src = coreEnd - 1;
+        int src = core_end - 1;
         for (int g = 0; g < pad; ++g) {
-            int dst = coreEnd + g;
+            int dst = core_end + g;
             layer.rho(dst) = layer.rho(src);
             layer.u(dst) = layer.u(src);
             layer.P(dst) = layer.P(src);

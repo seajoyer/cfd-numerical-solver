@@ -4,13 +4,13 @@
 
 ConfigParser::ConfigParser() {}
 
-bool ConfigParser::parse(const std::string& filename, const std::string& initial) {
+bool ConfigParser::Parse(const std::string& filename, const std::string& initial) {
     try {
         YAML::Node config = YAML::LoadFile(filename);
         YAML::Node  params = config["config"]["params"];
-        loadInitialConditions(params["initial"][initial], initial_conditions);
+        LoadInitialConditions(params["initial"][initial], initial_conditions_);
         // std::cout << params["initial"][initial] << std::endl;
-        loadGlobalVariables(params, global_variables);
+        LoadGlobalVariables(params, global_variables_);
         // std::cout << global_variables.c << std::endl;
         return true;
     } catch (const std::exception& e) {
@@ -19,7 +19,7 @@ bool ConfigParser::parse(const std::string& filename, const std::string& initial
     }
 }
 
-void ConfigParser::loadInitialConditions(const YAML::Node& node, InitialConditions& conditions) {
+void ConfigParser::LoadInitialConditions(const YAML::Node& node, InitialConditions& conditions) {
     conditions.rho_L = node["rho_L"].as<double>();
     conditions.u_L = node["u_L"].as<double>();
     conditions.P_L = node["P_L"].as<double>();
@@ -28,7 +28,7 @@ void ConfigParser::loadInitialConditions(const YAML::Node& node, InitialConditio
     conditions.P_R = node["P_R"].as<double>();
 }
 
-void ConfigParser::loadGlobalVariables(const YAML::Node& node, GlobalVariables& globals) {
+void ConfigParser::LoadGlobalVariables(const YAML::Node& node, GlobalVariables& globals) {
     globals.t_final = node["t_final"].as<double>();
     globals.N = node["N"].as<int>();
     globals.padding = node["padding"].as<int>();
@@ -41,6 +41,6 @@ void ConfigParser::loadGlobalVariables(const YAML::Node& node, GlobalVariables& 
     globals.L_z = node["L_z"].as<double>();
 }
 
-const InitialConditions& ConfigParser::getInitialConditions() const {
-    return initial_conditions;
+auto ConfigParser::GetInitialConditions() const -> const InitialConditions& {
+    return initial_conditions_;
 }

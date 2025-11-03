@@ -27,7 +27,7 @@ public:
     virtual ~Solver() = default;
 
 
-    virtual void Step(DataLayer &layer, double &time, double tEnd) = 0;
+    virtual void Step(DataLayer &layer, double &time, double t_end) = 0;
 
 
     virtual void SetCfl(double value) = 0;

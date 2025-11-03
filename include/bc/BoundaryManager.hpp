@@ -59,7 +59,7 @@ public:
     void ApplyAll(DataLayer &layer) const;
 
 private:
-    std::vector<AxisBc> axes;
+    std::vector<AxisBc> axes_;
 };
 
 #endif // BOUNDARYMANAGER_HPP

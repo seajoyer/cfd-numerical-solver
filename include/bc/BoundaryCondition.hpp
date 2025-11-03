@@ -1,11 +1,9 @@
 #ifndef BOUNDARYCONDITION_HPP
 #define BOUNDARYCONDITION_HPP
 
-#include <cstddef>
-
 struct DataLayer;
 
-enum class Side { Min = 0, Max = 1 };
+enum class Side { kMin = 0, kMax = 1 };
 
 /**
  * @class BoundaryCondition

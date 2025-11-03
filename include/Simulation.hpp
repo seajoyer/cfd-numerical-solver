@@ -2,7 +2,6 @@
 #define SIMULATION_HPP
 
 #include <memory>
-#include <string>
 #include "config/Config.hpp"
 #include "data/DataLayer.hpp"
 #include "solver/Solver.hpp"
@@ -82,15 +81,15 @@ private:
      * @param step Current time step index.
      * @return true if the step should be written according to configuration.
      */
-    [[nodiscard]] bool ShouldWrite(std::size_t step) const;
+    [[nodiscard]] auto ShouldWrite(std::size_t step) const -> bool;
 
-    Config config;
-    std::unique_ptr<Solver> solver;
-    std::unique_ptr<StepWriter> writer;
-    std::unique_ptr<DataLayer> layer;
+    Config config_;
+    std::unique_ptr<Solver> solver_;
+    std::unique_ptr<StepWriter> writer_;
+    std::unique_ptr<DataLayer> layer_;
 
-    double time = 0.0;
-    std::size_t step = 0;
+    double time_ = 0.0;
+    std::size_t step_ = 0;
 };
 
 #endif // SIMULATION_HPP

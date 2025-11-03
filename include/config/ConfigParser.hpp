@@ -6,14 +6,14 @@
 class ConfigParser {
 public:
     ConfigParser();
-    bool parse(const std::string& filename, const std::string& initial);
-    const InitialConditions& getInitialConditions() const;
+    auto Parse(const std::string& filename, const std::string& initial) -> bool;
+    [[nodiscard]] auto GetInitialConditions() const -> const InitialConditions&;
 
 private:
-    InitialConditions initial_conditions;
-    GlobalVariables global_variables;
+    InitialConditions initial_conditions_;
+    GlobalVariables global_variables_;
 
 
-    static void loadInitialConditions(const YAML::Node& node, InitialConditions& conditions);
-    static void loadGlobalVariables(const YAML::Node& node, GlobalVariables& globals);
+    static void LoadInitialConditions(const YAML::Node& node, InitialConditions& conditions);
+    static void LoadGlobalVariables(const YAML::Node& node, GlobalVariables& globals);
 };

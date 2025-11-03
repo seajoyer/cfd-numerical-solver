@@ -15,7 +15,7 @@ void GodunovSolver::AddBoundary(int axis,
     bcManager.Set(axis, std::move(min), std::move(max));
 }
 
-void GodunovSolver::Step(DataLayer &layer, double &time, double tEnd) {
+void GodunovSolver::Step(DataLayer &layer, double &time, double t_end) {
     bcManager.ApplyAll(layer);
 
 
@@ -24,6 +24,6 @@ void GodunovSolver::Step(DataLayer &layer, double &time, double tEnd) {
     // Вычислить потоки и обновить layer (TODO)
 
 
-    (void) tEnd;
+    (void) t_end;
     time += dt;
 }

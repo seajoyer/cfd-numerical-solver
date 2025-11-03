@@ -6,12 +6,12 @@ void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     (void) axis;
 
     const int pad = layer.GetPadding();
-    const int coreStart = layer.GetCoreStart();
-    const int coreEnd = layer.GetCoreEndExclusive();
+    const int core_start = layer.GetCoreStart();
+    const int core_end = layer.GetCoreEndExclusive();
 
-    if (side == Side::Min) {
+    if (side == Side::kMin) {
         for (int g = 0; g < pad; ++g) {
-            const int mirror = coreStart + g;
+            const int mirror = core_start + g;
             const int dst = pad - 1 - g;
 
             layer.rho(dst) = layer.rho(mirror);
@@ -29,8 +29,8 @@ void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     } else {
         // Заполняем [coreEnd..coreEnd+pad-1], отражая относительно coreEnd-1
         for (int g = 0; g < pad; ++g) {
-            const int mirror = coreEnd - 1 - g; // ближайшие внутренние справа
-            const int dst = coreEnd + g; // призрачные справа
+            const int mirror = core_end - 1 - g; // ближайшие внутренние справа
+            const int dst = core_end + g; // призрачные справа
 
             layer.rho(dst) = layer.rho(mirror);
             layer.P(dst) = layer.P(mirror);

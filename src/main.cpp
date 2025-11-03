@@ -9,13 +9,13 @@ int main() {
     cfg.padding = 2;
     cfg.dim = 1;
     cfg.cfl = 0.5;
-    cfg.tEnd = 0.2;
-    cfg.outputDir = "data/output";
-    cfg.outputEvery = 1;
+    cfg.t_end = 0.2;
+    cfg.output_dir = "data/output";
+    cfg.output_every = 1;
 
     Simulation sim(cfg);
     sim.Run();
     return 0;
 
-    ConfigParser().parse("../config.yml", "soda1");
+    ConfigParser().Parse("../config.yml", "soda1");
 }

@@ -24,7 +24,7 @@ class GodunovSolver : public Solver {
 public:
     GodunovSolver();
 
-    void Step(DataLayer &layer, double &time, double tEnd) override;
+    void Step(DataLayer &layer, double &time, double t_end) override;
 
     void SetCfl(double value) override;
 
@@ -33,9 +33,9 @@ public:
                      std::shared_ptr<BoundaryCondition> max) override;
 
 private:
-    double cfl = 0.5;
-    BoundaryManager bcManager;
-    int dim = 1;
+    double cfl_ = 0.5;
+    BoundaryManager bc_manager_;
+    int dim_ = 1;
 };
 
 #endif // GODUNOVSOLVER_HPP

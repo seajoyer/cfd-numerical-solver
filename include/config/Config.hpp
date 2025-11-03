@@ -8,9 +8,9 @@ struct Config {
     int padding = 2;
     int dim = 1;
     double cfl = 0.5;
-    double tEnd = 0.2;
-    std::string outputDir = "data/output";
-    std::size_t outputEvery = 1;
+    double t_end = 0.2;
+    std::string output_dir = "data/output";
+    std::size_t output_every = 1;
 };
 
 #endif // CONFIG_HPP

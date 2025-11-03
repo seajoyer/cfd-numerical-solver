@@ -6,12 +6,12 @@ void SymmetryBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     (void) axis;
 
     const int pad = layer.GetPadding();
-    const int coreStart = layer.GetCoreStart();
-    const int coreEnd = layer.GetCoreEndExclusive();
+    const int core_start = layer.GetCoreStart();
+    const int core_end = layer.GetCoreEndExclusive();
 
-    if (side == Side::Min) {
+    if (side == Side::kMin) {
         for (int g = 0; g < pad; ++g) {
-            int src = coreStart + g;
+            int src = core_start + g;
             int dst = pad - 1 - g;
 
             layer.rho(dst) = layer.rho(src);
@@ -28,8 +28,8 @@ void SymmetryBoundary::Apply(DataLayer &layer, int axis, Side side) const {
         }
     } else {
         for (int g = 0; g < pad; ++g) {
-            int src = coreEnd - 1 - g;
-            int dst = coreEnd + g;
+            int src = core_end - 1 - g;
+            int dst = core_end + g;
 
             layer.rho(dst) = layer.rho(src);
             layer.P(dst) = layer.P(src);

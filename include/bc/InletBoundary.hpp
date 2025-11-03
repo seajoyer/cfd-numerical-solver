@@ -36,8 +36,8 @@ public:
      * @param uIn    External velocity (u) at the inlet.
      * @param pIn    External pressure (P) at the inlet.
      */
-    InletBoundary(double rhoIn, double uIn, double pIn)
-        : rhoIn(rhoIn), uIn(uIn), pIn(pIn) {
+    InletBoundary(double rho_in, double u_in, double p_in)
+        : rho_in_(rho_in), u_in_(u_in), p_in_(p_in) {
     }
 
     /**
@@ -56,9 +56,9 @@ public:
     void Apply(DataLayer &layer, int axis, Side side) const override;
 
 private:
-    double rhoIn;
-    double uIn;
-    double pIn;
+    double rho_in_;
+    double u_in_;
+    double p_in_;
 };
 
 #endif // INLETBOUNDARY_HPP
