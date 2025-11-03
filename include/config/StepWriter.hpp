@@ -12,7 +12,7 @@ struct DataLayer;
  * This class defines a minimal I/O interface that allows saving
  * the state of the computational domain at each time step.
  *
- * Concrete implementations (e.g., VtkWriter) define specific file
+ * Concrete implementations (e.g., VTKWriter) define specific file
  * formats and data serialization strategies.
  *
  * @note StepWriter is used by Simulation to record results periodically

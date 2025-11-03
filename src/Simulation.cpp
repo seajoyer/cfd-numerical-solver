@@ -13,7 +13,7 @@ void Simulation::Initialize() {
     layer = std::make_unique<DataLayer>(config.n, config.padding, config.dim);
 
 
-    solver = std::make_unique<GodunovSolver>();
+    solver = std::make_unique<GodunovSolver>();  // TODO: the class should allow different options for solver
     solver->SetCfl(config.cfl);
 
 
@@ -21,7 +21,7 @@ void Simulation::Initialize() {
     solver->AddBoundary(0, periodic, periodic);
 
 
-    writer = std::make_unique<VtkWriter>(config.outputDir);
+    writer = std::make_unique<VtkWriter>(config.outputDir);  // TODO: allow different options
 }
 
 void Simulation::WriteInitialState() const {
@@ -50,6 +50,6 @@ void Simulation::Run() {
         solver->Step(*layer, time, config.tEnd);
         ++step;
         WriteStepState(step, time);
-        time += 0.01;
+        time += 0.01;  // TODO: allow different values
     }
 }

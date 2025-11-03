@@ -8,7 +8,7 @@ cfd-numerical-solver/
 ├── .gitignore
 ├── README.org
 ├── CMakeLists.txt
-├── parameters.yaml
+├── config.yaml
 ├── docs/
 │   ├── ...
 │   └── Doxyfile

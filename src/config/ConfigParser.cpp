@@ -1,7 +1,6 @@
 #include "config/ConfigParser.hpp"
 #include "data/InitialConditions.hpp"
 #include "data/DataLayer.hpp"
-#include <iostream>
 
 ConfigParser::ConfigParser() {}
 
