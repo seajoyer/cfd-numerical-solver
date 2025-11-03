@@ -10,11 +10,11 @@ Simulation::Simulation(Config config)
 }
 
 void Simulation::Initialize() {
-    layer_ = std::make_unique<DataLayer>(config_.n, config_.padding, config_.dim);
+    layer_ = std::make_unique<DataLayer>(config_.N, config_.padding, config_.dim);
 
 
     solver_ = std::make_unique<GodunovSolver>();
-    solver_->SetCfl(config_.cfl);
+    solver_->SetCfl(config_.CFL);
 
 
     auto periodic = std::make_shared<PeriodicBoundary>();

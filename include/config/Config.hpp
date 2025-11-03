@@ -4,10 +4,10 @@
 #include <string>
 
 struct Config {
-    int n = 0;
+    int N = 0;
     int padding = 2;
     int dim = 1;
-    double cfl = 0.5;
+    double CFL = 0.5;
     double t_end = 0.2;
     std::string output_dir = "data/output";
     std::size_t output_every = 1;

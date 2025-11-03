@@ -1,14 +1,13 @@
-#include <stdio.h>
 #include <config/ConfigParser.hpp>
 #include "Simulation.hpp"
 #include "config/Config.hpp"
 
-int main() {
+auto main() -> int {
     Config cfg;
-    cfg.n = 200;
+    cfg.N = 200;
     cfg.padding = 2;
     cfg.dim = 1;
-    cfg.cfl = 0.5;
+    cfg.CFL = 0.5;
     cfg.t_end = 0.2;
     cfg.output_dir = "data/output";
     cfg.output_every = 1;

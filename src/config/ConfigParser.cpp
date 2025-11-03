@@ -1,10 +1,10 @@
 #include "config/ConfigParser.hpp"
+#include <iostream>
 #include "data/InitialConditions.hpp"
-#include "data/DataLayer.hpp"
 
-ConfigParser::ConfigParser() {}
+ConfigParser::ConfigParser() = default;
 
-bool ConfigParser::Parse(const std::string& filename, const std::string& initial) {
+auto ConfigParser::Parse(const std::string& filename, const std::string& initial) -> bool {
     try {
         YAML::Node config = YAML::LoadFile(filename);
         YAML::Node  params = config["config"]["params"];
@@ -14,7 +14,7 @@ bool ConfigParser::Parse(const std::string& filename, const std::string& initial
         // std::cout << global_variables.c << std::endl;
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Error parsing YAML: " << e.what() << std::endl;
+        std::cerr << "Error parsing YAML: " << e.what() << '\n';
         return false;
     }
 }

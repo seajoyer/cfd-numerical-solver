@@ -88,5 +88,6 @@ void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
         }
     }
 }
+
 InletBoundary::InletBoundary(double rho_in, double u_in, double p_in)
-    : rhoIn(rho_in), uIn(u_in), pIn(p_in) {}
+    : rho_in_(rho_in), u_in_(u_in), p_in_(p_in) {}

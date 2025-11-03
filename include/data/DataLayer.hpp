@@ -51,55 +51,55 @@ struct DataLayer {
      * @param axis Spatial axis (ignored for 1D)
      * @return Index of first physical cell
      */
-    int GetCoreStart(const int axis = 0) const { (void)axis; return nGhostCells; }
+    [[nodiscard]] auto GetCoreStart(const int axis = 0) const -> int;
     /**
      * @brief Returns one-past-last index of the core domain.
      * @param axis Spatial axis (ignored for 1D)
      * @return End index (exclusive)
      */
-    int GetCoreEndExclusive(const int axis = 0) const { (void)axis; return nGhostCells + n; }
+    [[nodiscard]] auto GetCoreEndExclusive(const int axis = 0) const -> int;
 
     /**
      * @brief Returns the number of physical cells (without ghost zones).
      * @return Number of cells (N)
      */
-    int GetN() const { return n; }
+    [[nodiscard]] auto GetN() const -> int { return n_; }
 
     /**
      * @brief Returns the number of ghost cells on each side.
      * @return Number of ghost cells (padding)
      */
-    int GetPadding() const { return nGhostCells; }
+    [[nodiscard]] auto GetPadding() const -> int { return n_ghost_cells_; }
 
     /**
      * @brief Returns the current problem dimension (1D by default).
      * @return Dimension of the grid
      */
-    int GetDim() const { return dimention; }
+    [[nodiscard]] auto GetDim() const -> int { return dimention_; }
 
     /**
      * @brief Changes number of cells and reallocates all internal arrays.
      * @param newN New number of physical cells
      */
-    void SetN(int newN);
+    void SetN(int new_N);
 
     /**
      * @brief Changes number of ghost cells and reallocates arrays.
      * @param newPadding New ghost cell count
      */
-    void SetPadding(int newPadding);
+    void SetPadding(int new_padding);
 
     /**
      * @brief Sets spatial dimension (currently only dim=1 supported).
      * @param newDim Dimension (1)
      */
-    void SetDim(int newDim);
+    void SetDim(int new_dim);
 
 private:
-    int n;
-    int nGhostCells;
-    int dimention = 1;
-    int totalSize = 0;
+    int n_;
+    int n_ghost_cells_;
+    int dimention_ = 1;
+    int total_size_ = 0;
 
     /**
      * @brief Recomputes total sizes after n or padding are changed.
