@@ -41,11 +41,15 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/config/*.cpp
         ${PROJECT_SOURCE_DIR}/src/data/*.cpp
         ${PROJECT_SOURCE_DIR}/src/solver/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/visualization/*.cpp)
+        ${PROJECT_SOURCE_DIR}/src/visualization/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/bc/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/*.cpp)
 file(GLOB headers ${PROJECT_SOURCE_DIR}/include/config/*.hpp
         ${PROJECT_SOURCE_DIR}/include/data/*.hpp
         ${PROJECT_SOURCE_DIR}/include/solver/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/visualization/*.hpp)
+        ${PROJECT_SOURCE_DIR}/include/visualization/*.hpp
+        ${PROJECT_SOURCE_DIR}/include/bc/*.hpp
+        ${PROJECT_SOURCE_DIR}/include/*.hpp)
 
 add_executable(${NAME} src/main.cpp ${sources} ${headers})
 
