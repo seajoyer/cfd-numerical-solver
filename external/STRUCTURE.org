@@ -1,6 +1,6 @@
 #+title: Project Structure and Tasks
 
-[[file:README.org][← back to README]]
+[[file:../README.org][← back to README]]
 
 ** File structure
 #+begin_example monospace
@@ -8,7 +8,7 @@ cfd-numerical-solver/
 ├── .gitignore
 ├── README.org
 ├── CMakeLists.txt
-├── options.yaml
+├── parameters.yaml
 ├── docs/
 │   ├── ...
 │   └── Doxyfile

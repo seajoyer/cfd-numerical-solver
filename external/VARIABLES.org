@@ -1,6 +1,6 @@
 #+title: Variable Standards
 
-[[file:README.org][← back to README]]
+[[file:../README.org][← back to README]]
 
 ** Internal Parameters
 - ~P~ - pressure

@@ -5,37 +5,36 @@ project(${NAME} LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Подключаем модуль FetchContent
+find_package(xtensor REQUIRED)
+find_package(VTK REQUIRED)
+
 include(FetchContent)
 
-# Загружаем xtl (базовая зависимость для xtensor)
-FetchContent_Declare(
-        xtl
-        GIT_REPOSITORY https://github.com/xtensor-stack/xtl.git
-        GIT_TAG 0.8.1
-        GIT_SHALLOW TRUE
-)
+# Set to prefer system packages
+set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE ALWAYS)
 
-# Загружаем xtensor
-FetchContent_Declare(
-        xtensor
-        GIT_REPOSITORY https://github.com/xtensor-stack/xtensor.git
-        GIT_TAG 0.27.1
-        GIT_SHALLOW TRUE
-)
+macro(safe_fetch_content package_name repo tag)
+    if(NOT TARGET ${package_name})
+        find_package(${package_name} QUIET)
+        if(NOT ${package_name}_FOUND)
+            FetchContent_Declare(
+                ${package_name}
+                GIT_REPOSITORY ${repo}
+                GIT_TAG ${tag}
+                GIT_SHALLOW TRUE
+                FIND_PACKAGE_ARGS NAMES ${package_name}
+            )
+            FetchContent_MakeAvailable(${package_name})
+        endif()
+    endif()
+endmacro()
 
-# Загружаем yaml-cpp
-FetchContent_Declare(
-        yaml-cpp
-        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-        GIT_TAG 0.8.0
-        GIT_SHALLOW TRUE
-)
-
-# Делаем зависимости доступными
-FetchContent_MakeAvailable(xtl xtensor yaml-cpp)
+# Use the macro for each dependency
+safe_fetch_content(xtl https://github.com/xtensor-stack/xtl.git 0.8.1)
+safe_fetch_content(xtensor https://github.com/xtensor-stack/xtensor.git 0.27.1)
+safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -50,4 +49,4 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/config/*.hpp
 
 add_executable(${NAME} src/main.cpp ${sources} ${headers})
 
-target_link_libraries(${NAME} PRIVATE xtensor yaml-cpp::yaml-cpp)
+target_link_libraries(${NAME} PRIVATE xtensor yaml-cpp::yaml-cpp ${VTK_LIBRARIES})
