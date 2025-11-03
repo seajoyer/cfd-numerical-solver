@@ -1,0 +1,49 @@
+config:
+  solver: godunov
+  params:
+    t_final: 10
+    N: 200
+    padding: 2
+    CFL: 0.5
+    c: 300
+    gamma: 1.4
+    dim: 1
+    L_x: 10
+    L_y: 10
+    L_z: 10
+    initial:
+      soda1:
+        rho_L: 1.0
+        u_L: 0.0
+        P_L: 1.0
+        rho_R: 0.125
+        u_R: 0.0
+        P_R: 0.1
+      soda2:
+        rho_L: 1.0
+        u_L: -2.0
+        P_L: 0.4
+        rho_R: 1.0
+        u_R: 2.0
+        P_R: 0.4
+      soda3:
+        rho_L: 1.0
+        u_L: 0.0
+        P_L: 1000.0
+        rho_R: 1.0
+        u_R: 0.0
+        P_R: 0.01
+      soda4:
+        rho_L: 1.0
+        u_L: 0.0
+        P_L: 0.01
+        rho_R: 1.0
+        u_R: 0.0
+        P_R: 100.0
+      soda5:
+        rho_L: 5.99924
+        u_L: 19.5975
+        P_L: 460.894
+        rho_R: 5.99242
+        u_R: -6.19633
+        P_R: 46.0950
