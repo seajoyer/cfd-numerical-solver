@@ -5,7 +5,7 @@
 
 ConfigParser::ConfigParser() = default;
 
-auto ConfigParser::Parse(const std::string& filename, const std::string& initial) -> bool {
+auto ConfigParser::Parse(const std::string& filename) -> bool {
     try {
         YAML::Node config_node = YAML::LoadFile(filename);
         YAML::Node settings_node = config_node["config"]["settings"];
@@ -32,6 +32,7 @@ auto ConfigParser::GetInitialConditions() const -> const InitialConditions& {
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
+    settings.boundary = node["boundary"].as<std::string>();
 
     settings.N = node["N"].as<int>();
     settings.CFL = node["CFL"].as<double>();

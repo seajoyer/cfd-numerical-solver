@@ -10,7 +10,7 @@ void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     const int core_end = layer.GetCoreEndExclusive();
 
     bool inward = false;
-    if (side == Side::kMin) {
+    if (side == Side::kLeft) {
         double ui = layer.u(core_start);
         inward = (ui > 0.0);
     } else {
@@ -18,7 +18,7 @@ void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
         inward = (ui < 0.0);
     }
 
-    if (side == Side::kMin) {
+    if (side == Side::kLeft) {
         if (inward) {
             for (int g = 0; g < pad; ++g) {
                 int dst = g;

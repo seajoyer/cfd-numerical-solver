@@ -1,6 +1,7 @@
 #ifndef GODUNOVSOLVER_HPP
 #define GODUNOVSOLVER_HPP
 
+#include <cstddef>
 #include <memory>
 #include "solver/Solver.hpp"
 #include "bc/BoundaryManager.hpp"
@@ -24,18 +25,19 @@ class GodunovSolver : public Solver {
 public:
     GodunovSolver();
 
-    void Step(DataLayer &layer, double &time, double t_end) override;
+    explicit GodunovSolver(int dim);
 
-    void SetCfl(double value) override;
+    auto Step(DataLayer &layer, double &t_cur) -> double override;
+
+    void SetCfl(double cfl) override;
 
     void AddBoundary(int axis,
-                     std::shared_ptr<BoundaryCondition> min,
-                     std::shared_ptr<BoundaryCondition> max) override;
+                     std::shared_ptr<BoundaryCondition> left,
+                     std::shared_ptr<BoundaryCondition> right) override;
 
 private:
     double cfl_ = 0.5;
     BoundaryManager bc_manager_;
-    int dim_ = 1;
 };
 
 #endif // GODUNOVSOLVER_HPP

@@ -98,18 +98,18 @@ private:
      * @brief Writes simulation data for a specific time step.
      *
      * @param step Current time step index.
-     * @param time Physical time corresponding to this step.
+     * @param t_cur Physical time corresponding to this step.
      *
      * @note The method checks output frequency using ShouldWrite() before writing.
      */
-    void WriteStepState(std::size_t step, double time) const;
+    void WriteStepState(std::size_t step, double t_cur) const;
 
     Settings settings_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> writer_;
     std::unique_ptr<DataLayer> layer_;
 
-    double time_ = 0.0;
+    double t_cur_ = 0.0;
     std::size_t step_ = 0;
 };
 

@@ -17,7 +17,7 @@
 - ~l~ - space along X
 - ~m~ - space along Y
 - ~n~ - space along Z
-- ~t~ - current time
+- ~t_cur~ - current time
 
 ** Global Parameters
 - ~gamma~ - adiabatic index

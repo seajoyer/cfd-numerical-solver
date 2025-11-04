@@ -1,87 +1,66 @@
-#ifndef VTK_WRITER_H_
-#define VTK_WRITER_H_
+#ifndef VTKWRITER_HPP
+#define VTKWRITER_HPP
 
-#include <memory>
+#include "StepWriter.hpp"
 #include <string>
-#include <vector>
+#include <memory>
 
-// Forward declarations to avoid including VTK headers in the header
-class vtkStructuredGrid;
-class vtkDoubleArray;
-class vtkPoints;
-
-class VTKWriter {
-   public:
-    // Constructor
-    VTKWriter();
-
-    // Destructor
-    ~VTKWriter();
+/**
+ * @class VTKWriter
+ * @brief Concrete implementation of StepWriter for VTK format output.
+ *
+ * This class writes simulation data to VTK structured grid files.
+ * It supports 1D, 2D, and 3D data output with automatic conversion
+ * from DataLayer's internal representation to VTK format.
+ *
+ * Files are named as: output_dir/N_<gridsize>__step_<stepnum>.vtk
+ */
+class VTKWriter : public StepWriter {
+public:
+    /**
+     * @brief Constructs a VTKWriter with specified output directory.
+     * @param output_dir Directory where VTK files will be written
+     */
+    explicit VTKWriter(const std::string& output_dir);
+    ~VTKWriter() override;
 
     /**
-     * @brief Set the mesh dimensions (nx, ny, nz)
-     * @param nx Number of points in x-direction
-     * @param ny Number of points in y-direction
-     * @param nz Number of points in z-direction
+     * @brief Writes the current state of DataLayer to a VTK file.
+     * @param layer The data layer containing simulation state
+     * @param step Current simulation step number
+     * @param time Current simulation time
      */
-    void SetDimensions(int nx, int ny, int nz);
+    void Write(const DataLayer& layer, std::size_t step, double time) const override;
 
-    /**
-     * @brief Set the physical coordinates of the mesh points
-     * @param x_coords 1D vector of x-coordinates (size should be nx)
-     * @param y_coords 1D vector of y-coordinates (size should be ny)
-     * @param z_coords 1D vector of z-coordinates (size should be nz)
-     */
-    void SetCoordinates(const std::vector<double>& x_coords,
-                        const std::vector<double>& y_coords,
-                        const std::vector<double>& z_coords);
-
-    /**
-     * @brief Add a scalar field to the mesh
-     * @param field_name Name of the field (e.g., "Temperature", "Pressure")
-     * @param data 3D matrix of scalar values (nx × ny × nz)
-     */
-    void AddScalarField(
-        const std::string& field_name,
-        const std::vector<std::vector<std::vector<double>>>& data);
-
-    /**
-     * @brief Add a vector field to the mesh
-     * @param field_name Name of the field (e.g., "Velocity", "Force")
-     * @param data_x 3D matrix of x-components (nx × ny × nz)
-     * @param data_y 3D matrix of y-components (nx × ny × nz)
-     * @param data_z 3D matrix of z-components (nx × ny × nz)
-     */
-    void AddVectorField(
-        const std::string& field_name,
-        const std::vector<std::vector<std::vector<double>>>& data_x,
-        const std::vector<std::vector<std::vector<double>>>& data_y,
-        const std::vector<std::vector<std::vector<double>>>& data_z);
-
-    /**
-     * @brief Write the mesh and fields to a VTK file
-     * @param filename Output filename (should end with .vtk)
-     * @return true if successful, false otherwise
-     */
-    auto WriteToFile(const std::string& filename) -> bool;
-
-    /**
-     * @brief Clear all data from the class
-     */
-    void Clear();
-
-   private:
-    int nx_, ny_, nz_;
-    std::vector<double> x_coords_, y_coords_, z_coords_;
-
-    // PIMPL idiom to hide VTK implementation details
+private:
+    std::string output_dir_;
+    
+    // PIMPL to hide VTK implementation details
     class Impl;
     std::unique_ptr<Impl> pimpl_;
 
-    // Helper methods
-    [[nodiscard]] auto ValidateDimensions() const -> bool;
+    /**
+     * @brief Generates filename based on grid size and step number.
+     * @param N Grid size
+     * @param step Step number
+     * @return Full path to output file
+     */
+    [[nodiscard]] auto GenerateFilename(int N, std::size_t step) const -> std::string;
 
-    void CreateStructuredGrid();
+    /**
+     * @brief Writes 1D data to VTK format.
+     */
+    void Write1D(const DataLayer& layer, std::size_t step, double time) const;
+
+    /**
+     * @brief Writes 2D data to VTK format (future implementation).
+     */
+    void Write2D(const DataLayer& layer, std::size_t step, double time) const;
+
+    /**
+     * @brief Writes 3D data to VTK format (future implementation).
+     */
+    void Write3D(const DataLayer& layer, std::size_t step, double time) const;
 };
 
-#endif  // VTK_WRITER_H_
+#endif // VTKWRITER_HPP

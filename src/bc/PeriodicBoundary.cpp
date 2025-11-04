@@ -11,7 +11,7 @@ void PeriodicBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     const int core_end = layer.GetCoreEndExclusive();
 
 
-    if (side == Side::kMin) {
+    if (side == Side::kLeft) {
         auto l_copy = xt::view(layer.rho, xt::range(core_end - pad, core_end));
         auto u_copy = xt::view(layer.u, xt::range(core_end - pad, core_end));
         auto P_copy = xt::view(layer.P, xt::range(core_end - pad, core_end));

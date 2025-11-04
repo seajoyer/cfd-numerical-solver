@@ -2,40 +2,48 @@
 #define SOLVER_HPP
 
 #include <memory>
-#include "bc/BoundaryManager.hpp"
 
 struct DataLayer;
 class BoundaryCondition;
 
-
 /**
  * @class Solver
- * @brief Abstract base class for all numerical solvers.
+ * @brief Abstract base class for numerical solvers.
  *
- * Provides a unified interface for advancing physical quantities in time.
- * Concrete solvers (e.g., GodunovSolver) implement numerical schemes
- * for different orders of accuracy or flux computation methods.
- *
- * This class follows the Dependency Inversion Principle (DIP) —
- * higher-level modules depend on abstractions rather than specific implementations.
- *
- * @note Solver does not store configuration of the grid or time controller directly;
- *       it operates on an external DataLayer that contains all variable arrays.
+ * This class defines the interface for time-stepping algorithms
+ * used to advance the simulation state. Concrete implementations
+ * (e.g., GodunovSolver) provide specific numerical schemes.
  */
 class Solver {
 public:
     virtual ~Solver() = default;
 
+    /**
+     * @brief Advances the simulation by one time step.
+     * @param layer Data layer containing current state (modified in-place)
+     * @param t_cur Current simulation time (will be updated)
+     * @return Actual time step taken (dt)
+     */
+    virtual auto Step(DataLayer& layer, double& t_cur) -> double;
 
-    virtual void Step(DataLayer &layer, double &time, double t_end) = 0;
+    /**
+     * @brief Sets the CFL number for time step calculation.
+     * @param cfl CFL number (typically 0.4-0.9)
+     */
+    virtual void SetCfl(double cfl) = 0;
 
-
-    virtual void SetCfl(double value) = 0;
-
-
+    /**
+     * @brief Adds boundary conditions for a specific axis.
+     * @param axis Spatial axis index (0=x, 1=y, 2=z)
+     * @param left Boundary condition for left/lower boundary
+     * @param right Boundary condition for right/upper boundary
+     */
     virtual void AddBoundary(int axis,
-                             std::shared_ptr<BoundaryCondition> min,
-                             std::shared_ptr<BoundaryCondition> max) = 0;
+                           std::shared_ptr<BoundaryCondition> left,
+                           std::shared_ptr<BoundaryCondition> right) = 0;
+
+protected:
+    double cfl_ = 0.5;
 };
 
 #endif // SOLVER_HPP

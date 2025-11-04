@@ -6,8 +6,9 @@
 
 struct Settings {
     std::string solver = "godunov";
+    std::string boundary = "free_stream";
 
-    int N = 0;
+    int N = 200;
     double CFL = 0.5;
     double t_end = 0.2;
     int padding = 2;

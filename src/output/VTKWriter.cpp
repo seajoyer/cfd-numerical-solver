@@ -1,4 +1,5 @@
 #include "output/VTKWriter.hpp"
+#include "data/DataLayer.hpp"
 
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
@@ -6,9 +7,15 @@
 #include <vtkStructuredGrid.h>
 #include <vtkStructuredGridWriter.h>
 
+#include <filesystem>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <stdexcept>
+
 // PIMPL implementation
 class VTKWriter::Impl {
-   public:
+public:
     vtkSmartPointer<vtkStructuredGrid> structured_grid;
     vtkSmartPointer<vtkPoints> points;
 
@@ -18,181 +25,118 @@ class VTKWriter::Impl {
     }
 };
 
-VTKWriter::VTKWriter()
-    : nx_(0), ny_(0), nz_(0), pimpl_(std::make_unique<Impl>()) {}
+VTKWriter::VTKWriter(const std::string& output_dir)
+    : output_dir_(output_dir), pimpl_(std::make_unique<Impl>()) {
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories(output_dir_);
+}
 
 VTKWriter::~VTKWriter() = default;
 
-void VTKWriter::SetDimensions(int nx, int ny, int nz) {
-    if (nx <= 0 || ny <= 0 || nz <= 0) {
-        throw std::invalid_argument("Dimensions must be positive");
-    }
-    nx_ = nx;
-    ny_ = ny;
-    nz_ = nz;
+auto VTKWriter::GenerateFilename(int N, std::size_t step) const -> std::string {
+    std::ostringstream oss;
+    oss << output_dir_ << "/N_" << N << "__step_" 
+        << std::setw(4) << std::setfill('0') << step << ".vtk";
+    return oss.str();
 }
 
-void VTKWriter::SetCoordinates(const std::vector<double>& x_coords,
-                               const std::vector<double>& y_coords,
-                               const std::vector<double>& z_coords) {
-    if (x_coords.size() != static_cast<size_t>(nx_) ||
-        y_coords.size() != static_cast<size_t>(ny_) ||
-        z_coords.size() != static_cast<size_t>(nz_)) {
-        throw std::invalid_argument("Coordinate sizes don't match dimensions");
+void VTKWriter::Write(const DataLayer& layer, std::size_t step, double time) const {
+    const int dim = layer.GetDim();
+    
+    switch (dim) {
+        case 1:
+            Write1D(layer, step, time);
+            break;
+        case 2:
+            Write2D(layer, step, time);
+            break;
+        case 3:
+            Write3D(layer, step, time);
+            break;
+        default:
+            throw std::runtime_error("Unsupported dimension: " + std::to_string(dim));
     }
-
-    x_coords_ = x_coords;
-    y_coords_ = y_coords;
-    z_coords_ = z_coords;
 }
 
-void VTKWriter::AddScalarField(
-    const std::string& field_name,
-    const std::vector<std::vector<std::vector<double>>>& data) {
-    if (!ValidateDimensions()) {
-        throw std::runtime_error("Dimensions not set properly");
+void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) const {
+    const int N = layer.GetN();
+    const int start = layer.GetCoreStart();
+    const int end = layer.GetCoreEndExclusive();
+    
+    // Generate filename
+    std::string filename = GenerateFilename(N, step);
+
+    // Create fresh VTK objects for this write
+    vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+
+    // Set dimensions: 1D data represented as line (nx points, 1x1 in y,z)
+    const int nx = N;
+    const int ny = 1;
+    const int nz = 1;
+    grid->SetDimensions(nx, ny, nz);
+
+    // Create points from cell centers
+    points->SetNumberOfPoints(nx * ny * nz);
+    for (int i = 0; i < nx; ++i) {
+        const int idx = start + i;
+        const double x = layer.xc(idx);
+        points->SetPoint(i, x, 0.0, 0.0);
     }
+    grid->SetPoints(points);
 
-    // Validate data dimensions
-    if (data.size() != static_cast<size_t>(nx_) ||
-        data[0].size() != static_cast<size_t>(ny_) ||
-        data[0][0].size() != static_cast<size_t>(nz_)) {
-        throw std::invalid_argument(
-            "Scalar field dimensions don't match mesh dimensions");
-    }
-
-    // Create VTK array
-    vtkSmartPointer<vtkDoubleArray> scalar_array =
-        vtkSmartPointer<vtkDoubleArray>::New();
-    scalar_array->SetName(field_name.c_str());
-    scalar_array->SetNumberOfComponents(1);
-    scalar_array->SetNumberOfValues(nx_ * ny_ * nz_);
-
-    // Fill the array (VTK uses Fortran ordering: x fastest, then y, then z)
-    int index = 0;
-    for (int k = 0; k < nz_; ++k) {
-        for (int j = 0; j < ny_; ++j) {
-            for (int i = 0; i < nx_; ++i) {
-                scalar_array->SetValue(index++, data[i][j][k]);
-            }
+    // Helper lambda to add scalar field
+    auto add_scalar_field = [&](const xt::xarray<double>& data, const char* name) -> void {
+        vtkSmartPointer<vtkDoubleArray> array = vtkSmartPointer<vtkDoubleArray>::New();
+        array->SetName(name);
+        array->SetNumberOfComponents(1);
+        array->SetNumberOfValues(nx);
+        for (int i = 0; i < nx; ++i) {
+            const int idx = start + i;
+            array->SetValue(i, data(idx));
         }
-    }
+        grid->GetPointData()->AddArray(array);
+    };
 
-    pimpl_->structured_grid->GetPointData()->AddArray(scalar_array);
+    // Add all scalar fields
+    add_scalar_field(layer.rho, "density");
+    add_scalar_field(layer.u, "velocity");
+    add_scalar_field(layer.P, "pressure");
+    add_scalar_field(layer.p, "momentum");
+    add_scalar_field(layer.e, "specific_internal_energy");
+    add_scalar_field(layer.U, "conserved_energy");
+    add_scalar_field(layer.V, "volume");
+    add_scalar_field(layer.m, "mass");
+    // add_scalar_field(layer.xb, "cell_boundary_coords");
+    // add_scalar_field(layer.xc, "cell_center_coords");
+
+    // Add time as field data
+    vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
+    time_array->SetName("TimeValue");
+    time_array->SetNumberOfComponents(1);
+    time_array->InsertNextValue(time);
+    grid->GetFieldData()->AddArray(time_array);
+
+    // Write to file
+    vtkSmartPointer<vtkStructuredGridWriter> writer = 
+        vtkSmartPointer<vtkStructuredGridWriter>::New();
+    writer->SetFileName(filename.c_str());
+    writer->SetInputData(grid);
+    writer->SetFileTypeToBinary();
+    writer->Write();
+
+    std::cout << "Wrote VTK file: " << filename 
+              << " (step=" << step << ", time=" << time << ")" << '\n';
 }
 
-void VTKWriter::AddVectorField(
-    const std::string& field_name,
-    const std::vector<std::vector<std::vector<double>>>& data_x,
-    const std::vector<std::vector<std::vector<double>>>& data_y,
-    const std::vector<std::vector<std::vector<double>>>& data_z) {
-    if (!ValidateDimensions()) {
-        throw std::runtime_error("Dimensions not set properly");
-    }
-
-    // Validate data dimensions
-    if (data_x.size() != static_cast<size_t>(nx_) ||
-        data_x[0].size() != static_cast<size_t>(ny_) ||
-        data_x[0][0].size() != static_cast<size_t>(nz_) ||
-        data_y.size() != static_cast<size_t>(nx_) ||
-        data_y[0].size() != static_cast<size_t>(ny_) ||
-        data_y[0][0].size() != static_cast<size_t>(nz_) ||
-        data_z.size() != static_cast<size_t>(nx_) ||
-        data_z[0].size() != static_cast<size_t>(ny_) ||
-        data_z[0][0].size() != static_cast<size_t>(nz_)) {
-        throw std::invalid_argument(
-            "Vector field dimensions don't match mesh dimensions");
-    }
-
-    // Create VTK array
-    vtkSmartPointer<vtkDoubleArray> vector_array =
-        vtkSmartPointer<vtkDoubleArray>::New();
-    vector_array->SetName(field_name.c_str());
-    vector_array->SetNumberOfComponents(3);
-    vector_array->SetNumberOfTuples(nx_ * ny_ * nz_);
-
-    // Fill the array
-    int index = 0;
-    for (int k = 0; k < nz_; ++k) {
-        for (int j = 0; j < ny_; ++j) {
-            for (int i = 0; i < nx_; ++i) {
-                double vector[3] = {data_x[i][j][k], data_y[i][j][k],
-                                    data_z[i][j][k]};
-                vector_array->SetTuple(index++, vector);
-            }
-        }
-    }
-
-    pimpl_->structured_grid->GetPointData()->AddArray(vector_array);
+void VTKWriter::Write2D(const DataLayer& layer, std::size_t step, double time) const {
+    // Placeholder for 2D implementation
+    // In the future, this will handle 2D grids with proper indexing
+    throw std::runtime_error("2D VTK output not yet implemented");
 }
 
-auto VTKWriter::WriteToFile(const std::string& filename) -> bool {
-    if (!ValidateDimensions()) {
-        std::cerr << "Error: Dimensions not set properly" << '\n';
-        return false;
-    }
-
-    try {
-        // Create the structured grid if not already created
-        if (pimpl_->points->GetNumberOfPoints() == 0) {
-            CreateStructuredGrid();
-        }
-
-        // Create writer
-        vtkSmartPointer<vtkStructuredGridWriter> writer =
-            vtkSmartPointer<vtkStructuredGridWriter>::New();
-        writer->SetFileName(filename.c_str());
-        writer->SetInputData(pimpl_->structured_grid);
-
-        // Write binary format for better performance
-        writer->SetFileTypeToBinary();
-
-        // Write the file
-        writer->Write();
-
-        std::cout << "Successfully wrote VTK file: " << filename << '\n';
-        return true;
-
-    } catch (const std::exception& e) {
-        std::cerr << "Error writing VTK file: " << e.what() << '\n';
-        return false;
-    }
-}
-
-void VTKWriter::CreateStructuredGrid() {
-    // Set grid dimensions
-    pimpl_->structured_grid->SetDimensions(nx_, ny_, nz_);
-
-    // Create points
-    pimpl_->points->SetNumberOfPoints(nx_ * ny_ * nz_);
-
-    int point_id = 0;
-    for (int k = 0; k < nz_; ++k) {
-        for (int j = 0; j < ny_; ++j) {
-            for (int i = 0; i < nx_; ++i) {
-                double x =
-                    (x_coords_.empty()) ? static_cast<double>(i) : x_coords_[i];
-                double y =
-                    (y_coords_.empty()) ? static_cast<double>(j) : y_coords_[j];
-                double z =
-                    (z_coords_.empty()) ? static_cast<double>(k) : z_coords_[k];
-                pimpl_->points->SetPoint(point_id++, x, y, z);
-            }
-        }
-    }
-
-    pimpl_->structured_grid->SetPoints(pimpl_->points);
-}
-
-[[nodiscard]] auto VTKWriter::ValidateDimensions() const -> bool {
-    return (nx_ > 0 && ny_ > 0 && nz_ > 0);
-}
-
-void VTKWriter::Clear() {
-    nx_ = ny_ = nz_ = 0;
-    x_coords_.clear();
-    y_coords_.clear();
-    z_coords_.clear();
-    pimpl_->structured_grid = vtkSmartPointer<vtkStructuredGrid>::New();
-    pimpl_->points = vtkSmartPointer<vtkPoints>::New();
+void VTKWriter::Write3D(const DataLayer& layer, std::size_t step, double time) const {
+    // Placeholder for 3D implementation
+    // In the future, this will handle 3D grids with proper indexing
+    throw std::runtime_error("3D VTK output not yet implemented");
 }

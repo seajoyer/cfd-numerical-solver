@@ -1,29 +1,27 @@
 #include "solver/GodunovSolver.hpp"
+#include <cstddef>
 #include "data/DataLayer.hpp"
 
-GodunovSolver::GodunovSolver()
-    : bc_manager_(1) {
-}
+GodunovSolver::GodunovSolver() : bc_manager_(1) {}
 
-void GodunovSolver::SetCfl(double value) {
-    cfl_ = value;
-}
+GodunovSolver::GodunovSolver(int dim) : bc_manager_(dim) {}
+
+void GodunovSolver::SetCfl(double cfl) { cfl_ = cfl; }
 
 void GodunovSolver::AddBoundary(int axis,
-                                std::shared_ptr<BoundaryCondition> min,
-                                std::shared_ptr<BoundaryCondition> max) {
-    bc_manager_.Set(axis, std::move(min), std::move(max));
+                                std::shared_ptr<BoundaryCondition> left,
+                                std::shared_ptr<BoundaryCondition> right) {
+    bc_manager_.Set(axis, std::move(left), std::move(right));
 }
 
-void GodunovSolver::Step(DataLayer &layer, double &time, double t_end) {
+// TODO: implement support of multiple dimensions
+
+auto GodunovSolver::Step(DataLayer &layer, double &t_cur) -> double {
     bc_manager_.ApplyAll(layer);
 
-
-    double dt = 0.0; // TODO: рассчитать по CFL
+    double dt = 0.0; // TODO(dmitry): рассчитать по CFL, на каждом шаге или 1 раз при инициализации солвера, хз
 
     // Вычислить потоки и обновить layer (TODO)
 
-
-    (void) t_end;
-    time += dt;
+    return dt;
 }

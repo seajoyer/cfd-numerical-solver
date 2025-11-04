@@ -8,7 +8,7 @@
 class ConfigParser {
 public:
     ConfigParser();
-    auto Parse(const std::string& filename, const std::string& initial) -> bool;
+    auto Parse(const std::string& filename) -> bool;
 
     [[nodiscard]] auto GetSettings() const -> const Settings&;
     [[nodiscard]] auto GetInitialConditions() const -> const InitialConditions&;

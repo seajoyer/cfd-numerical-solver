@@ -1,6 +1,14 @@
 config:
   settings:
     solver: godunov
+    boundary: free_stream
+            # inlet
+            # outlet
+            # reflective
+            # non_reflective
+            # periodic
+            # symmetry
+            # wall
 
     N: 200
     CFL: 0.5

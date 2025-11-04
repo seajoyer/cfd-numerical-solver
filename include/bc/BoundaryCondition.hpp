@@ -3,7 +3,7 @@
 
 struct DataLayer;
 
-enum class Side { kMin = 0, kMax = 1 };
+enum class Side { kLeft = 0, kRight = 1 };
 
 /**
  * @class BoundaryCondition
@@ -33,12 +33,12 @@ public:
     /**
      * @brief Applies the boundary condition to a given DataLayer along a specific axis.
      *
-     * This method updates ghost cells corresponding to the specified side (Min or Max)
+     * This method updates ghost cells corresponding to the specified side (Left or Right)
      * of the computational domain.
      *
      * @param layer Reference to the current data layer being modified.
      * @param axis Spatial axis along which the condition is applied (0 for 1D).
-     * @param side Which boundary to apply: Side::Min (left) or Side::Max (right).
+     * @param side Which boundary to apply: Side::kLeft (left) or Side::kRight (right).
      *
      * @note Derived classes define the concrete logic of this method.
      */

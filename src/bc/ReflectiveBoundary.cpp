@@ -9,7 +9,7 @@ void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
     const int core_start = layer.GetCoreStart();
     const int core_end = layer.GetCoreEndExclusive();
 
-    if (side == Side::kMin) {
+    if (side == Side::kLeft) {
         for (int g = 0; g < pad; ++g) {
             const int mirror = core_start + g;
             const int dst = pad - 1 - g;
