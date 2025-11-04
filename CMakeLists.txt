@@ -40,17 +40,18 @@ safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
 add_executable(${NAME}
     src/main.cpp
 
-    src/config/ConfigParser.cpp
-    src/config/StepWriter.cpp
-    include/config/Settings.hpp
-    include/config/InitialConditions.hpp
-
-    src/data/DataLayer.cpp
+    src/Simulation.cpp
 
     src/solver/Solver.cpp
     src/solver/GodunovSolver.cpp
 
-    src/visualization/VTKWriter.cpp
+    src/output/VTKWriter.cpp
+
+    src/data/DataLayer.cpp
+
+    src/config/ConfigParser.cpp
+    include/config/Settings.hpp
+    include/config/InitialConditions.hpp
 
     src/bc/BoundaryManager.cpp
     src/bc/FreeStreamBoundary.cpp
@@ -60,6 +61,7 @@ add_executable(${NAME}
     src/bc/ReflectiveBoundary.cpp
     src/bc/SymmetryBoundary.cpp
     src/bc/WallBoundary.cpp 
+    include/bc/BoundaryCondition.hpp
 )
 
 target_include_directories(${NAME}
