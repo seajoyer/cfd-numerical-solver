@@ -54,7 +54,7 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.L_z = node["L_z"].as<double>();
 
     settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
-    settings.output_types = node["output_types"].as<std::vector<std::string>>();
+    settings.output_format = node["output_format"].as<std::string>();
     settings.output_dir = node["output_dir"].as<std::string>();
 }
 

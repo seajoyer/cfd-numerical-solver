@@ -15,12 +15,16 @@ auto SolverFactory::Create(const std::string& solver_type, int dim) -> std::uniq
     }
 
     // Future solvers can be added here:
+    // 
     // if (type_lower == "muscl") {
     //     return std::make_unique<MUSCLSolver>(dim);
     // }
+    // 
     // if (type_lower == "weno") {
     //     return std::make_unique<WENOSolver>(dim);
     // }
+    //
+    // etc ...
 
     throw std::runtime_error("Unknown solver type: " + solver_type);
 }

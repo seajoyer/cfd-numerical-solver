@@ -7,7 +7,7 @@
 auto main(int argc, char* argv[]) -> int {
     try {
         std::string config_path = "../config.yaml";
-        std::cout << "Loading configuration from: " << config_path << '\n';
+        std::cout << "Loading configuration from: " << config_path << "\n\n";
 
         auto parser = ConfigParser();
         parser.Parse(config_path);
@@ -15,9 +15,10 @@ auto main(int argc, char* argv[]) -> int {
 
         int test_num = 1;
         InitialConditions initial_conditions = parser.GetSODTest(test_num);
-        std::cout << "Using initial conditions: sod" << test_num << '\n';
+        std::cout << "Using initial conditions: sod" << test_num << "\n\n";
 
-        Simulation sim(settings, initial_conditions);
+        bool log_progress = true;
+        Simulation sim(settings, initial_conditions, log_progress);
         sim.Run();
 
         return 0;

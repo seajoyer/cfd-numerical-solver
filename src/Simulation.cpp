@@ -1,15 +1,20 @@
 #include "Simulation.hpp"
 
+#include <iomanip>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
 #include "bc/BoundaryFactory.hpp"
-#include "output/VTKWriter.hpp"
+#include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 
-Simulation::Simulation(Settings settings, InitialConditions initial_conditions)
-    : settings_(std::move(settings)), initial_conditions_(initial_conditions) {}
+Simulation::Simulation(Settings settings, InitialConditions initial_conditions,
+                       bool log_progress)
+    : settings_(std::move(settings)),
+      initial_conditions_(initial_conditions),
+      log_progress_(log_progress) {}
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
     return SolverFactory::Create(settings_.solver, settings_.dim);
@@ -19,6 +24,12 @@ auto Simulation::CreateBoundaryCondition(const std::string& boundary_type, doubl
                                          double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
     return BoundaryFactory::Create(boundary_type, rho_inf, u_inf, p_inf);
+}
+
+auto Simulation::CreateWriter(const std::string& output_format,
+                              const std::string& output_dir)
+    -> std::unique_ptr<StepWriter> {
+    return WriterFactory::Create(output_format, output_dir);
 }
 
 void Simulation::ApplyInitialConditions() {
@@ -97,27 +108,28 @@ void Simulation::Initialize() {
     solver_->AddBoundary(0, left_bc, right_bc);
 
     // Initialize output writer
-    writer_ = std::make_unique<VTKWriter>(settings_.output_dir);
+    writer_ = CreateWriter(settings_.output_format, settings_.output_dir);
 
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
-    std::cout << "  Solver: " << settings_.solver << '\n';
-    std::cout << "  Boundary left:  " << settings_.left_boundary << '\n';
-    std::cout << "  Boundary right: " << settings_.right_boundary << '\n';
-    std::cout << "  Grid size (N): " << settings_.N << '\n';
-    std::cout << "  Dimension: " << settings_.dim << '\n';
-    std::cout << "  Domain length (L_x): " << settings_.L_x << '\n';
-    std::cout << "  CFL: " << settings_.cfl << '\n';
-    std::cout << "  Gamma: " << settings_.gamma << '\n';
-    std::cout << "  End time: " << settings_.t_end << '\n';
-    std::cout << "  Output directory: " << settings_.output_dir << '\n';
-    std::cout << "  Initial conditions:" << '\n';
-    std::cout << "    Left:  rho=" << initial_conditions_.rho_L
-              << ", u=" << initial_conditions_.u_L << ", P=" << initial_conditions_.P_L
-              << '\n';
-    std::cout << "    Right: rho=" << initial_conditions_.rho_R
-              << ", u=" << initial_conditions_.u_R << ", P=" << initial_conditions_.P_R
-              << "\n\n";
+    std::cout << ">>> Solver:           " << settings_.solver << '\n';
+    std::cout << ">>> Boundary left:    " << settings_.left_boundary << '\n';
+    std::cout << ">>> Boundary right:   " << settings_.right_boundary << '\n';
+    std::cout << ">>> Grid size (N):    " << settings_.N << '\n';
+    std::cout << ">>> Dimension:        " << settings_.dim << '\n';
+    std::cout << ">>> Domain length:    " << settings_.L_x << '\n';
+    std::cout << ">>> CFL:              " << settings_.cfl << '\n';
+    std::cout << ">>> Gamma:            " << settings_.gamma << '\n';
+    std::cout << ">>> End time:         " << settings_.t_end << '\n';
+    std::cout << ">>> Output directory: " << settings_.output_dir << '\n';
+    std::cout << ">>> Initial conditions:" << '\n';
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << ">>>     Left:  rho = " << std::setw(7) << initial_conditions_.rho_L
+              << ",    u = " << std::setw(7) << initial_conditions_.u_L
+              << ",    P = " << std::setw(7) << initial_conditions_.P_L << '\n';
+    std::cout << ">>>     Right: rho = " << std::setw(7) << initial_conditions_.rho_R
+              << ",    u = " << std::setw(7) << initial_conditions_.u_R
+              << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
 }
 
 auto Simulation::GetDataLayer() -> DataLayer& {
@@ -137,6 +149,7 @@ auto Simulation::ShouldWrite(std::size_t step) const -> bool {
 }
 
 void Simulation::WriteInitialState() const {
+    std::cout << "\nWriting the initial state..." << '\n';;
     if (writer_) {
         writer_->Write(*layer_, 0, 0.0);
     }
@@ -168,12 +181,23 @@ void Simulation::Run() {
         WriteStepState(step_, t_cur_);
 
         // Progress output
-        if (0 == step_ % settings_.output_every_steps) {
-            std::cout << "Step " << step_ << ", time = " << t_cur_ << '\n';
+        if (log_progress_ && 0 == step_ % settings_.output_every_steps) {
+            double progress = (t_cur_ / settings_.t_end) * 100.0;
+            int percent = static_cast<int>(progress);
+            std::cout << ">>> [PROGRESS]: Step " << step_ << ", " << percent
+                      << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
+            // if (t_cur_ > 0.0) {
+            //     double est_total_steps = step_ * (settings_.t_end / t_cur_);
+            //     std::cout << ", total steps: " << est_total_steps;
+            // } else {
+            //     std::cout << ", total steps: unknown";
+            // }
+            std::cout << '\n';
         }
     }
 
+    std::cout << '\n';
     std::cout << "Simulation completed!" << '\n';
-    std::cout << "  Final time: " << t_cur_ << '\n';
-    std::cout << "  Total steps: " << step_ << '\n';
+    std::cout << ">>> Final time:  " << t_cur_ << '\n';
+    std::cout << ">>> Total steps: " << step_ << '\n';
 }

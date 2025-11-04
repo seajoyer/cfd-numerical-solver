@@ -21,7 +21,7 @@ struct Settings {
     double L_z = 10;
 
     std::size_t output_every_steps = 1;
-    std::vector<std::string> output_types = {"vtk"};
+    std::string output_format = "vtk";
     std::string output_dir = "data/output";
 };
 

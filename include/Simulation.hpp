@@ -39,7 +39,8 @@ class Simulation {
      * @param initial_conditions Initial conditions for the simulation (optional).
      */
     explicit Simulation(Settings settings,
-                        InitialConditions initial_conditions = InitialConditions{});
+                        InitialConditions initial_conditions = InitialConditions{},
+                        bool log_progress = true);
 
     /**
      * @brief Runs the full simulation loop.
@@ -106,6 +107,19 @@ class Simulation {
         -> std::shared_ptr<BoundaryCondition>;
 
     /**
+     * @brief Creates an output writer based on the configured format and directory.
+     *
+     * Delegates to WriterFactory for instantiation.
+     *
+     * @param output_format String identifier for the output format (e.g., "vtk").
+     * @param output_dir Directory path for output files.
+     * @return Unique pointer to the created StepWriter.
+     * @throws std::runtime_error if format is unsupported (propagated from factory).
+     */
+    auto CreateWriter(const std::string& output_format, const std::string& output_dir)
+        -> std::unique_ptr<StepWriter>;
+
+    /**
      * @brief Applies initial conditions to the data layer.
      *
      * Sets up the initial state of the physical fields based on the
@@ -140,6 +154,7 @@ class Simulation {
 
     Settings settings_;
     InitialConditions initial_conditions_;
+    bool log_progress_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> writer_;
     std::unique_ptr<DataLayer> layer_;

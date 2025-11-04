@@ -64,6 +64,12 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     const int start = layer.GetCoreStart();
     const int end = layer.GetCoreEndExclusive();
     
+    // Fix: Use actual core size for nx
+    const int nx = end - start;
+    if (nx <= 0) {
+        throw std::runtime_error("Invalid core range: start=" + std::to_string(start) + ", end=" + std::to_string(end));
+    }
+    
     // Generate filename
     std::string filename = GenerateFilename(N, step);
 
@@ -71,30 +77,51 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 
-    // Set dimensions: 1D data represented as line (nx points, 1x1 in y,z)
-    const int nx = N;
-    const int ny = 1;
+    // Expansion along Y for better visualization: represent 1D as thin slab in XY plane
+    const int ny = 20;  // Number of points along Y (hardcoded for visualization)
     const int nz = 1;
     grid->SetDimensions(nx, ny, nz);
 
-    // Create points from cell centers
-    points->SetNumberOfPoints(static_cast<vtkIdType>(nx * ny) * nz);
-    for (int i = 0; i < nx; ++i) {
-        const int idx = start + i;
-        const double x = layer.xc(idx);
-        points->SetPoint(i, x, 0.0, 0.0);
+    // Compute domain length in X for scaling Y extent
+    double min_x = layer.xc(start);
+    double max_x = layer.xc(start + nx - 1);
+    double Lx = max_x - min_x;
+    double Ly = Lx;  // Match Y extent to X for consistent scaling
+    double dy = (ny > 1) ? Ly / (ny - 1) : 0.0;
+
+    // Total number of points
+    vtkIdType num_points = static_cast<vtkIdType>(nx) * ny * nz;
+    points->SetNumberOfPoints(num_points);
+
+    // Set points: structured grid ordering (i fastest, then j, then k)
+    for (int k = 0; k < nz; ++k) {
+        for (int j = 0; j < ny; ++j) {
+            double y = 0.0 + static_cast<double>(j) * dy;
+            for (int i = 0; i < nx; ++i) {
+                double x = layer.xc(start + i);
+                double z = 0.0;
+                auto pid = static_cast<vtkIdType>(i + j * nx) + static_cast<vtkIdType>(k * nx * ny);
+                points->SetPoint(pid, x, y, z);
+            }
+        }
     }
     grid->SetPoints(points);
 
-    // Helper lambda to add scalar field
+    // Helper lambda to add scalar field (repeated along Y)
     auto add_scalar_field = [&](const xt::xarray<double>& data, const char* name) -> void {
         vtkSmartPointer<vtkDoubleArray> array = vtkSmartPointer<vtkDoubleArray>::New();
         array->SetName(name);
         array->SetNumberOfComponents(1);
-        array->SetNumberOfValues(nx);
-        for (int i = 0; i < nx; ++i) {
-            const int idx = start + i;
-            array->SetValue(i, data(idx));
+        array->SetNumberOfTuples(num_points);
+        for (int k = 0; k < nz; ++k) {
+            for (int j = 0; j < ny; ++j) {
+                for (int i = 0; i < nx; ++i) {
+                    const int idx = start + i;
+                    double val = data(idx);
+                    auto pid = static_cast<vtkIdType>(i + j * nx) + static_cast<vtkIdType>(k * nx * ny);
+                    array->SetValue(pid, val);
+                }
+            }
         }
         grid->GetPointData()->AddArray(array);
     };
@@ -126,7 +153,7 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     writer->SetFileTypeToBinary();
     writer->Write();
 
-    std::cout << "Wrote VTK file: " << filename 
+    std::cout << ">>> Wrote VTK file: " << filename 
               << " (step=" << step << ", time=" << time << ")" << '\n';
 }
 

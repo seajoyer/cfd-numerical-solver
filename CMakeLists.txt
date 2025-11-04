@@ -46,6 +46,7 @@ add_executable(${NAME}
     src/solver/GodunovSolver.cpp
     include/solver/Solver.hpp
 
+    src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
 
     src/data/DataLayer.cpp
