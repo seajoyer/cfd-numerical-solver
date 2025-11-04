@@ -2,9 +2,9 @@
 #define GODUNOVSOLVER_HPP
 
 #include <memory>
-#include "solver/Solver.hpp"
-#include "bc/BoundaryManager.hpp"
 
+#include "bc/BoundaryManager.hpp"
+#include "solver/Solver.hpp"
 
 /**
  * @class GodunovSolver
@@ -21,21 +21,21 @@
  *       loops over spatial dimensions and generalizing flux computation.
  */
 class GodunovSolver : public Solver {
-public:
+   public:
     GodunovSolver();
 
-    void Step(DataLayer &layer, double &time, double tEnd) override;
+    explicit GodunovSolver(int dim);
 
-    void SetCfl(double value) override;
+    auto Step(DataLayer& layer, double& t_cur) -> double override;
 
-    void AddBoundary(int axis,
-                     std::shared_ptr<BoundaryCondition> min,
-                     std::shared_ptr<BoundaryCondition> max) override;
+    void SetCfl(double cfl) override;
 
-private:
-    double cfl = 0.5;
-    BoundaryManager bcManager;
-    int dim = 1;
+    void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
+                     std::shared_ptr<BoundaryCondition> right_bc) override;
+
+   private:
+    double cfl_ = 0.5;
+    BoundaryManager bc_manager_;
 };
 
-#endif // GODUNOVSOLVER_HPP
+#endif  // GODUNOVSOLVER_HPP

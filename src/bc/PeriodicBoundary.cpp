@@ -1,61 +1,62 @@
 #include "bc/PeriodicBoundary.hpp"
+
+#include <xtensor/views/xview.hpp>
+
 #include "data/DataLayer.hpp"
 
-
-void PeriodicBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void PeriodicBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int pad = layer.GetPadding();
     const int n = layer.GetN();
-    const int coreStart = layer.GetPadding();
-    const int coreEnd = layer.GetCoreEndExclusive();
+    const int core_start = layer.GetPadding();
+    const int core_end = layer.GetCoreEndExclusive();
 
+    if (side == Side::kLeft) {
+        auto l_copy = xt::view(layer.rho, xt::range(core_end - pad, core_end));
+        auto u_copy = xt::view(layer.u, xt::range(core_end - pad, core_end));
+        auto P_copy = xt::view(layer.P, xt::range(core_end - pad, core_end));
+        auto p_copy = xt::view(layer.p, xt::range(core_end - pad, core_end));
+        auto e_copy = xt::view(layer.e, xt::range(core_end - pad, core_end));
+        auto ue_copy = xt::view(layer.U, xt::range(core_end - pad, core_end));
+        auto v_copy = xt::view(layer.V, xt::range(core_end - pad, core_end));
+        auto m_copy = xt::view(layer.m, xt::range(core_end - pad, core_end));
+        auto xb_copy = xt::view(layer.xb, xt::range(core_end - pad, core_end));
+        auto xc_copy = xt::view(layer.xc, xt::range(core_end - pad, core_end));
 
-    if (side == Side::Min) {
-        auto LCopy = xt::view(layer.rho, xt::range(coreEnd - pad, coreEnd));
-        auto UCopy = xt::view(layer.u, xt::range(coreEnd - pad, coreEnd));
-        auto PCopy = xt::view(layer.P, xt::range(coreEnd - pad, coreEnd));
-        auto pCopy = xt::view(layer.p, xt::range(coreEnd - pad, coreEnd));
-        auto eCopy = xt::view(layer.e, xt::range(coreEnd - pad, coreEnd));
-        auto UeCopy = xt::view(layer.U, xt::range(coreEnd - pad, coreEnd));
-        auto VCopy = xt::view(layer.V, xt::range(coreEnd - pad, coreEnd));
-        auto mCopy = xt::view(layer.m, xt::range(coreEnd - pad, coreEnd));
-        auto xbCopy = xt::view(layer.xb, xt::range(coreEnd - pad, coreEnd));
-        auto xcCopy = xt::view(layer.xc, xt::range(coreEnd - pad, coreEnd));
-
-        xt::view(layer.rho, xt::range(0, pad)) = LCopy;
-        xt::view(layer.u, xt::range(0, pad)) = UCopy;
-        xt::view(layer.P, xt::range(0, pad)) = PCopy;
-        xt::view(layer.p, xt::range(0, pad)) = pCopy;
-        xt::view(layer.e, xt::range(0, pad)) = eCopy;
-        xt::view(layer.U, xt::range(0, pad)) = UeCopy;
-        xt::view(layer.V, xt::range(0, pad)) = VCopy;
-        xt::view(layer.m, xt::range(0, pad)) = mCopy;
-        xt::view(layer.xb, xt::range(0, pad)) = xbCopy;
-        xt::view(layer.xc, xt::range(0, pad)) = xcCopy;
+        xt::view(layer.rho, xt::range(0, pad)) = l_copy;
+        xt::view(layer.u, xt::range(0, pad)) = u_copy;
+        xt::view(layer.P, xt::range(0, pad)) = P_copy;
+        xt::view(layer.p, xt::range(0, pad)) = p_copy;
+        xt::view(layer.e, xt::range(0, pad)) = e_copy;
+        xt::view(layer.U, xt::range(0, pad)) = ue_copy;
+        xt::view(layer.V, xt::range(0, pad)) = v_copy;
+        xt::view(layer.m, xt::range(0, pad)) = m_copy;
+        xt::view(layer.xb, xt::range(0, pad)) = xb_copy;
+        xt::view(layer.xc, xt::range(0, pad)) = xc_copy;
     } else {
-        auto copyFromL = xt::view(layer.rho, xt::range(coreStart, coreStart + pad));
-        auto copyFromU = xt::view(layer.u, xt::range(coreStart, coreStart + pad));
-        auto copyFromP = xt::view(layer.P, xt::range(coreStart, coreStart + pad));
-        auto copyFromp = xt::view(layer.p, xt::range(coreStart, coreStart + pad));
-        auto copyFrome = xt::view(layer.e, xt::range(coreStart, coreStart + pad));
-        auto copyFromUe = xt::view(layer.U, xt::range(coreStart, coreStart + pad));
-        auto copyFromV = xt::view(layer.V, xt::range(coreStart, coreStart + pad));
-        auto copyFromm = xt::view(layer.m, xt::range(coreStart, coreStart + pad));
-        auto copyFromxb = xt::view(layer.xb, xt::range(coreStart, coreStart + pad));
-        auto copyFromxc = xt::view(layer.xc, xt::range(coreStart, coreStart + pad));
+        auto copy_from_l = xt::view(layer.rho, xt::range(core_start, core_start + pad));
+        auto copy_from_u = xt::view(layer.u, xt::range(core_start, core_start + pad));
+        auto copy_from_P = xt::view(layer.P, xt::range(core_start, core_start + pad));
+        auto copy_from_p = xt::view(layer.p, xt::range(core_start, core_start + pad));
+        auto copy_from_e = xt::view(layer.e, xt::range(core_start, core_start + pad));
+        auto copy_from_ue = xt::view(layer.U, xt::range(core_start, core_start + pad));
+        auto copy_from_v = xt::view(layer.V, xt::range(core_start, core_start + pad));
+        auto copy_from_m = xt::view(layer.m, xt::range(core_start, core_start + pad));
+        auto copy_from_xb = xt::view(layer.xb, xt::range(core_start, core_start + pad));
+        auto copy_from_xc = xt::view(layer.xc, xt::range(core_start, core_start + pad));
 
-        xt::view(layer.rho, xt::range(coreEnd, coreEnd + pad)) = copyFromL;
-        xt::view(layer.u, xt::range(coreEnd, coreEnd + pad)) = copyFromU;
-        xt::view(layer.P, xt::range(coreEnd, coreEnd + pad)) = copyFromP;
-        xt::view(layer.p, xt::range(coreEnd, coreEnd + pad)) = copyFromp;
-        xt::view(layer.e, xt::range(coreEnd, coreEnd + pad)) = copyFrome;
-        xt::view(layer.U, xt::range(coreEnd, coreEnd + pad)) = copyFromUe;
-        xt::view(layer.V, xt::range(coreEnd, coreEnd + pad)) = copyFromV;
-        xt::view(layer.m, xt::range(coreEnd, coreEnd + pad)) = copyFromm;
-        xt::view(layer.xb, xt::range(coreEnd, coreEnd + pad)) = copyFromxb;
-        xt::view(layer.xc, xt::range(coreEnd, coreEnd + pad)) = copyFromxc;
+        xt::view(layer.rho, xt::range(core_end, core_end + pad)) = copy_from_l;
+        xt::view(layer.u, xt::range(core_end, core_end + pad)) = copy_from_u;
+        xt::view(layer.P, xt::range(core_end, core_end + pad)) = copy_from_P;
+        xt::view(layer.p, xt::range(core_end, core_end + pad)) = copy_from_p;
+        xt::view(layer.e, xt::range(core_end, core_end + pad)) = copy_from_e;
+        xt::view(layer.U, xt::range(core_end, core_end + pad)) = copy_from_ue;
+        xt::view(layer.V, xt::range(core_end, core_end + pad)) = copy_from_v;
+        xt::view(layer.m, xt::range(core_end, core_end + pad)) = copy_from_m;
+        xt::view(layer.xb, xt::range(core_end, core_end + pad)) = copy_from_xb;
+        xt::view(layer.xc, xt::range(core_end, core_end + pad)) = copy_from_xc;
     }
 
-    (void) n;
+    (void)n;
 }

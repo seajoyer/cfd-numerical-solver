@@ -20,11 +20,12 @@
             ninja
             pkg-config
 
-            # xtensor and dependencies
+            # dependencies
             xtensor
             xtl
             xsimd
             vtk
+            yaml-cpp
 
             # Optional: additional useful tools
             # clang-tools
@@ -34,19 +35,19 @@
           ];
 
           shellHook = ''
-            echo "C++ development environment with xtensor"
+            echo "C++ development environment"
             echo "Compiler: $(gcc --version | head -1)"
             echo "CMake: $(cmake --version | head -1)"
           '';
         };
 
         # Optional: You can also define a package if you want to build your project
-        packages.default = pkgs.stdenv.mkDerivation {
-          name = "xtensor-project";
-          src = self;
-          nativeBuildInputs = with pkgs; [ cmake ninja pkg-config ];
-          buildInputs = with pkgs; [ xtensor xtl xsimd ];
-          cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" ];
-        };
+        # packages.default = pkgs.stdenv.mkDerivation {
+        #   name = "xtensor-project";
+        #   src = self;
+        #   nativeBuildInputs = with pkgs; [ cmake ninja pkg-config ];
+        #   buildInputs = with pkgs; [ xtensor xtl xsimd ];
+        #   cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" ];
+        # };
       });
 }

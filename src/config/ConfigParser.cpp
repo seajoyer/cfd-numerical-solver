@@ -1,46 +1,71 @@
 #include "config/ConfigParser.hpp"
-#include "data/InitialConditions.hpp"
-#include "data/DataLayer.hpp"
+#include <iostream>
+#include "config/Settings.hpp"
+#include "config/InitialConditions.hpp"
 
-ConfigParser::ConfigParser() {}
+ConfigParser::ConfigParser() = default;
 
-bool ConfigParser::parse(const std::string& filename, const std::string& initial) {
+auto ConfigParser::Parse(const std::string& filename) -> bool {
     try {
-        YAML::Node config = YAML::LoadFile(filename);
-        YAML::Node  params = config["config"]["params"];
-        loadInitialConditions(params["initial"][initial], initial_conditions);
-        // std::cout << params["initial"][initial] << std::endl;
-        loadGlobalVariables(params, global_variables);
-        // std::cout << global_variables.c << std::endl;
+        YAML::Node config_node = YAML::LoadFile(filename);
+        YAML::Node settings_node = config_node["config"]["settings"];
+        YAML::Node initial_conditions_node = config_node["config"]["initial_conditions"];
+
+        LoadSettings(settings_node, settings_);
+        LoadInitialConditions(initial_conditions_node, sod_tests_);
+
         return true;
+
     } catch (const std::exception& e) {
-        std::cerr << "Error parsing YAML: " << e.what() << std::endl;
+        std::cerr << "Error parsing YAML: " << e.what() << '\n';
         return false;
     }
 }
 
-void ConfigParser::loadInitialConditions(const YAML::Node& node, InitialConditions& conditions) {
-    conditions.rho_L = node["rho_L"].as<double>();
-    conditions.u_L = node["u_L"].as<double>();
-    conditions.P_L = node["P_L"].as<double>();
-    conditions.rho_R = node["rho_R"].as<double>();
-    conditions.u_R = node["u_R"].as<double>();
-    conditions.P_R = node["P_R"].as<double>();
+auto ConfigParser::GetSettings() const -> const Settings& {
+    return settings_;
 }
 
-void ConfigParser::loadGlobalVariables(const YAML::Node& node, GlobalVariables& globals) {
-    globals.t_final = node["t_final"].as<double>();
-    globals.N = node["N"].as<int>();
-    globals.padding = node["padding"].as<int>();
-    globals.CFL = node["CFL"].as<double>();
-    globals.c = node["c"].as<double>();
-    globals.gamma = node["gamma"].as<double>();
-    globals.dim = node["dim"].as<int>();
-    globals.L_x = node["L_x"].as<double>();
-    globals.L_y = node["L_y"].as<double>();
-    globals.L_z = node["L_z"].as<double>();
+auto ConfigParser::GetSODTests() const -> const std::array<InitialConditions, 5>& {
+    return sod_tests_;
 }
 
-const InitialConditions& ConfigParser::getInitialConditions() const {
-    return initial_conditions;
+auto ConfigParser::GetSODTest(int test_num) const -> const InitialConditions& {
+    if (test_num < 1 || test_num > 5) {
+        throw std::out_of_range("SOD test index must be between 1 and 5");
+    }
+    return sod_tests_[test_num];
+}
+
+void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
+    settings.solver = node["solver"].as<std::string>();
+    settings.right_boundary = node["left_boundary"].as<std::string>();
+    settings.left_boundary  = node["right_boundary"].as<std::string>();
+
+    settings.N = node["N"].as<int>();
+    settings.cfl = node["cfl"].as<double>();
+    settings.t_end = node["t_end"].as<double>();
+    settings.padding = node["padding"].as<int>();
+    settings.c = node["c"].as<double>();
+    settings.gamma = node["gamma"].as<double>();
+    settings.dim = node["dim"].as<int>();
+    settings.L_x = node["L_x"].as<double>();
+    settings.L_y = node["L_y"].as<double>();
+    settings.L_z = node["L_z"].as<double>();
+
+    settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    settings.output_format = node["output_format"].as<std::string>();
+    settings.output_dir = node["output_dir"].as<std::string>();
+}
+
+void ConfigParser::LoadInitialConditions(const YAML::Node& node, std::array<InitialConditions, 5>& sod_tests) {
+    for (int i = 1; i <= 5; ++i) {
+        std::string key = "sod" + std::to_string(i);
+        sod_tests[i - 1].rho_L = node[key]["rho_L"].as<double>();
+        sod_tests[i - 1].u_L   = node[key]["u_L"].as<double>();
+        sod_tests[i - 1].P_L   = node[key]["P_L"].as<double>();
+        sod_tests[i - 1].rho_R = node[key]["rho_R"].as<double>();
+        sod_tests[i - 1].u_R   = node[key]["u_R"].as<double>();
+        sod_tests[i - 1].P_R   = node[key]["P_R"].as<double>();
+    }
 }

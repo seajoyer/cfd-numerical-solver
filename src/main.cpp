@@ -1,21 +1,30 @@
-#include <stdio.h>
-#include <config/ConfigParser.hpp>
+#include <exception>
+#include <iostream>
+
 #include "Simulation.hpp"
-#include "config/Config.hpp"
+#include "config/ConfigParser.hpp"
 
-int main() {
-    Config cfg;
-    cfg.n = 200;
-    cfg.padding = 2;
-    cfg.dim = 1;
-    cfg.cfl = 0.5;
-    cfg.tEnd = 0.2;
-    cfg.outputDir = "data/output";
-    cfg.outputEvery = 1;
+auto main(int argc, char* argv[]) -> int {
+    try {
+        std::string config_path = "../config.yaml";
+        std::cout << "Loading configuration from: " << config_path << "\n\n";
 
-    Simulation sim(cfg);
-    sim.Run();
-    return 0;
+        auto parser = ConfigParser();
+        parser.Parse(config_path);
+        const Settings& settings = parser.GetSettings();
 
-    ConfigParser().parse("../config.yml", "soda1");
+        int test_num = 1;
+        InitialConditions initial_conditions = parser.GetSODTest(test_num);
+        std::cout << "Using initial conditions: sod" << test_num << "\n\n";
+
+        bool log_progress = true;
+        Simulation sim(settings, initial_conditions, log_progress);
+        sim.Run();
+
+        return 0;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return 1;
+    }
 }

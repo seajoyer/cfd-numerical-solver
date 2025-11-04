@@ -1,19 +1,26 @@
-#pragma once
+#ifndef CONFIGPARSER_HPP
+#define CONFIGPARSER_HPP
+
 #include <yaml-cpp/yaml.h>
-#include "data/InitialConditions.hpp"
-#include "data/GlobalVariables.hpp"
+#include <array>
+#include "config/InitialConditions.hpp"
+#include "config/Settings.hpp"
 
 class ConfigParser {
 public:
     ConfigParser();
-    bool parse(const std::string& filename, const std::string& initial);
-    const InitialConditions& getInitialConditions() const;
+    auto Parse(const std::string& filename) -> bool;
+
+    [[nodiscard]] auto GetSettings() const -> const Settings&;
+    [[nodiscard]] auto GetSODTests() const -> const std::array<InitialConditions, 5>&;
+    [[nodiscard]] auto GetSODTest(int test_num) const -> const InitialConditions&;
 
 private:
-    InitialConditions initial_conditions;
-    GlobalVariables global_variables;
+    Settings settings_;
+    std::array<InitialConditions, 5> sod_tests_;
 
-
-    static void loadInitialConditions(const YAML::Node& node, InitialConditions& conditions);
-    static void loadGlobalVariables(const YAML::Node& node, GlobalVariables& globals);
+    static void LoadSettings(const YAML::Node& node, Settings& settings);
+    static void LoadInitialConditions(const YAML::Node& node, std::array<InitialConditions, 5>& sod_tests);
 };
+
+#endif // CONFIGPARSER_HPP

@@ -1,11 +1,10 @@
 #ifndef BOUNDARYCONDITION_HPP
 #define BOUNDARYCONDITION_HPP
 
-#include <cstddef>
-
+#include <cstdint>
 struct DataLayer;
 
-enum class Side { Min = 0, Max = 1 };
+enum class Side : std::uint8_t { kLeft = 0, kRight = 1 };
 
 /**
  * @class BoundaryCondition
@@ -26,7 +25,7 @@ enum class Side { Min = 0, Max = 1 };
  *       through BoundaryManager rather than instantiated directly.
  */
 class BoundaryCondition {
-public:
+   public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
@@ -35,16 +34,16 @@ public:
     /**
      * @brief Applies the boundary condition to a given DataLayer along a specific axis.
      *
-     * This method updates ghost cells corresponding to the specified side (Min or Max)
+     * This method updates ghost cells corresponding to the specified side (Left or Right)
      * of the computational domain.
      *
      * @param layer Reference to the current data layer being modified.
      * @param axis Spatial axis along which the condition is applied (0 for 1D).
-     * @param side Which boundary to apply: Side::Min (left) or Side::Max (right).
+     * @param side Which boundary to apply: Side::kLeft (left) or Side::kRight (right).
      *
      * @note Derived classes define the concrete logic of this method.
      */
-    virtual void Apply(DataLayer &layer, int axis, Side side) const = 0;
+    virtual void Apply(DataLayer& layer, int axis, Side side) const = 0;
 };
 
-#endif // BOUNDARYCONDITION_HPP
+#endif  // BOUNDARYCONDITION_HPP

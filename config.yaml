@@ -1,0 +1,65 @@
+config:
+  settings:
+    solver: godunov
+    left_boundary:  free_stream
+    right_boundary: free_stream
+                  # inlet
+                  # outlet
+                  # reflective
+                  # non_reflective
+                  # periodic
+                  # symmetry
+                  # wall
+
+    N: 200
+    cfl: 0.5
+    t_end: 1
+    padding: 2
+    c: 300
+    gamma: 1.4
+    dim: 1
+    L_x: 10
+    L_y: 10
+    L_z: 10
+
+    output_format: vtk
+    output_dir: "../data/output" # run from `build/`, 
+                                 # so `../` is needed
+    output_every_steps: 1
+
+  initial_conditions:
+    sod1:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 1.0
+      rho_R: 0.125
+      u_R: 0.0
+      P_R: 0.1
+    sod2:
+      rho_L: 1.0
+      u_L: -2.0
+      P_L: 0.4
+      rho_R: 1.0
+      u_R: 2.0
+      P_R: 0.4
+    sod3:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 1000.0
+      rho_R: 1.0
+      u_R: 0.0
+      P_R: 0.01
+    sod4:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 0.01
+      rho_R: 1.0
+      u_R: 0.0
+      P_R: 100.0
+    sod5:
+      rho_L: 5.99924
+      u_L: 19.5975
+      P_L: 460.894
+      rho_R: 5.99242
+      u_R: -6.19633
+      P_R: 46.0950

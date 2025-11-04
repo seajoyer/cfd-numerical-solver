@@ -24,21 +24,19 @@
  * @see FreeStreamBoundary
  */
 class InletBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Constructs an inlet boundary with prescribed external conditions.
      *
-     * Initializes the boundary with constant inflow values for density, velocity,
-     * and pressure that will be imposed on ghost cells whenever the flow direction
-     * indicates inflow into the domain.
+     * Initializes the boundary with constant inflow values for density,
+     * velocity, and pressure that will be imposed on ghost cells whenever the
+     * flow direction indicates inflow into the domain.
      *
      * @param rhoIn  External density (ρ) at the inlet.
      * @param uIn    External velocity (u) at the inlet.
      * @param pIn    External pressure (P) at the inlet.
      */
-    InletBoundary(double rhoIn, double uIn, double pIn)
-        : rhoIn(rhoIn), uIn(uIn), pIn(pIn) {
-    }
+    InletBoundary(double rho_in, double u_in, double p_in);
 
     /**
      * @brief Applies inlet boundary condition along a specific axis.
@@ -53,12 +51,12 @@ public:
      * @note For 1D problems, only axis = 0 is used. In higher dimensions,
      *       the same logic would be applied per direction.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 
-private:
-    double rhoIn;
-    double uIn;
-    double pIn;
+   private:
+    double rho_in_;
+    double u_in_;
+    double p_in_;
 };
 
-#endif // INLETBOUNDARY_HPP
+#endif  // INLETBOUNDARY_HPP

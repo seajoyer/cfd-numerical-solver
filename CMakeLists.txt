@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 4.0)
 set(NAME cfd-numerical-solver)
 project(${NAME} LANGUAGES CXX)
 
@@ -36,21 +36,46 @@ safe_fetch_content(xtl https://github.com/xtensor-stack/xtl.git 0.8.1)
 safe_fetch_content(xtensor https://github.com/xtensor-stack/xtensor.git 0.27.1)
 safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
+# Explicitly list your sources
+add_executable(${NAME}
+    src/main.cpp
 
-file(GLOB sources ${PROJECT_SOURCE_DIR}/src/config/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/data/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/solver/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/visualization/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/bc/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/*.cpp)
-file(GLOB headers ${PROJECT_SOURCE_DIR}/include/config/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/data/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/solver/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/visualization/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/bc/*.hpp
-        ${PROJECT_SOURCE_DIR}/include/*.hpp)
+    src/Simulation.cpp
 
-add_executable(${NAME} src/main.cpp ${sources} ${headers})
+    src/solver/SolverFactory.cpp
+    src/solver/GodunovSolver.cpp
+    include/solver/Solver.hpp
 
-target_link_libraries(${NAME} PRIVATE xtensor yaml-cpp::yaml-cpp ${VTK_LIBRARIES})
+    src/output/WriterFactory.cpp
+    src/output/VTKWriter.cpp
+
+    src/data/DataLayer.cpp
+
+    src/config/ConfigParser.cpp
+    include/config/Settings.hpp
+    include/config/InitialConditions.hpp
+
+    src/bc/BoundaryFactory.cpp
+    src/bc/BoundaryManager.cpp
+    src/bc/FreeStreamBoundary.cpp
+    src/bc/InletBoundary.cpp
+    src/bc/OutletBoundary.cpp
+    src/bc/PeriodicBoundary.cpp
+    src/bc/ReflectiveBoundary.cpp
+    src/bc/NonReflectiveBoundary.cpp
+    src/bc/SymmetryBoundary.cpp
+    src/bc/WallBoundary.cpp 
+    include/bc/BoundaryCondition.hpp
+)
+
+target_include_directories(${NAME}
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(${NAME}
+    PRIVATE
+        xtensor
+        yaml-cpp::yaml-cpp
+        ${VTK_LIBRARIES}
+)
