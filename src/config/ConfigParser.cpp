@@ -1,22 +1,52 @@
 #include "config/ConfigParser.hpp"
 #include <iostream>
-#include "data/InitialConditions.hpp"
+#include "config/Settings.hpp"
+#include "config/InitialConditions.hpp"
 
 ConfigParser::ConfigParser() = default;
 
 auto ConfigParser::Parse(const std::string& filename, const std::string& initial) -> bool {
     try {
-        YAML::Node config = YAML::LoadFile(filename);
-        YAML::Node  params = config["config"]["params"];
-        LoadInitialConditions(params["initial"][initial], initial_conditions_);
-        // std::cout << params["initial"][initial] << std::endl;
-        LoadGlobalVariables(params, global_variables_);
-        // std::cout << global_variables.c << std::endl;
+        YAML::Node config_node = YAML::LoadFile(filename);
+        YAML::Node settings_node = config_node["config"]["settings"];
+        YAML::Node initial_conditions_node = config_node["config"]["initial_conditions"];
+
+        LoadSettings(settings_node, settings_);
+        LoadInitialConditions(initial_conditions_node, initial_conditions_);
+
         return true;
+
     } catch (const std::exception& e) {
         std::cerr << "Error parsing YAML: " << e.what() << '\n';
         return false;
     }
+}
+
+auto ConfigParser::GetSettings() const -> const Settings& {
+    return settings_;
+}
+
+auto ConfigParser::GetInitialConditions() const -> const InitialConditions& {
+    return initial_conditions_;
+}
+
+void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
+    settings.solver = node["solver"].as<std::string>();
+
+    settings.N = node["N"].as<int>();
+    settings.CFL = node["CFL"].as<double>();
+    settings.t_end = node["t_end"].as<double>();
+    settings.padding = node["padding"].as<int>();
+    settings.c = node["c"].as<double>();
+    settings.gamma = node["gamma"].as<double>();
+    settings.dim = node["dim"].as<int>();
+    settings.L_x = node["L_x"].as<double>();
+    settings.L_y = node["L_y"].as<double>();
+    settings.L_z = node["L_z"].as<double>();
+
+    settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    settings.output_types = node["output_types"].as<std::vector<std::string>>();
+    settings.output_dir = node["output_dir"].as<std::string>();
 }
 
 void ConfigParser::LoadInitialConditions(const YAML::Node& node, InitialConditions& conditions) {
@@ -26,21 +56,4 @@ void ConfigParser::LoadInitialConditions(const YAML::Node& node, InitialConditio
     conditions.rho_R = node["rho_R"].as<double>();
     conditions.u_R = node["u_R"].as<double>();
     conditions.P_R = node["P_R"].as<double>();
-}
-
-void ConfigParser::LoadGlobalVariables(const YAML::Node& node, GlobalVariables& globals) {
-    globals.t_final = node["t_final"].as<double>();
-    globals.N = node["N"].as<int>();
-    globals.padding = node["padding"].as<int>();
-    globals.CFL = node["CFL"].as<double>();
-    globals.c = node["c"].as<double>();
-    globals.gamma = node["gamma"].as<double>();
-    globals.dim = node["dim"].as<int>();
-    globals.L_x = node["L_x"].as<double>();
-    globals.L_y = node["L_y"].as<double>();
-    globals.L_z = node["L_z"].as<double>();
-}
-
-auto ConfigParser::GetInitialConditions() const -> const InitialConditions& {
-    return initial_conditions_;
 }

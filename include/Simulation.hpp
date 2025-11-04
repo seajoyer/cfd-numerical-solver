@@ -2,10 +2,10 @@
 #define SIMULATION_HPP
 
 #include <memory>
-#include "config/Config.hpp"
+#include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
 #include "solver/Solver.hpp"
-#include "config/StepWriter.hpp"
+#include "output/StepWriter.hpp"
 
 
 /**
@@ -33,9 +33,9 @@ public:
      * Initializes internal parameters and stores the configuration structure,
      * but does not allocate memory or initialize physical data yet.
      *
-     * @param config Configuration structure containing numerical parameters and file paths.
+     * @param settings Configuration structure containing numerical parameters and file paths.
      */
-    explicit Simulation(Config config);
+    explicit Simulation(Settings settings);
 
     /**
      * @brief Runs the full simulation loop.
@@ -47,6 +47,27 @@ public:
      */
     void Run();
 
+    /**
+     * @brief Accesses the underlying data layer for read/write operations.
+     *
+     * @return Reference to the DataLayer object.
+     */
+    auto GetDataLayer() -> DataLayer&;
+
+    /**
+     * @brief Gets the current time step index.
+     *
+     * @return The current time step index (std::size_t).
+     */
+    [[nodiscard]] auto GetCurrentStep() const -> std::size_t;
+
+    /**
+     * @brief Gets the current physical time of the simulation.
+     *
+     * @return The current physical time (double).
+     */
+    [[nodiscard]] auto GetCurrentTime() const -> double;
+
 private:
     /**
      * @brief Initializes all simulation components before the first time step.
@@ -57,6 +78,14 @@ private:
      * @note Called automatically inside Run(), typically not used externally.
      */
     void Initialize();
+
+    /**
+     * @brief Determines whether the current time step should be written to disk.
+     *
+     * @param step Current time step index.
+     * @return true if the step should be written according to configuration.
+     */
+    [[nodiscard]] auto ShouldWrite(std::size_t step) const -> bool;
 
     /**
      * @brief Writes the initial state of the system before any time advancement.
@@ -75,15 +104,7 @@ private:
      */
     void WriteStepState(std::size_t step, double time) const;
 
-    /**
-     * @brief Determines whether the current time step should be written to disk.
-     *
-     * @param step Current time step index.
-     * @return true if the step should be written according to configuration.
-     */
-    [[nodiscard]] auto ShouldWrite(std::size_t step) const -> bool;
-
-    Config config_;
+    Settings settings_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> writer_;
     std::unique_ptr<DataLayer> layer_;

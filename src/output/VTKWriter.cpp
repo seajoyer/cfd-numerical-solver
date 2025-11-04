@@ -1,4 +1,4 @@
-#include "visualization/VTKWriter.hpp"
+#include "output/VTKWriter.hpp"
 
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>

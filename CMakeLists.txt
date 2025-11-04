@@ -41,8 +41,9 @@ add_executable(${NAME}
     src/main.cpp
 
     src/config/ConfigParser.cpp
-    src/config/Config.cpp
     src/config/StepWriter.cpp
+    include/config/Settings.hpp
+    include/config/InitialConditions.hpp
 
     src/data/DataLayer.cpp
 

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INITIALCONDITIONS_HPP
+#define INITIALCONDITIONS_HPP
 
 struct InitialConditions {
     double rho_L;
@@ -8,3 +9,5 @@ struct InitialConditions {
     double u_R;
     double P_R;
 };
+
+#endif // INITIALCONDITIONS_HPP
