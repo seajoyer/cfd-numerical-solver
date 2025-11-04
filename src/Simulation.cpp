@@ -99,6 +99,7 @@ void Simulation::Initialize() {
     // Initialize output writer
     writer_ = std::make_unique<VTKWriter>(settings_.output_dir);
 
+    std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
     std::cout << "  Solver: " << settings_.solver << '\n';
     std::cout << "  Boundary left:  " << settings_.left_boundary << '\n';
@@ -116,7 +117,7 @@ void Simulation::Initialize() {
               << '\n';
     std::cout << "    Right: rho=" << initial_conditions_.rho_R
               << ", u=" << initial_conditions_.u_R << ", P=" << initial_conditions_.P_R
-              << '\n';
+              << "\n\n";
 }
 
 auto Simulation::GetDataLayer() -> DataLayer& {

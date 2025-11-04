@@ -6,7 +6,7 @@
 
 auto main(int argc, char* argv[]) -> int {
     try {
-        std::string config_path = "config.yaml";
+        std::string config_path = "../config.yaml";
         std::cout << "Loading configuration from: " << config_path << '\n';
 
         auto parser = ConfigParser();

@@ -13,7 +13,7 @@ config:
 
     N: 200
     cfl: 0.5
-    t_end: 10
+    t_end: 1
     padding: 2
     c: 300
     gamma: 1.4
@@ -23,7 +23,8 @@ config:
     L_z: 10
 
     output_types: ["vtk"]
-    output_dir: "data/output"
+    output_dir: "../data/output" # run from `build/`, 
+                                 # so `../` is needed
     output_every_steps: 1
 
   initial_conditions:
