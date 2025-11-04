@@ -1,9 +1,12 @@
 #include "bc/FreeStreamBoundary.hpp"
+
 #include "data/DataLayer.hpp"
 
+FreeStreamBoundary::FreeStreamBoundary(double rho_inf, double u_inf, double p_inf)
+    : rho_inf_(rho_inf), u_inf_(u_inf), p_inf_(p_inf) {}
 
-void FreeStreamBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void FreeStreamBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int pad = layer.GetPadding();
     const int core_start = layer.GetCoreStart();

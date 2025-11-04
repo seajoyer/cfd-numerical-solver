@@ -6,10 +6,11 @@
 
 struct Settings {
     std::string solver = "godunov";
-    std::string boundary = "free_stream";
+    std::string left_boundary  = "free_stream";
+    std::string right_boundary = "free_stream";
 
     int N = 200;
-    double CFL = 0.5;
+    double cfl = 0.5;
     double t_end = 0.2;
     int padding = 2;
     double c = 340;

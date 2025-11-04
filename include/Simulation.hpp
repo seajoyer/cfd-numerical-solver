@@ -2,11 +2,12 @@
 #define SIMULATION_HPP
 
 #include <memory>
+
+#include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "solver/Solver.hpp"
 #include "output/StepWriter.hpp"
-
+#include "solver/Solver.hpp"
 
 /**
  * @class Simulation
@@ -22,26 +23,29 @@
  * The main goal of this class is to minimize logic inside main()
  * and provide a single entry point for running computations.
  *
- * @note Simulation owns all dynamically allocated components (Solver, StepWriter, DataLayer)
- *       and is responsible for their initialization and lifetime management.
+ * @note Simulation owns all dynamically allocated components (Solver, StepWriter,
+ * DataLayer) and is responsible for their initialization and lifetime management.
  */
 class Simulation {
-public:
+   public:
     /**
      * @brief Constructs the Simulation object with the specified configuration.
      *
      * Initializes internal parameters and stores the configuration structure,
      * but does not allocate memory or initialize physical data yet.
      *
-     * @param settings Configuration structure containing numerical parameters and file paths.
+     * @param settings Configuration structure containing numerical parameters and file
+     * paths.
+     * @param initial_conditions Initial conditions for the simulation (optional).
      */
-    explicit Simulation(Settings settings);
+    explicit Simulation(Settings settings,
+                        InitialConditions initial_conditions = InitialConditions{});
 
     /**
      * @brief Runs the full simulation loop.
      *
-     * Performs all necessary setup steps (grid initialization, solver construction, etc.),
-     * then advances the physical fields in time until the end time is reached.
+     * Performs all necessary setup steps (grid initialization, solver construction,
+     * etc.), then advances the physical fields in time until the end time is reached.
      *
      * @note This function represents the highest-level execution entry point.
      */
@@ -68,7 +72,7 @@ public:
      */
     [[nodiscard]] auto GetCurrentTime() const -> double;
 
-private:
+   private:
     /**
      * @brief Initializes all simulation components before the first time step.
      *
@@ -78,6 +82,36 @@ private:
      * @note Called automatically inside Run(), typically not used externally.
      */
     void Initialize();
+
+    /**
+     * @brief Creates the appropriate solver based on the settings.
+     *
+     * @return Unique pointer to the created solver.
+     * @throws std::runtime_error if solver type is not recognized.
+     */
+    auto CreateSolver() -> std::unique_ptr<Solver>;
+
+    /**
+     * @brief Creates a boundary condition based on the boundary type string.
+     *
+     * @param boundary_type String identifier for the boundary type.
+     * @param rho_inf External/inlet density
+     * @param u_inf External/inlet velocity
+     * @param p_inf External/inlet pressure
+     * @return Shared pointer to the created boundary condition.
+     * @throws std::runtime_error if boundary type is not recognized.
+     */
+    auto CreateBoundaryCondition(const std::string& boundary_type, double rho_inf,
+                                 double u_inf, double p_inf)
+        -> std::shared_ptr<BoundaryCondition>;
+
+    /**
+     * @brief Applies initial conditions to the data layer.
+     *
+     * Sets up the initial state of the physical fields based on the
+     * configured initial conditions (e.g., Sod shock tube problems).
+     */
+    void ApplyInitialConditions();
 
     /**
      * @brief Determines whether the current time step should be written to disk.
@@ -105,6 +139,7 @@ private:
     void WriteStepState(std::size_t step, double t_cur) const;
 
     Settings settings_;
+    InitialConditions initial_conditions_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> writer_;
     std::unique_ptr<DataLayer> layer_;
@@ -113,4 +148,4 @@ private:
     std::size_t step_ = 0;
 };
 
-#endif // SIMULATION_HPP
+#endif  // SIMULATION_HPP

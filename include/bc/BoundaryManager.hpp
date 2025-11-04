@@ -9,8 +9,8 @@ class BoundaryCondition;
 
 
 struct AxisBc {
-    std::shared_ptr<BoundaryCondition> left;
-    std::shared_ptr<BoundaryCondition> right;
+    std::shared_ptr<BoundaryCondition> left_bc;
+    std::shared_ptr<BoundaryCondition> right_bc;
 };
 
 /**
@@ -46,8 +46,8 @@ public:
      * @note Passing nullptr disables the corresponding boundary.
      */
     void Set(int axis,
-             std::shared_ptr<BoundaryCondition> left,
-             std::shared_ptr<BoundaryCondition> right);
+             std::shared_ptr<BoundaryCondition> left_bc,
+             std::shared_ptr<BoundaryCondition> right_bc);
 
     /**
      * @brief Applies all configured boundary conditions to the given DataLayer.

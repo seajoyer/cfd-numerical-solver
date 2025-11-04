@@ -7,6 +7,7 @@
 #include <vtkStructuredGrid.h>
 #include <vtkStructuredGridWriter.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -77,7 +78,7 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     grid->SetDimensions(nx, ny, nz);
 
     // Create points from cell centers
-    points->SetNumberOfPoints(nx * ny * nz);
+    points->SetNumberOfPoints(static_cast<vtkIdType>(nx * ny) * nz);
     for (int i = 0; i < nx; ++i) {
         const int idx = start + i;
         const double x = layer.xc(idx);

@@ -27,21 +27,19 @@
  * @see NonReflectingBoundary
  */
 class FreeStreamBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Constructs a free-stream boundary with prescribed external flow parameters.
      *
      * Initializes the boundary with freestream values that are applied in the ghost
-     * cells whenever the flow direction indicates inflow. When the flow leaves the domain,
-     * these values are not enforced, maintaining natural outflow.
+     * cells whenever the flow direction indicates inflow. When the flow leaves the
+     * domain, these values are not enforced, maintaining natural outflow.
      *
      * @param rhoInf External density (ρ∞) in the freestream.
      * @param uInf   External velocity (u∞) in the freestream.
      * @param pInf   External pressure (P∞) in the freestream.
      */
-    FreeStreamBoundary(double rho_inf, double u_inf, double p_inf)
-        : rho_inf_(rho_inf), u_inf_(u_inf), p_inf_(p_inf) {
-    }
+    FreeStreamBoundary(double rho_inf, double u_inf, double p_inf);
 
     /**
      * @brief Applies free-stream boundary condition along the specified axis.
@@ -57,12 +55,12 @@ public:
      * @note For 1D implementation, only axis = 0 is used. The same logic
      *       generalizes easily to 2D and 3D.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 
-private:
+   private:
     double rho_inf_;
     double u_inf_;
     double p_inf_;
 };
 
-#endif // FREESTREAMBOUNDARY_HPP
+#endif  // FREESTREAMBOUNDARY_HPP

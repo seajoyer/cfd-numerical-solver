@@ -1,9 +1,9 @@
 #include "data/DataLayer.hpp"
 #include <stdexcept>
-#include <vector>
+#include <xtensor/containers/xarray.hpp>
 
 DataLayer::DataLayer(const int N, const int padding)
-    : n_(N), n_ghost_cells_(padding)  {
+    : n_(N), n_ghost_cells_(padding) {
     if (N <= 0) {
         throw std::invalid_argument("Number of cells N must be positive");
     }
@@ -64,30 +64,19 @@ void DataLayer::RecomputeSizes() {
 }
 
 void DataLayer::Allocate1D() {
-    const std::vector<std::size_t> shape = {static_cast<std::size_t>(total_size_)};
+    const auto size = static_cast<std::size_t>(total_size_);
     
-    rho.resize(shape);
-    u.resize(shape);
-    P.resize(shape);
-    p.resize(shape);
-    e.resize(shape);
-    U.resize(shape);
-    V.resize(shape);
-    m.resize(shape);
-    xb.resize(shape);
-    xc.resize(shape);
-    
-    // Initialize arrays to zero
-    rho.fill(0.0);
-    u.fill(0.0);
-    P.fill(0.0);
-    p.fill(0.0);
-    e.fill(0.0);
-    U.fill(0.0);
-    V.fill(0.0);
-    m.fill(0.0);
-    xb.fill(0.0);
-    xc.fill(0.0);
+    // Allocate xtensor arrays with the appropriate shape
+    rho = xt::zeros<double>({size});
+    u = xt::zeros<double>({size});
+    P = xt::zeros<double>({size});
+    p = xt::zeros<double>({size});
+    e = xt::zeros<double>({size});
+    U = xt::zeros<double>({size});
+    V = xt::zeros<double>({size});
+    m = xt::zeros<double>({size});
+    xb = xt::zeros<double>({size});
+    xc = xt::zeros<double>({size});
 }
 
 auto DataLayer::GetCoreStart(const int axis) const -> int {

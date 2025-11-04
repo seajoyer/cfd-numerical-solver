@@ -1,9 +1,10 @@
 #ifndef BOUNDARYCONDITION_HPP
 #define BOUNDARYCONDITION_HPP
 
+#include <cstdint>
 struct DataLayer;
 
-enum class Side { kLeft = 0, kRight = 1 };
+enum class Side : std::uint8_t { kLeft = 0, kRight = 1 };
 
 /**
  * @class BoundaryCondition
@@ -24,7 +25,7 @@ enum class Side { kLeft = 0, kRight = 1 };
  *       through BoundaryManager rather than instantiated directly.
  */
 class BoundaryCondition {
-public:
+   public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
@@ -42,7 +43,7 @@ public:
      *
      * @note Derived classes define the concrete logic of this method.
      */
-    virtual void Apply(DataLayer &layer, int axis, Side side) const = 0;
+    virtual void Apply(DataLayer& layer, int axis, Side side) const = 0;
 };
 
-#endif // BOUNDARYCONDITION_HPP
+#endif  // BOUNDARYCONDITION_HPP

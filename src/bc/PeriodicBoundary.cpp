@@ -1,15 +1,16 @@
 #include "bc/PeriodicBoundary.hpp"
+
+#include <xtensor/views/xview.hpp>
+
 #include "data/DataLayer.hpp"
 
-
-void PeriodicBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void PeriodicBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int pad = layer.GetPadding();
     const int n = layer.GetN();
     const int core_start = layer.GetPadding();
     const int core_end = layer.GetCoreEndExclusive();
-
 
     if (side == Side::kLeft) {
         auto l_copy = xt::view(layer.rho, xt::range(core_end - pad, core_end));
@@ -57,5 +58,5 @@ void PeriodicBoundary::Apply(DataLayer &layer, int axis, Side side) const {
         xt::view(layer.xc, xt::range(core_end, core_end + pad)) = copy_from_xc;
     }
 
-    (void) n;
+    (void)n;
 }

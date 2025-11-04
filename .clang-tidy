@@ -1,4 +1,4 @@
-Checks: 'google-*,readability-identifier-naming,bugprone-*,modernize-*,performance-*'
+Checks: 'google-*,readability-identifier-naming,bugprone-*,modernize-*,performance-*,-bugprone-easily-swappable-parameters,-google-readability-todo'
 
 WarningsAsErrors: ''
 

@@ -12,7 +12,7 @@ auto ConfigParser::Parse(const std::string& filename) -> bool {
         YAML::Node initial_conditions_node = config_node["config"]["initial_conditions"];
 
         LoadSettings(settings_node, settings_);
-        LoadInitialConditions(initial_conditions_node, initial_conditions_);
+        LoadInitialConditions(initial_conditions_node, sod_tests_);
 
         return true;
 
@@ -26,16 +26,24 @@ auto ConfigParser::GetSettings() const -> const Settings& {
     return settings_;
 }
 
-auto ConfigParser::GetInitialConditions() const -> const InitialConditions& {
-    return initial_conditions_;
+auto ConfigParser::GetSODTests() const -> const std::array<InitialConditions, 5>& {
+    return sod_tests_;
+}
+
+auto ConfigParser::GetSODTest(int test_num) const -> const InitialConditions& {
+    if (test_num < 1 || test_num > 5) {
+        throw std::out_of_range("SOD test index must be between 1 and 5");
+    }
+    return sod_tests_[test_num];
 }
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
-    settings.boundary = node["boundary"].as<std::string>();
+    settings.right_boundary = node["left_boundary"].as<std::string>();
+    settings.left_boundary  = node["right_boundary"].as<std::string>();
 
     settings.N = node["N"].as<int>();
-    settings.CFL = node["CFL"].as<double>();
+    settings.cfl = node["cfl"].as<double>();
     settings.t_end = node["t_end"].as<double>();
     settings.padding = node["padding"].as<int>();
     settings.c = node["c"].as<double>();
@@ -50,11 +58,14 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.output_dir = node["output_dir"].as<std::string>();
 }
 
-void ConfigParser::LoadInitialConditions(const YAML::Node& node, InitialConditions& conditions) {
-    conditions.rho_L = node["rho_L"].as<double>();
-    conditions.u_L = node["u_L"].as<double>();
-    conditions.P_L = node["P_L"].as<double>();
-    conditions.rho_R = node["rho_R"].as<double>();
-    conditions.u_R = node["u_R"].as<double>();
-    conditions.P_R = node["P_R"].as<double>();
+void ConfigParser::LoadInitialConditions(const YAML::Node& node, std::array<InitialConditions, 5>& sod_tests) {
+    for (int i = 1; i <= 5; ++i) {
+        std::string key = "sod" + std::to_string(i);
+        sod_tests[i - 1].rho_L = node[key]["rho_L"].as<double>();
+        sod_tests[i - 1].u_L   = node[key]["u_L"].as<double>();
+        sod_tests[i - 1].P_L   = node[key]["P_L"].as<double>();
+        sod_tests[i - 1].rho_R = node[key]["rho_R"].as<double>();
+        sod_tests[i - 1].u_R   = node[key]["u_R"].as<double>();
+        sod_tests[i - 1].P_R   = node[key]["P_R"].as<double>();
+    }
 }

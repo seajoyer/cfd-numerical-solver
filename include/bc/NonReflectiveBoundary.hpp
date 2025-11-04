@@ -21,16 +21,14 @@
  *  - On outflow, extrapolates variables to preserve outgoing wave behavior.
  *  - On inflow, may combine fixed external data with characteristic relations.
  *
- *
- *
  * @see OutletBoundary
  * @see FreeStreamBoundary
  * @see InletBoundary
  */
-class NonReflectingBoundary : public BoundaryCondition {
+class NonReflectiveBoundary : public BoundaryCondition {
 public:
     /**
-     * @brief Applies non-reflecting boundary condition along the specified axis.
+     * @brief Applies non-reflective boundary condition along the specified axis.
      *
      * Updates ghost cells based on outgoing wave information to suppress
      * artificial reflections. Typically, uses characteristic decomposition

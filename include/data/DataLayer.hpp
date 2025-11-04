@@ -1,13 +1,12 @@
 #ifndef DATALAYER_HPP
 #define DATALAYER_HPP
 
-#include <xtensor/io/xio.hpp>
-#include <xtensor/views/xview.hpp>
 #include <xtensor/containers/xarray.hpp>
+#include <xtensor/io/xio.hpp>
 
 /**
- * @class DataLayer
- * @brief Stores physical variables and mesh-related data for a single time layer.
+ * @struct DataLayer
+ * @brief Storage container for all physical and computational fields using xtensor.
  *
  * This class contains all primary and auxiliary fields used in numerical
  * schemes (density, velocity, pressure, energy, etc.) along with boundary
@@ -19,29 +18,29 @@
  * - u: velocity (x-component)
  * - P: pressure (capital P for thermodynamic pressure)
  * - p: momentum
- * - e: specific internal energy
- * - U: conserved energy
- * - V: volume
- * - m: mass
+ * - e: specific internal energy (or total energy density)
+ * - U: conserved variable (mass)
+ * - V: conserved variable (momentum)
+ * - m: momentum
  * - xb: cell boundary coordinates
  * - xc: cell center coordinates
  */
 struct DataLayer {
-    xt::xarray<double> rho;  // Density
-    xt::xarray<double> u;    // Velocity
-    xt::xarray<double> P;    // Pressure
-    xt::xarray<double> p;    // Momentum
-    xt::xarray<double> e;    // Specific internal energy
-    xt::xarray<double> U;    // Conserved energy
-    xt::xarray<double> V;    // Volume
-    xt::xarray<double> m;    // Mass
-    xt::xarray<double> xb;   // Cell boundary coordinates
-    xt::xarray<double> xc;   // Cell center coordinates
+    xt::xarray<double> rho;  ///< Density
+    xt::xarray<double> u;    ///< Velocity (x-component)
+    xt::xarray<double> P;    ///< Pressure
+    xt::xarray<double> p;    ///< Momentum density
+    xt::xarray<double> e;    ///< Specific internal energy or total energy density
+    xt::xarray<double> U;    ///< Conserved variable (mass)
+    xt::xarray<double> V;    ///< Conserved variable (momentum)
+    xt::xarray<double> m;    ///< Momentum
+    xt::xarray<double> xb;   ///< Cell boundary coordinates
+    xt::xarray<double> xc;   ///< Cell center coordinates
 
     DataLayer() = default;
 
     /**
-     * @brief Constructs containers for all variables with ghost cells.
+     * @brief Constructs containers for all variables with ghost cells (1D).
      *
      * @param N Number of core (physical) cells in the computational domain.
      * @param padding Number of ghost cells on each boundary side.
@@ -56,19 +55,19 @@ struct DataLayer {
      * @param dim Dimension of the problem (1, 2, or 3).
      */
     DataLayer(int N, int padding, int dim);
-    
+
     ~DataLayer() = default;
 
     /**
      * @brief Returns starting index of the core (physical) domain.
-     * @param axis Spatial axis (0=x, 1=y, 2=z; ignored for 1D)
+     * @param axis Spatial axis (0=x, 1=y, 2=z; currently ignored for 1D)
      * @return Index of first physical cell
      */
     [[nodiscard]] auto GetCoreStart(int axis = 0) const -> int;
-    
+
     /**
      * @brief Returns one-past-last index of the core domain.
-     * @param axis Spatial axis (0=x, 1=y, 2=z; ignored for 1D)
+     * @param axis Spatial axis (0=x, 1=y, 2=z; currently ignored for 1D)
      * @return End index (exclusive)
      */
     [[nodiscard]] auto GetCoreEndExclusive(int axis = 0) const -> int;
@@ -83,10 +82,22 @@ struct DataLayer {
      * @brief Returns the number of ghost cells on each side.
      * @return Number of ghost cells (padding)
      */
+    [[nodiscard]] auto GetNGhostCells() const -> int { return n_ghost_cells_; }
+
+    /**
+     * @brief Returns the number of ghost cells on each side (alias).
+     * @return Number of ghost cells (padding)
+     */
     [[nodiscard]] auto GetPadding() const -> int { return n_ghost_cells_; }
 
     /**
      * @brief Returns the current problem dimension.
+     * @return Dimension of the grid (1, 2, or 3)
+     */
+    [[nodiscard]] auto GetDimension() const -> int { return dimension_; }
+
+    /**
+     * @brief Returns the current problem dimension (alias).
      * @return Dimension of the grid (1, 2, or 3)
      */
     [[nodiscard]] auto GetDim() const -> int { return dimension_; }
@@ -115,11 +126,11 @@ struct DataLayer {
      */
     void SetDim(int new_dim);
 
-private:
-    int n_ = 0;
-    int n_ghost_cells_ = 0;
-    int dimension_ = 1;
-    int total_size_ = 0;
+   private:
+    int n_ = 0;              ///< Number of core cells
+    int n_ghost_cells_ = 0;  ///< Number of ghost cells on each side
+    int dimension_ = 1;      ///< Spatial dimension (1, 2, or 3)
+    int total_size_ = 0;     ///< Total array size (core + ghost)
 
     /**
      * @brief Recomputes total sizes after n or padding are changed.
@@ -127,11 +138,11 @@ private:
     void RecomputeSizes();
 
     /**
-     * @brief Allocates 1D arrays for all stored fields.
+     * @brief Allocates 1D arrays for all stored fields using xtensor.
      *
      * Called internally by constructors and setters.
      */
     void Allocate1D();
 };
 
-#endif // DATALAYER_HPP
+#endif  // DATALAYER_HPP

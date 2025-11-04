@@ -21,8 +21,12 @@
 
 ** Global Parameters
 - ~gamma~ - adiabatic index
-- ~CFL~ - Courant number
+- ~cfl~ - Courant number
 - ~c~ - speed of sound
 - ~N~ - number of cells
 - ~t_end~ - computation time
 - ~L_x~, ~L_y~, ~L_z~ - computational domain size
+
+** Miscellaneous
+- ~left_bc~  - left boundary condition
+- ~right_bc~ - right boundary condition

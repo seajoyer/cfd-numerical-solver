@@ -15,7 +15,7 @@ class BoundaryCondition;
  * (e.g., GodunovSolver) provide specific numerical schemes.
  */
 class Solver {
-public:
+   public:
     virtual ~Solver() = default;
 
     /**
@@ -24,7 +24,7 @@ public:
      * @param t_cur Current simulation time (will be updated)
      * @return Actual time step taken (dt)
      */
-    virtual auto Step(DataLayer& layer, double& t_cur) -> double;
+    virtual auto Step(DataLayer& layer, double& t_cur) -> double = 0;
 
     /**
      * @brief Sets the CFL number for time step calculation.
@@ -38,12 +38,11 @@ public:
      * @param left Boundary condition for left/lower boundary
      * @param right Boundary condition for right/upper boundary
      */
-    virtual void AddBoundary(int axis,
-                           std::shared_ptr<BoundaryCondition> left,
-                           std::shared_ptr<BoundaryCondition> right) = 0;
+    virtual void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
+                             std::shared_ptr<BoundaryCondition> right_bc) = 0;
 
-protected:
+   protected:
     double cfl_ = 0.5;
 };
 
-#endif // SOLVER_HPP
+#endif  // SOLVER_HPP

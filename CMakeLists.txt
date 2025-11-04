@@ -42,8 +42,9 @@ add_executable(${NAME}
 
     src/Simulation.cpp
 
-    src/solver/Solver.cpp
+    src/solver/SolverFactory.cpp
     src/solver/GodunovSolver.cpp
+    include/solver/Solver.hpp
 
     src/output/VTKWriter.cpp
 
@@ -53,12 +54,14 @@ add_executable(${NAME}
     include/config/Settings.hpp
     include/config/InitialConditions.hpp
 
+    src/bc/BoundaryFactory.cpp
     src/bc/BoundaryManager.cpp
     src/bc/FreeStreamBoundary.cpp
     src/bc/InletBoundary.cpp
     src/bc/OutletBoundary.cpp
     src/bc/PeriodicBoundary.cpp
     src/bc/ReflectiveBoundary.cpp
+    src/bc/NonReflectiveBoundary.cpp
     src/bc/SymmetryBoundary.cpp
     src/bc/WallBoundary.cpp 
     include/bc/BoundaryCondition.hpp
