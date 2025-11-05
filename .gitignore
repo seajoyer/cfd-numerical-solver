@@ -6,3 +6,5 @@ cmake-build-debug/
 cmake-build-default/
 build/
 data/
+.envrc
+flake.lock
