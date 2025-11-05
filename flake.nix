@@ -1,5 +1,5 @@
 {
-  description = "C++ development environment with";
+  description = "CFD Numerical Solver - C++ development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -10,44 +10,90 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            # Compiler and build tools
-            gcc
+        
+        cfd-numerical-solver = pkgs.stdenv.mkDerivation {
+          pname = "cfd-numerical-solver";
+          version = "0.1.0";
+          
+          src = ./.;
+          
+          nativeBuildInputs = with pkgs; [
             cmake
-            ninja
             pkg-config
-
-            # dependencies
+          ];
+          
+          buildInputs = with pkgs; [
             xtensor
             xtl
             xsimd
             vtk
             yaml-cpp
-
-            # Optional: additional useful tools
-            # clang-tools
+          ];
+          
+          cmakeFlags = [
+            "-DCMAKE_BUILD_TYPE=Release"
+            "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+          ];
+          
+          # doCheck = true;
+          
+          meta = with pkgs.lib; {
+            description = "CFD Numerical Solver";
+            license = licenses.mit;
+            platforms = platforms.linux ++ platforms.darwin;
+          };
+        };
+        
+      in
+      {
+        # The buildable package
+        packages = {
+          default = cfd-numerical-solver;
+          cfd-numerical-solver = cfd-numerical-solver;
+        };
+        
+        # Development shell
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ cfd-numerical-solver ];
+          
+          buildInputs = with pkgs; [
+            gcc
+            cmake
+            ninja
+            pkg-config
+            
+            xtensor
+            xtl
+            xsimd
+            vtk
+            yaml-cpp
+            
+            clang-tools
             cppcheck
             gdb
             valgrind
+            
+            git
           ];
-
+          
           shellHook = ''
-            echo "C++ development environment"
+            echo "=================================="
+            echo "CFD Numerical Solver Dev Environment"
+            echo "=================================="
             echo "Compiler: $(gcc --version | head -1)"
             echo "CMake: $(cmake --version | head -1)"
+            echo ""
+            echo "Quick build commands:"
+            echo "  mkdir -p build && cd build"
+            echo "  cmake .. && make -j$(nproc)"
+            echo "  ./cfd-numerical-solver"
           '';
         };
-
-        # Optional: You can also define a package if you want to build your project
-        # packages.default = pkgs.stdenv.mkDerivation {
-        #   name = "xtensor-project";
-        #   src = self;
-        #   nativeBuildInputs = with pkgs; [ cmake ninja pkg-config ];
-        #   buildInputs = with pkgs; [ xtensor xtl xsimd ];
-        #   cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" ];
+        
+        # Apps for easy execution
+        # apps.default = {
+        #   type = "app";
+        #   program = "${cfd-numerical-solver}/bin/cfd-numerical-solver";
         # };
       });
 }
