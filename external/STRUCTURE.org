@@ -4,72 +4,73 @@
 
 ** File structure
 #+begin_example monospace
-cfd-numerical-solver/
-├── .gitignore
-├── README.org
+├── .clang-format
+├── .clang-tidy
 ├── CMakeLists.txt
 ├── config.yaml
-├── docs/
-│   ├── ...
-│   └── Doxyfile
-├── include/
-│   ├── data/
-│   │   └── DataLayer.hpp
-│   ├── solver/
-│   │   ├── Solver.hpp
-│   │   └── GodunovSolver.hpp
-│   ├── bc/
-│   │   ├── BoundaryCondition.hpp
-│   │   ├── BoundaryManager.hpp
-│   │   ├── ReflectiveBoundary.hpp
-│   │   ├── PeriodicBoundary.hpp
-│   │   ├── WallBoundary.hpp
-│   │   ├── SymmetryBoundary.hpp
-│   │   ├── OutletBoundary.hpp
-│   │   ├── InletBoundary.hpp
-│   │   └── FreeStreamBoundary.hpp
-│   ├── visualization/
-│   │   └── VTKViewer
-│   ├── config/
-│   │   ├── StepWriter
-│   │   └── Config.hpp
-│   └── Simulation.hpp
-├── src/
-│   ├── data/
-│   │   └── DataLayer.cpp
-│   ├── solver/
-│   │   ├── Solver.cpp
-│   │   └── GodunovSolver.cpp
-│   ├── bc/
-│   │   ├── BoundaryCondition.cpp
-│   │   ├── BoundaryManager.cpp
-│   │   ├── ReflectiveBoundary.cpp
-│   │   ├── PeriodicBoundary.cpp
-│   │   ├── WallBoundary.cpp
-│   │   ├── SymmetryBoundary.cpp
-│   │   ├── OutletBoundary.cpp
-│   │   ├── InletBoundary.cpp
-│   │   └── FreeStreamBoundary.cpp
-│   ├── visualization/
-│   │   └── VTKViewer.cpp
-│   ├── config/
-│   │   ├── StepWriter.cpp
-│   │   └── Config.cpp
-│   ├── Simulation.cpp
-│   └── main.cpp
-├── tests/
-│   ├── ...
-│   └── CMakeLists.txt
-├── data/
-│   ├── input/
-│   └── output/
-└── external/
-    ├── STRUCTURE.org
-    └── VARIABLES.org
+├── docs
+├── external
+│   ├── STRUCTURE.org
+│   └── VARIABLES.org
+├── flake.nix
+├── .gitignore
+├── include
+│   ├── bc
+│   │   ├── BoundaryCondition.hpp
+│   │   ├── BoundaryFactory.hpp
+│   │   ├── BoundaryManager.hpp
+│   │   ├── FreeStreamBoundary.hpp
+│   │   ├── InletBoundary.hpp
+│   │   ├── NonReflectiveBoundary.hpp
+│   │   ├── OutletBoundary.hpp
+│   │   ├── PeriodicBoundary.hpp
+│   │   ├── ReflectiveBoundary.hpp
+│   │   ├── SymmetryBoundary.hpp
+│   │   └── WallBoundary.hpp
+│   ├── config
+│   │   ├── ConfigParser.hpp
+│   │   ├── InitialConditions.hpp
+│   │   └── Settings.hpp
+│   ├── output
+│   │   ├── StepWriter.hpp
+│   │   ├── VTKWriter.hpp
+│   │   └── WriterFactory.hpp
+│   ├── Simulation.hpp
+│   └── solver
+│       ├── GodunovSolver.hpp
+│       ├── SolverFactory.hpp
+│       └── Solver.hpp
+├── LICENSE
+├── README.org
+└── src
+    ├── bc
+    │   ├── BoundaryFactory.cpp
+    │   ├── BoundaryManager.cpp
+    │   ├── FreeStreamBoundary.cpp
+    │   ├── InletBoundary.cpp
+    │   ├── NonReflectiveBoundary.cpp
+    │   ├── OutletBoundary.cpp
+    │   ├── PeriodicBoundary.cpp
+    │   ├── ReflectiveBoundary.cpp
+    │   ├── SymmetryBoundary.cpp
+    │   └── WallBoundary.cpp
+    ├── config
+    │   └── ConfigParser.cpp
+    ├── main.cpp
+    ├── output
+    │   ├── VTKWriter.cpp
+    │   └── WriterFactory.cpp
+    ├── Simulation.cpp
+    └── solver
+        ├── GodunovSolver.cpp
+        └── SolverFactory.cpp
 #+end_example
 
 ** Tasks
 
-1. [ ] Create data structures
-2. [ ] Create parser (a class that populates data structures with parameters from a file)
-3. [ ] Create solution in ParaView format
+1. [X] Create data structures
+2. [X] Create parser (a class that populates data structures with parameters from a file)
+3. [X] Create solution in ParaView format
+4. [X] Stitch everything together & build
+5. [ ] Implement the Godunov solver
+6. [ ] Ensure the correctness of boundary conditions

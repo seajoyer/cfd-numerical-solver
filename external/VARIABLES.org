@@ -13,11 +13,16 @@
 - ~rho~ - density
 - ~p~ - momentum
 - ~V~ - specific volume
-*** Iterators
-- ~l~ - space along X
-- ~m~ - space along Y
-- ~n~ - space along Z
+  
+- ~<var>_L~ - value on the left  boundary 
+- ~<var>_R~ - value on the right boundary 
+  
+** Iterators
+- ~i~ - space along X
+- ~j~ - space along Y
+- ~k~ - space along Z
 - ~t_cur~ - current time
+- ~step~ - current step
 
 ** Global Parameters
 - ~gamma~ - adiabatic index
@@ -28,5 +33,8 @@
 - ~L_x~, ~L_y~, ~L_z~ - computational domain size
 
 ** Miscellaneous
-- ~left_bc~  - left boundary condition
+- ~solver~ - solver type
+- ~writer~ - writer type
+  
+- ~left_bc~  - left  boundary condition
 - ~right_bc~ - right boundary condition
