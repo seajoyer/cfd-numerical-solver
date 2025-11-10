@@ -70,7 +70,6 @@ void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
                 layer.xc(dst) = layer.xc(src);
             }
         } else {
-            // как Outlet
             for (int g = 0; g < pad; ++g) {
                 int dst = core_end + g;
                 int src = core_end - 1;

@@ -1,6 +1,8 @@
 config:
   settings:
     solver: godunov
+    riemann_solver: exact
+    reconstruction: P0
     left_boundary:  free_stream
     right_boundary: free_stream
                   # inlet
@@ -11,21 +13,23 @@ config:
                   # symmetry
                   # wall
 
-    N: 200
+    N: 1000
     cfl: 0.5
-    t_end: 1
+    t_end: 0.25 # 0.25 0.15 0.012 0.035 0.035
     padding: 2
     c: 300
     gamma: 1.4
     dim: 1
-    L_x: 10
-    L_y: 10
-    L_z: 10
+    L_x: 1
+    L_y: 1
+    L_z: 1
 
     output_format: vtk
     output_dir: "../data/output" # run from `build/`, 
                                  # so `../` is needed
     output_every_steps: 1
+
+    sod_test_num: 1
 
   initial_conditions:
     sod1:

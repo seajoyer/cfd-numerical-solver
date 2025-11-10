@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "config/Settings.hpp"
 #include "solver/Solver.hpp"
 
 /**
@@ -14,17 +15,15 @@
  * without coupling the Simulation class to specific solver implementations.
  */
 class SolverFactory {
-   public:
+public:
     /**
      * @brief Creates a solver instance based on the solver type string.
      *
-     * @param solver_type String identifier for the solver (e.g., "godunov").
-     * @param dim Spatial dimension (1, 2, or 3).
+     * @param settings_ settings for solver construction.
      * @return Unique pointer to the created solver.
      * @throws std::runtime_error if solver type is not recognized.
      */
-    static auto Create(const std::string& solver_type, int dim)
-        -> std::unique_ptr<Solver>;
+    static auto Create(Settings &settings_) -> std::unique_ptr<Solver>;
 };
 
 #endif  // SOLVERFACTORY_HPP

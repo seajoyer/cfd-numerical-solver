@@ -2,40 +2,180 @@
 #define GODUNOVSOLVER_HPP
 
 #include <memory>
+#include <vector>
 
+#include "Solver.hpp"
+#include "config/Settings.hpp"
+#include "data/DataLayer.hpp"
 #include "bc/BoundaryManager.hpp"
-#include "solver/Solver.hpp"
+
+#include "reconstruction/Reconstruction.hpp"
+#include "reconstruction/P0Reconstruction.hpp"
+#include "TimeStepCalculator.hpp"
+#include "PositivityLimiter.hpp"
+
+// Подразумевается, что Riemann-солверы лежат в /include/reimann
+#include "riemann/RiemannSolver.hpp"
+#include "riemann/HLLRiemannSolver.hpp"
+#include "riemann/HLLCRiemannSolver.hpp"
+#include "riemann/ExactIdealGasRiemannSolver.hpp"
 
 /**
  * @class GodunovSolver
- * @brief First-order Godunov finite-volume solver for hyperbolic conservation laws.
+ * @brief First-order finite-volume Godunov solver for 1D Euler equations.
  *
- * Implements the classical Godunov method for solving 1D Euler equations
- * using piecewise constant reconstruction and an approximate Riemann solver.
+ * This solver implements a classical Godunov scheme with:
+ * - piecewise-constant (P0) reconstruction,
+ * - configurable Riemann solver (HLL / HLLC / Exact),
+ * - CFL-based time step selection,
+ * - optional positivity limiting for density and pressure.
  *
- * The class inherits from Solver and defines specific details of the
- * numerical scheme while preserving the interface contract.
+ * The solver operates on a provided DataLayer instance and uses
+ * BoundaryManager to update ghost cells before each step.
  *
- * @note This solver is currently implemented for 1D problems,
- *       but the design allows extension to 2D/3D schemes by adding
- *       loops over spatial dimensions and generalizing flux computation.
+ * Responsibilities per Step():
+ *  1. Apply all configured boundary conditions.
+ *  2. Convert conservative variables to primitive variables.
+ *  3. Compute the stable time step from CFL condition.
+ *  4. Reconstruct left/right states at interfaces.
+ *  5. Evaluate numerical fluxes via the chosen Riemann solver.
+ *  6. Update conservative variables (Godunov FV update).
+ *  7. Enforce positivity constraints on updated states.
+ *
+ * Output is handled externally (e.g. via StepWriter in Simulation).
  */
 class GodunovSolver : public Solver {
-   public:
-    GodunovSolver();
+public:
+    /**
+     * @brief Constructs a Godunov solver using global simulation settings.
+     *
+     * The constructor initializes internal parameters (CFL, gamma, domain size)
+     * and allocates helper objects (BoundaryManager, reconstruction, Riemann solver).
+     * Selection of a specific Riemann solver implementation is based on settings
+     * (e.g. configuration key, to be interpreted in the implementation).
+     *
+     * @param settings Global simulation settings (copied internally).
+     */
+    explicit GodunovSolver(const Settings &settings);
 
-    explicit GodunovSolver(int dim);
+    /**
+     * @brief Advances the solution by one explicit Godunov time step.
+     *
+     * Performs a full update of conservative variables stored in the given
+     * DataLayer, starting from the current time t_cur. The actual time step
+     * size is computed from the CFL condition and returned.
+     *
+     * @param layer Data layer containing current state (modified in-place).
+     * @param t_cur Current simulation time (incremented by dt on return).
+     * @return Actual time step taken (dt).
+     */
+    double Step(DataLayer &layer, double &t_cur) override;
 
-    auto Step(DataLayer& layer, double& t_cur) -> double override;
-
+    /**
+     * @brief Sets the CFL number used for time step computation.
+     *
+     * Overrides the value taken from Settings, if needed.
+     *
+     * @param cfl CFL number (0 < cfl <= 1).
+     */
     void SetCfl(double cfl) override;
 
-    void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
+    /**
+     * @brief Assigns boundary conditions for a specific axis.
+     *
+     * This method forwards boundary configuration to the internal
+     * BoundaryManager. For 1D simulations, axis = 0 is expected.
+     *
+     * @param axis Spatial axis index (0=x, 1=y, 2=z).
+     * @param left_bc Boundary condition for the left/lower boundary.
+     * @param right_bc Boundary condition for the right/upper boundary.
+     */
+    void AddBoundary(int axis,
+                     std::shared_ptr<BoundaryCondition> left_bc,
                      std::shared_ptr<BoundaryCondition> right_bc) override;
 
-   private:
-    double cfl_ = 0.5;
-    BoundaryManager bc_manager_;
+private:
+    /**
+     * @brief Global simulation settings (copied from input).
+     */
+    Settings settings_;
+
+    /**
+     * @brief Manager for all boundary conditions.
+     *
+     * Used to update ghost cells before each Godunov step.
+     */
+    BoundaryManager boundaryManager_;
+
+    /**
+     * @brief Reconstruction scheme (currently P0 for first-order Godunov).
+     */
+    std::shared_ptr<Reconstruction> reconstruction_;
+
+    /**
+     * @brief Selected Riemann solver implementation.
+     */
+    std::shared_ptr<RiemannSolver> riemannSolver_;
+
+    /**
+     * @brief Minimal allowed density for positivity limiting.
+     */
+    double rhoMin_;
+
+    /**
+     * @brief Minimal allowed pressure for positivity limiting.
+     */
+    double pMin_;
+
+    /**
+     * @brief Initializes the reconstruction strategy.
+     *
+     * Currently selects piecewise-constant reconstruction.
+     */
+    void InitializeReconstruction();
+
+    /**
+     * @brief Initializes the Riemann solver according to settings.
+     *
+     * Chooses between HLL, HLLC, or exact ideal-gas solver depending
+     * on configuration (details implemented in source file).
+     */
+    void InitializeRiemannSolver();
+
+    /**
+     * @brief Computes spatial step size for 1D uniform grid.
+     *
+     * Uses either configuration parameters (domain length and N)
+     * or coordinates stored in the DataLayer in the implementation.
+     *
+     * @param layer Data layer with grid description.
+     * @return Cell size dx.
+     */
+    double ComputeDx(const DataLayer &layer) const;
+
+    /**
+     * @brief Converts conservative variables in DataLayer to primitives.
+     *
+     * Extracts 1D conservative fields from DataLayer, converts them into
+     * a contiguous array of Primitive states for the physical cells.
+     *
+     * @param layer Data layer with current conservative variables.
+     * @param primitives Output vector of primitive states.
+     */
+    void BuildPrimitiveArray(const DataLayer &layer,
+                             std::vector<Primitive> &primitives) const;
+
+    /**
+     * @brief Writes updated conservative variables back into DataLayer.
+     *
+     * Copies the updated conservative states of physical cells into
+     * the corresponding arrays (U, V, etc.) stored in the DataLayer.
+     *
+     * @param updatedConservative Updated conservative states.
+     * @param layer Data layer to be modified.
+     */
+    void StoreConservativeArray(const std::vector<Conservative> &updatedConservative,
+                                DataLayer &layer) const;
 };
 
 #endif  // GODUNOVSOLVER_HPP

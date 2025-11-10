@@ -34,11 +34,13 @@ auto ConfigParser::GetSODTest(int test_num) const -> const InitialConditions& {
     if (test_num < 1 || test_num > 5) {
         throw std::out_of_range("SOD test index must be between 1 and 5");
     }
-    return sod_tests_[test_num];
+    return sod_tests_[test_num - 1];
 }
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
+    settings.riemann_solver = node["riemann_solver"].as<std::string>();
+    settings.reconstruction = node["reconstruction"].as<std::string>();
     settings.right_boundary = node["left_boundary"].as<std::string>();
     settings.left_boundary  = node["right_boundary"].as<std::string>();
 
@@ -52,6 +54,8 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.L_x = node["L_x"].as<double>();
     settings.L_y = node["L_y"].as<double>();
     settings.L_z = node["L_z"].as<double>();
+
+    settings.sod_test_num = node["sod_test_num"].as<int>();
 
     settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
     settings.output_format = node["output_format"].as<std::string>();

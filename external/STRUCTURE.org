@@ -1,7 +1,3 @@
-#+title: Project Structure and Tasks
-
-[[file:../README.org][← back to README]]
-
 ** File structure
 #+begin_example monospace
 ├── .clang-format
@@ -10,60 +6,86 @@
 ├── config.yaml
 ├── docs
 ├── external
-│   ├── STRUCTURE.org
-│   └── VARIABLES.org
+│   ├── STRUCTURE.org
+│   └── VARIABLES.org
 ├── flake.nix
 ├── .gitignore
 ├── include
-│   ├── bc
-│   │   ├── BoundaryCondition.hpp
-│   │   ├── BoundaryFactory.hpp
-│   │   ├── BoundaryManager.hpp
-│   │   ├── FreeStreamBoundary.hpp
-│   │   ├── InletBoundary.hpp
-│   │   ├── NonReflectiveBoundary.hpp
-│   │   ├── OutletBoundary.hpp
-│   │   ├── PeriodicBoundary.hpp
-│   │   ├── ReflectiveBoundary.hpp
-│   │   ├── SymmetryBoundary.hpp
-│   │   └── WallBoundary.hpp
-│   ├── config
-│   │   ├── ConfigParser.hpp
-│   │   ├── InitialConditions.hpp
-│   │   └── Settings.hpp
-│   ├── output
-│   │   ├── StepWriter.hpp
-│   │   ├── VTKWriter.hpp
-│   │   └── WriterFactory.hpp
-│   ├── Simulation.hpp
-│   └── solver
-│       ├── GodunovSolver.hpp
-│       ├── SolverFactory.hpp
-│       └── Solver.hpp
+│   ├── bc
+│   │   ├── BoundaryCondition.hpp
+│   │   ├── BoundaryFactory.hpp
+│   │   ├── BoundaryManager.hpp
+│   │   ├── FreeStreamBoundary.hpp
+│   │   ├── InletBoundary.hpp
+│   │   ├── NonReflectiveBoundary.hpp
+│   │   ├── OutletBoundary.hpp
+│   │   ├── PeriodicBoundary.hpp
+│   │   ├── ReflectiveBoundary.hpp
+│   │   ├── SymmetryBoundary.hpp
+│   │   └── WallBoundary.hpp
+│   ├── config
+│   │   ├── ConfigParser.hpp
+│   │   ├── InitialConditions.hpp
+│   │   └── Settings.hpp
+│   ├── data
+│   │   └── DataLayer.hpp
+│   ├── output
+│   │   ├── StepWriter.hpp
+│   │   ├── VTKWriter.hpp
+│   │   └── WriterFactory.hpp
+│   ├── reconstruction
+│   │   ├── Reconstruction.hpp
+│   │   └── P0Reconstruction.hpp
+│   ├── riemann
+│   │   ├── RiemannSolver.hpp
+│   │   ├── HLLRiemannSolver.hpp
+│   │   ├── HLLCRiemannSolver.hpp
+│   │   └── ExactIdealGasRiemannSolver.hpp
+│   ├── solver
+│   │   ├── EOS.hpp
+│   │   ├── Variables.hpp
+│   │   ├── TimeStepCalculator.hpp
+│   │   ├── PositivityLimiter.hpp
+│   │   ├── GodunovSolver.hpp
+│   │   ├── SolverFactory.hpp
+│   │   └── Solver.hpp
+│   └── Simulation.hpp
 ├── LICENSE
 ├── README.org
 └── src
     ├── bc
-    │   ├── BoundaryFactory.cpp
-    │   ├── BoundaryManager.cpp
-    │   ├── FreeStreamBoundary.cpp
-    │   ├── InletBoundary.cpp
-    │   ├── NonReflectiveBoundary.cpp
-    │   ├── OutletBoundary.cpp
-    │   ├── PeriodicBoundary.cpp
-    │   ├── ReflectiveBoundary.cpp
-    │   ├── SymmetryBoundary.cpp
-    │   └── WallBoundary.cpp
+    │   ├── BoundaryFactory.cpp
+    │   ├── BoundaryManager.cpp
+    │   ├── FreeStreamBoundary.cpp
+    │   ├── InletBoundary.cpp
+    │   ├── NonReflectiveBoundary.cpp
+    │   ├── OutletBoundary.cpp
+    │   ├── PeriodicBoundary.cpp
+    │   ├── ReflectiveBoundary.cpp
+    │   ├── SymmetryBoundary.cpp
+    │   └── WallBoundary.cpp
     ├── config
-    │   └── ConfigParser.cpp
-    ├── main.cpp
+    │   └── ConfigParser.cpp
+    ├── data
+    │   └── DataLayer.cpp
     ├── output
-    │   ├── VTKWriter.cpp
-    │   └── WriterFactory.cpp
+    │   ├── VTKWriter.cpp
+    │   └── WriterFactory.cpp
+    ├── reconstruction
+    │   └── P0Reconstruction.cpp
+    ├── riemann
+    │   ├── HLLRiemannSolver.cpp
+    │   ├── HLLCRiemannSolver.cpp
+    │   └── ExactIdealGasRiemannSolver.cpp
+    ├── solver
+    │   ├── EOS.cpp
+    │   ├── Variables.cpp
+    │   ├── TimeStepCalculator.cpp
+    │   ├── PositivityLimiter.cpp
+    │   ├── GodunovSolver.cpp
+    │   └── SolverFactory.cpp
     ├── Simulation.cpp
-    └── solver
-        ├── GodunovSolver.cpp
-        └── SolverFactory.cpp
+    └── main.cpp
 #+end_example
 
 ** Tasks
@@ -72,5 +94,7 @@
 2. [X] Create parser (a class that populates data structures with parameters from a file)
 3. [X] Create solution in ParaView format
 4. [X] Stitch everything together & build
-5. [ ] Implement the Godunov solver
-6. [ ] Ensure the correctness of boundary conditions
+5. [X] Implement the Godunov solver (FV, P0, HLL/HLLC/Exact, CFL, positivity)
+6. [X] Ensure the correctness of boundary conditions
+
+::contentReference[oaicite:0]{index=0}

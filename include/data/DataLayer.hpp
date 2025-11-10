@@ -27,13 +27,13 @@
  */
 struct DataLayer {
     xt::xarray<double> rho;  ///< Density
-    xt::xarray<double> u;    ///< Velocity (x-component)
+    xt::xarray<double> u;    ///< Velocity
     xt::xarray<double> P;    ///< Pressure
     xt::xarray<double> p;    ///< Momentum density
-    xt::xarray<double> e;    ///< Specific internal energy or total energy density
-    xt::xarray<double> U;    ///< Conserved variable (mass)
+    xt::xarray<double> e;    ///< total energy density
+    xt::xarray<double> U;    ///< internal energy
     xt::xarray<double> V;    ///< Conserved variable (momentum)
-    xt::xarray<double> m;    ///< Momentum
+    xt::xarray<double> m;    ///< specific volume
     xt::xarray<double> xb;   ///< Cell boundary coordinates
     xt::xarray<double> xc;   ///< Cell center coordinates
 
