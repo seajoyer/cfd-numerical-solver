@@ -7,9 +7,7 @@
 
 #include "solver/EOS.hpp"
 #include "solver/Variables.hpp"
-#include "reconstruction/Reconstruction.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
-#include "riemann/RiemannSolver.hpp"
 #include "riemann/HLLRiemannSolver.hpp"
 #include "riemann/HLLCRiemannSolver.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"

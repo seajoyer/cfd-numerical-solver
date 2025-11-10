@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.25.1)
 
 set(NAME cfd-numerical-solver)
 project(${NAME} LANGUAGES C CXX)
@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(xtensor REQUIRED)
-find_package(VTK REQUIRED)
+# find_package(xtensor REQUIRED)
+# find_package(VTK REQUIRED)
 
 include(FetchContent)
 

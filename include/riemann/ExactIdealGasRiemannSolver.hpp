@@ -2,7 +2,6 @@
 #define EXACTIDEALGASRIEMANNSOLVER_HPP
 
 #include "RiemannSolver.hpp"
-#include "solver/EOS.hpp"
 
 /**
  * @class ExactIdealGasRiemannSolver
@@ -19,7 +18,7 @@ public:
     /**
      * @brief Default constructor.
      */
-    ExactIdealGasRiemannSolver() {}
+    ExactIdealGasRiemannSolver() = default;
 
     /**
      * @brief Computes the exact Riemann flux for ideal gas.
@@ -29,9 +28,10 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Exact flux at the interface.
      */
-    Flux ComputeFlux(const Primitive &left,
+    [[nodiscard]] auto ComputeFlux(const Primitive &left,
                      const Primitive &right,
-                     double gamma) const override;
+                     double Q_user,
+                     double gamma) const -> Flux override;
 };
 
 #endif  // EXACTIDEALGASRIEMANNSOLVER_HPP

@@ -2,7 +2,6 @@
 #define RIEMANNSOLVER_HPP
 
 #include "solver/Variables.hpp"
-#include "solver/EOS.hpp"
 
 /**
  * @class RiemannSolver
@@ -22,8 +21,7 @@ public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
-    virtual ~RiemannSolver() {
-    }
+    virtual ~RiemannSolver() = default;
 
     /**
      * @brief Computes the numerical flux at an interface.
@@ -33,9 +31,10 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Numerical flux for the Euler equations.
      */
-    virtual Flux ComputeFlux(const Primitive &left,
+    [[nodiscard]] virtual auto ComputeFlux(const Primitive &left,
                              const Primitive &right,
-                             double gamma) const = 0;
+                             double Q_user,
+                             double gamma) const -> Flux = 0;
 };
 
 

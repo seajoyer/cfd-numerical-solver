@@ -2,7 +2,6 @@
 #define SETTINGS_HPP
 
 #include <string>
-#include <vector>
 
 struct Settings {
     std::string solver = "godunov";
@@ -10,6 +9,7 @@ struct Settings {
     std::string reconstruction = "p0";
     std::string left_boundary  = "free_stream";
     std::string right_boundary = "free_stream";
+    double Q_user = 2.0;
 
     int N = 200;
     double cfl = 0.5;

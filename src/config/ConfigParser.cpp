@@ -41,8 +41,9 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
     settings.riemann_solver = node["riemann_solver"].as<std::string>();
     settings.reconstruction = node["reconstruction"].as<std::string>();
-    settings.right_boundary = node["left_boundary"].as<std::string>();
+    settings.right_boundary = node["left_boundary" ].as<std::string>();
     settings.left_boundary  = node["right_boundary"].as<std::string>();
+    settings.Q_user         = node["Q_user"].as<double>();
 
     settings.N = node["N"].as<int>();
     settings.cfl = node["cfl"].as<double>();
