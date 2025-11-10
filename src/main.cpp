@@ -13,7 +13,7 @@ auto main(int argc, char* argv[]) -> int {
         parser.Parse(config_path);
         const Settings& settings = parser.GetSettings();
 
-        int test_num = 1;
+        int test_num = settings.sod_test_num;
         InitialConditions initial_conditions = parser.GetSODTest(test_num);
         std::cout << "Using initial conditions: sod" << test_num << "\n\n";
 

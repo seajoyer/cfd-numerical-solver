@@ -37,9 +37,10 @@ class Simulation {
      * @param settings Configuration structure containing numerical parameters and file
      * paths.
      * @param initial_conditions Initial conditions for the simulation (optional).
+     * @param log_progress
      */
     explicit Simulation(Settings settings,
-                        InitialConditions initial_conditions = InitialConditions{},
+                        const InitialConditions &initial_conditions,
                         bool log_progress = true);
 
     /**

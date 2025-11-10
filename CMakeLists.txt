@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.0)
 
 set(NAME cfd-numerical-solver)
-project(${NAME} LANGUAGES CXX)
+project(${NAME} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,6 +46,17 @@ add_executable(${NAME}
     src/solver/SolverFactory.cpp
     src/solver/GodunovSolver.cpp
     include/solver/Solver.hpp
+    src/solver/Variables.cpp
+    src/solver/EOS.cpp
+    src/solver/TimeStepCalculator.cpp
+    src/solver/PositivityLimiter.cpp
+
+    src/reconstruction/P0Reconstruction.cpp
+    include/reconstruction/Reconstruction.hpp
+
+    src/riemann/HLLRiemannSolver.cpp
+    src/riemann/HLLCRiemannSolver.cpp
+    src/riemann/ExactIdealGasRiemannSolver.cpp
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
@@ -65,7 +76,7 @@ add_executable(${NAME}
     src/bc/ReflectiveBoundary.cpp
     src/bc/NonReflectiveBoundary.cpp
     src/bc/SymmetryBoundary.cpp
-    src/bc/WallBoundary.cpp 
+    src/bc/WallBoundary.cpp
     include/bc/BoundaryCondition.hpp
 )
 

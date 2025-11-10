@@ -10,24 +10,25 @@
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 
-Simulation::Simulation(Settings settings, InitialConditions initial_conditions,
-                       bool log_progress)
+Simulation::Simulation(Settings settings, const InitialConditions &initial_conditions,
+                       const bool log_progress)
     : settings_(std::move(settings)),
       initial_conditions_(initial_conditions),
-      log_progress_(log_progress) {}
-
-auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
-    return SolverFactory::Create(settings_.solver, settings_.dim);
+      log_progress_(log_progress) {
 }
 
-auto Simulation::CreateBoundaryCondition(const std::string& boundary_type, double rho_inf,
+auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
+    return SolverFactory::Create(settings_);
+}
+
+auto Simulation::CreateBoundaryCondition(const std::string &boundary_type, double rho_inf,
                                          double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
     return BoundaryFactory::Create(boundary_type, rho_inf, u_inf, p_inf);
 }
 
-auto Simulation::CreateWriter(const std::string& output_format,
-                              const std::string& output_dir)
+auto Simulation::CreateWriter(const std::string &output_format,
+                              const std::string &output_dir)
     -> std::unique_ptr<StepWriter> {
     return WriterFactory::Create(output_format, output_dir);
 }
@@ -79,9 +80,11 @@ void Simulation::ApplyInitialConditions() {
         const double P = layer_->P(i);
         const double gamma = settings_.gamma;
 
-        layer_->m(i) = rho * u;                                // momentum
+        layer_->m(i) = rho * dx;                               // mass
         layer_->e(i) = P / (gamma - 1.0) + 0.5 * rho * u * u;  // total energy
-        layer_->p(i) = rho * u;  // momentum (alternative representation)
+        layer_->p(i) = rho * u;                                // momentum
+        layer_->U(i) = P / (gamma - 1.0) / rho;                // internal energy
+        layer_->V(i) = 1 / rho;                                // specific volume
     }
 }
 
@@ -113,6 +116,8 @@ void Simulation::Initialize() {
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
     std::cout << ">>> Solver:           " << settings_.solver << '\n';
+    std::cout << ">>> Riemann Solver:   " << settings_.riemann_solver << '\n';
+    std::cout << ">>> Reconstruction:   " << settings_.reconstruction << '\n';
     std::cout << ">>> Boundary left:    " << settings_.left_boundary << '\n';
     std::cout << ">>> Boundary right:   " << settings_.right_boundary << '\n';
     std::cout << ">>> Grid size (N):    " << settings_.N << '\n';
@@ -132,7 +137,7 @@ void Simulation::Initialize() {
               << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
 }
 
-auto Simulation::GetDataLayer() -> DataLayer& {
+auto Simulation::GetDataLayer() -> DataLayer & {
     if (!layer_) {
         throw std::runtime_error("DataLayer is not initialized.");
     }

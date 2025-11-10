@@ -6,6 +6,8 @@
 
 struct Settings {
     std::string solver = "godunov";
+    std::string riemann_solver = "exact";
+    std::string reconstruction = "p0";
     std::string left_boundary  = "free_stream";
     std::string right_boundary = "free_stream";
 
@@ -19,6 +21,8 @@ struct Settings {
     double L_x = 10;
     double L_y = 10;
     double L_z = 10;
+
+    int sod_test_num = 1;
 
     std::size_t output_every_steps = 1;
     std::string output_format = "vtk";

@@ -4,14 +4,14 @@
 #include <cctype>
 #include <stdexcept>
 
-auto SolverFactory::Create(const std::string& solver_type, int dim) -> std::unique_ptr<Solver> {
+auto SolverFactory::Create(Settings &settings) -> std::unique_ptr<Solver> {
     // Convert to lowercase for case-insensitive comparison
-    std::string type_lower = solver_type;
+    std::string type_lower = settings.solver;
     std::transform(type_lower.begin(), type_lower.end(), type_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
     if (type_lower == "godunov") {
-        return std::make_unique<GodunovSolver>(dim);
+        return std::make_unique<GodunovSolver>(settings);
     }
 
     // Future solvers can be added here:
@@ -26,5 +26,5 @@ auto SolverFactory::Create(const std::string& solver_type, int dim) -> std::uniq
     //
     // etc ...
 
-    throw std::runtime_error("Unknown solver type: " + solver_type);
+    throw std::runtime_error("Unknown solver type: " + settings.solver);
 }

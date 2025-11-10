@@ -24,13 +24,12 @@ void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
             layer.xb(dst) = layer.xb(mirror);
             layer.xc(dst) = layer.xc(mirror);
 
-            layer.u(dst) = -layer.u(mirror); // инверсия нормальной скорости
+            layer.u(dst) = -layer.u(mirror);
         }
     } else {
-        // Заполняем [coreEnd..coreEnd+pad-1], отражая относительно coreEnd-1
         for (int g = 0; g < pad; ++g) {
-            const int mirror = core_end - 1 - g; // ближайшие внутренние справа
-            const int dst = core_end + g; // призрачные справа
+            const int mirror = core_end - 1 - g;
+            const int dst = core_end + g;
 
             layer.rho(dst) = layer.rho(mirror);
             layer.P(dst) = layer.P(mirror);
@@ -42,7 +41,7 @@ void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
             layer.xb(dst) = layer.xb(mirror);
             layer.xc(dst) = layer.xc(mirror);
 
-            layer.u(dst) = -layer.u(mirror); // инверсия нормальной скорости
+            layer.u(dst) = -layer.u(mirror);
         }
     }
 }
