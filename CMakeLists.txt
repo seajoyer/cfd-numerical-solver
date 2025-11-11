@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# find_package(xtensor REQUIRED)
-# find_package(VTK REQUIRED)
+find_package(xtensor REQUIRED)
+find_package(VTK REQUIRED)
 
 include(FetchContent)
 
@@ -43,6 +43,10 @@ add_executable(${NAME}
 
     src/Simulation.cpp
 
+    src/riemann/HLLRiemannSolver.cpp
+    src/riemann/HLLCRiemannSolver.cpp
+    src/riemann/ExactIdealGasRiemannSolver.cpp
+
     src/solver/SolverFactory.cpp
     src/solver/GodunovSolver.cpp
     include/solver/Solver.hpp
@@ -53,10 +57,6 @@ add_executable(${NAME}
 
     src/reconstruction/P0Reconstruction.cpp
     include/reconstruction/Reconstruction.hpp
-
-    src/riemann/HLLRiemannSolver.cpp
-    src/riemann/HLLCRiemannSolver.cpp
-    src/riemann/ExactIdealGasRiemannSolver.cpp
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp

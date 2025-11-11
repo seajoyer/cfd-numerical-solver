@@ -17,7 +17,7 @@
  * - Returned Flux is used in the finite-volume update of conservative variables.
  */
 class RiemannSolver {
-public:
+   public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
@@ -31,11 +31,13 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Numerical flux for the Euler equations.
      */
-    [[nodiscard]] virtual auto ComputeFlux(const Primitive &left,
-                             const Primitive &right,
-                             double Q_user,
-                             double gamma) const -> Flux = 0;
-};
+    [[nodiscard]] virtual auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                           double gamma) const -> Flux = 0;
 
+    [[nodiscard]] virtual auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                           double gamma, double Q_user) const -> Flux {
+        return ComputeFlux(left, right, gamma);
+    }
+};
 
 #endif  // RIEMANNSOLVER_HPP

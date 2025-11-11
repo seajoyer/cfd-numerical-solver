@@ -1,6 +1,6 @@
 #include "solver/Variables.hpp"
 
-Flux EulerFlux(const Primitive &state, double gamma) {
+auto EulerFlux(const Primitive &state, double gamma) -> Flux {
     const double rho = state.rho;
     const double u = state.u;
     const double P = state.P;

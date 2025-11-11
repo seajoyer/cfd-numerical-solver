@@ -16,7 +16,6 @@ config:
 
     N: 1000
     cfl: 0.5
-    t_end: 0.25 # 0.25 0.15 0.012 0.035 0.035
     padding: 2
     c: 300
     gamma: 1.4
@@ -25,12 +24,24 @@ config:
     L_y: 1
     L_z: 1
 
+    # set any to zero to disable the endpoint.
+    # set both to zeros to write only the initial state
+    t_end:  0.25  # 0.25 0.15 0.012 0.035 0.035
+    step_end: 0
+
+    # set any to zero to disable the corresponding logs.
+    log_every_steps: 50
+    log_every_time:  0.0
+                                 
+    # set any to zero to disable the corresponding output.
+    output_every_steps: 50
+    output_every_time:  0.0
+
     output_format: vtk
     output_dir: "../data/output" # run from `build/`, 
                                  # so `../` is needed
-    output_every_steps: 1
 
-    sod_test_num: 1
+    sod_test_num: 5
 
   initial_conditions:
     sod1:

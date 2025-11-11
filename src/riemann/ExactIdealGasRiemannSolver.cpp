@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "solver/EOS.hpp"
+
 namespace {
 struct State {
     double rho;
@@ -11,7 +13,7 @@ struct State {
     double a;
 };
 
-auto MakeState(const Primitive &w, double gamma) -> State {
+auto MakeState(const Primitive& w, double gamma) -> State {
     State s;
     s.rho = w.rho;
     s.u = w.u;
@@ -20,26 +22,26 @@ auto MakeState(const Primitive &w, double gamma) -> State {
     return s;
 }
 
-auto PhiRarefaction(double p, const State &s, double gamma) -> double {
+auto PhiRarefaction(double p, const State& s, double gamma) -> double {
     const double pratio = p / s.p;
     const double exponent = (gamma - 1.0) / (2.0 * gamma);
     return (2.0 * s.a / (gamma - 1.0)) * (std::pow(pratio, exponent) - 1.0);
 }
 
-auto PhiRarefactionDerivative(double p, const State &s, double gamma) -> double {
+auto PhiRarefactionDerivative(double p, const State& s, double gamma) -> double {
     const double pratio = p / s.p;
     const double exponent = (gamma - 1.0) / (2.0 * gamma);
     const double coeff = (2.0 * s.a / (gamma - 1.0)) * (exponent / s.p);
     return coeff * std::pow(pratio, exponent - 1.0);
 }
 
-auto PhiShock(double p, const State &s, double gamma) -> double {
+auto PhiShock(double p, const State& s, double gamma) -> double {
     const double A = 2.0 / ((gamma + 1.0) * s.rho);
     const double B = (gamma - 1.0) / (gamma + 1.0) * s.p;
     return (p - s.p) * std::sqrt(A / (p + B));
 }
 
-auto PhiShockDerivative(double p, const State &s, double gamma) -> double {
+auto PhiShockDerivative(double p, const State& s, double gamma) -> double {
     const double A = 2.0 / ((gamma + 1.0) * s.rho);
     const double B = (gamma - 1.0) / (gamma + 1.0) * s.p;
     const double sqrt_term = std::sqrt(A / (p + B));
@@ -47,23 +49,23 @@ auto PhiShockDerivative(double p, const State &s, double gamma) -> double {
     return sqrt_term * (1.0 - term);
 }
 
-auto SidePhi(double p, const State &s, double gamma) -> double {
+auto SidePhi(double p, const State& s, double gamma) -> double {
     if (p <= s.p) {
         return PhiRarefaction(p, s, gamma);
     }
     return PhiShock(p, s, gamma);
 }
 
-auto SidePhiDerivative(double p, const State &s, double gamma) -> double {
+auto SidePhiDerivative(double p, const State& s, double gamma) -> double {
     if (p <= s.p) {
         return PhiRarefactionDerivative(p, s, gamma);
     }
     return PhiShockDerivative(p, s, gamma);
 }
 
-auto InitialGuess(const State &L, const State &R, double Q_user, double gamma) -> double {
-    const double p_pvrs = 0.5 * (L.p + R.p)
-                       - 0.125 * (R.u - L.u) * (L.rho + R.rho) * (L.a + R.a);
+auto InitialGuess(const State& L, const State& R, double Q_user, double gamma) -> double {
+    const double p_pvrs =
+        0.5 * (L.p + R.p) - 0.125 * (R.u - L.u) * (L.rho + R.rho) * (L.a + R.a);
     const double p_min = std::min(L.p, R.p);
     const double p_max = std::max(L.p, R.p);
 
@@ -82,21 +84,28 @@ auto InitialGuess(const State &L, const State &R, double Q_user, double gamma) -
     }
     if (p_pvrs < p_min) {
         // TRRS
-        p_star = pow((L.a + R.a - (gamma - 1) / 2 * (R.u - L.u)) / (L.a / pow(L.p, z) + R.a / pow(R.p, z)), 1 / z);
+        p_star = pow((L.a + R.a - (gamma - 1) / 2 * (R.u - L.u)) /
+                         (L.a / pow(L.p, z) + R.a / pow(R.p, z)),
+                     1 / z);
         return p_star;
     }
-    
+
     // TSRS
     auto A = [gamma](const auto& side) -> auto { return 2 / ((gamma + 1) * side.rho); };
-    auto B = [gamma](const auto& side) -> auto { return (gamma - 1) / (gamma + 1) * side.p; };
-    auto g = [p_pvrs, A, B](const auto& side) -> auto { return pow(A(side) / (p_pvrs + B(side)), 0.5); };
+    auto B = [gamma](const auto& side) -> auto {
+        return (gamma - 1) / (gamma + 1) * side.p;
+    };
+    auto g = [p_pvrs, A, B](const auto& side) -> auto {
+        return pow(A(side) / (p_pvrs + B(side)), 0.5);
+    };
 
     p_star = (g(L) * L.p + g(R) * R.p - (R.u - L.u)) / (g(L) + g(R));
 
     return p_star;
 }
 
-auto SolveStarPressure(const State &L, const State &R, double Q_user, double gamma) -> double {
+auto SolveStarPressure(const State& L, const State& R, double Q_user, double gamma)
+    -> double {
     double p = InitialGuess(L, R, Q_user, gamma);
 
     for (int iter = 0; iter < 40; ++iter) {
@@ -136,11 +145,8 @@ auto SolveStarPressure(const State &L, const State &R, double Q_user, double gam
     return p;
 }
 
-auto SampleAtOrigin(double p_star,
-                         double u_star,
-                         const State &L,
-                         const State &R,
-                         double gamma) -> Primitive {
+auto SampleAtOrigin(double p_star, double u_star, const State& L, const State& R,
+                    double gamma) -> Primitive {
     const double xi = 0.0;
 
     if (xi <= u_star) {
@@ -152,36 +158,37 @@ auto SampleAtOrigin(double p_star,
             const double s_tail = u_star - a_star_L;
 
             if (xi <= s_head) {
-                Primitive w = {.rho=L.rho, .u=L.u, .P=L.p};
+                Primitive w = {.rho = L.rho, .u = L.u, .P = L.p};
                 return w;
             }
             if (xi >= s_tail) {
-                Primitive w = {.rho=rho_star_L, .u=u_star, .P=p_star};
+                Primitive w = {.rho = rho_star_L, .u = u_star, .P = p_star};
                 return w;
             }
 
-            const double u = (2.0 / (gamma + 1.0)) *
-                             (a_L + 0.5 * (gamma - 1.0) * L.u + xi);
-            const double a = (2.0 / (gamma + 1.0)) *
-                             (a_L + 0.5 * (gamma - 1.0) * (L.u - xi));
+            const double u =
+                (2.0 / (gamma + 1.0)) * (a_L + 0.5 * (gamma - 1.0) * L.u + xi);
+            const double a =
+                (2.0 / (gamma + 1.0)) * (a_L + 0.5 * (gamma - 1.0) * (L.u - xi));
             const double rho = L.rho * std::pow(a / a_L, 2.0 / (gamma - 1.0));
             const double p = L.p * std::pow(a / a_L, 2.0 * gamma / (gamma - 1.0));
-            Primitive w = {.rho=rho, .u=u, .P=p};
+            Primitive w = {.rho = rho, .u = u, .P = p};
             return w;
         }
 
         const double q = p_star / L.p;
-        const double s_L = L.u - L.a * std::sqrt(0.5 * ((gamma + 1.0) * q + (gamma - 1.0)) / gamma);
+        const double s_L =
+            L.u - L.a * std::sqrt(0.5 * ((gamma + 1.0) * q + (gamma - 1.0)) / gamma);
 
         if (xi <= s_L) {
-            Primitive w = {.rho=L.rho, .u=L.u, .P=L.p};
+            Primitive w = {.rho = L.rho, .u = L.u, .P = L.p};
             return w;
         }
 
-        const double factor = (q + (gamma - 1.0) / (gamma + 1.0))
-                              / ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+        const double factor = (q + (gamma - 1.0) / (gamma + 1.0)) /
+                              ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
         const double rho_star_L = L.rho * factor;
-        Primitive w = {.rho=rho_star_L, .u=u_star, .P=p_star};
+        Primitive w = {.rho = rho_star_L, .u = u_star, .P = p_star};
         return w;
     }
 
@@ -193,42 +200,40 @@ auto SampleAtOrigin(double p_star,
         const double s_tail = u_star + a_star_R;
 
         if (xi >= s_head) {
-            Primitive w = {.rho=R.rho, .u=R.u, .P=R.p};
+            Primitive w = {.rho = R.rho, .u = R.u, .P = R.p};
             return w;
         }
         if (xi <= s_tail) {
-            Primitive w = {.rho=rho_star_R, .u=u_star, .P=p_star};
+            Primitive w = {.rho = rho_star_R, .u = u_star, .P = p_star};
             return w;
         }
 
-        const double u = (2.0 / (gamma + 1.0)) *
-                         (-a_R + 0.5 * (gamma - 1.0) * R.u + xi);
-        const double a = (2.0 / (gamma + 1.0)) *
-                         (-a_R + 0.5 * (gamma - 1.0) * (R.u - xi));
+        const double u = (2.0 / (gamma + 1.0)) * (-a_R + 0.5 * (gamma - 1.0) * R.u + xi);
+        const double a =
+            (2.0 / (gamma + 1.0)) * (-a_R + 0.5 * (gamma - 1.0) * (R.u - xi));
         const double rho = R.rho * std::pow(a / a_R, 2.0 / (gamma - 1.0));
         const double p = R.p * std::pow(a / a_R, 2.0 * gamma / (gamma - 1.0));
-        Primitive w = {.rho=rho, .u=u, .P=p};
+        Primitive w = {.rho = rho, .u = u, .P = p};
         return w;
     }
 
     const double q = p_star / R.p;
-    const double s_R = R.u + R.a * std::sqrt(0.5 * ((gamma + 1.0) * q + (gamma - 1.0)) / gamma);
+    const double s_R =
+        R.u + R.a * std::sqrt(0.5 * ((gamma + 1.0) * q + (gamma - 1.0)) / gamma);
 
     if (xi >= s_R) {
-        Primitive w = {.rho=R.rho, .u=R.u, .P=R.p};
+        Primitive w = {.rho = R.rho, .u = R.u, .P = R.p};
         return w;
     }
 
-    const double factor = (q + (gamma - 1.0) / (gamma + 1.0))
-                          / ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+    const double factor =
+        (q + (gamma - 1.0) / (gamma + 1.0)) / ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
     const double rho_star_R = R.rho * factor;
-    Primitive w = {.rho=rho_star_R, .u=u_star, .P=p_star};
+    Primitive w = {.rho = rho_star_R, .u = u_star, .P = p_star};
     return w;
 }
 
-auto HllFallback(const Primitive &left,
-                 const Primitive &right,
-                 double gamma) -> Flux {
+auto HllFallback(const Primitive& left, const Primitive& right, double gamma) -> Flux {
     const double rho_L = left.rho;
     const double u_L = left.u;
     const double p_L = left.P;
@@ -259,18 +264,18 @@ auto HllFallback(const Primitive &left,
 
     Flux F;
     F.mass = (S_R * F_L.mass - S_L * F_R.mass + S_L * S_R * (U_R.rho - U_L.rho)) * inv;
-    F.momentum = (S_R * F_L.momentum - S_L * F_R.momentum + S_L * S_R * (U_R.rhoU - U_L.rhoU)) * inv;
+    F.momentum =
+        (S_R * F_L.momentum - S_L * F_R.momentum + S_L * S_R * (U_R.rhoU - U_L.rhoU)) *
+        inv;
     F.energy = (S_R * F_L.energy - S_L * F_R.energy + S_L * S_R * (U_R.E - U_L.E)) * inv;
     return F;
 }
-}
+}  // namespace
 
-auto ExactIdealGasRiemannSolver::ComputeFlux(const Primitive &left,
-                                             const Primitive &right,
-                                             double Q_user,
-                                             double gamma) const -> Flux {
-    if (left.rho <= 0.0 || left.P <= 0.0 ||
-        right.rho <= 0.0 || right.P <= 0.0) {
+auto ExactIdealGasRiemannSolver::ComputeFlux(const Primitive& left,
+                                             const Primitive& right, double gamma,
+                                             double Q_user) const -> Flux {
+    if (left.rho <= 0.0 || left.P <= 0.0 || right.rho <= 0.0 || right.P <= 0.0) {
         return HllFallback(left, right, gamma);
     }
 
@@ -288,8 +293,8 @@ auto ExactIdealGasRiemannSolver::ComputeFlux(const Primitive &left,
 
     Primitive sample = SampleAtOrigin(p_star, u_star, L, R, gamma);
 
-    if (sample.rho <= 0.0 || sample.P <= 0.0 ||
-        std::isnan(sample.rho) || std::isnan(sample.P)) {
+    if (sample.rho <= 0.0 || sample.P <= 0.0 || std::isnan(sample.rho) ||
+        std::isnan(sample.P)) {
         return HllFallback(left, right, gamma);
     }
 

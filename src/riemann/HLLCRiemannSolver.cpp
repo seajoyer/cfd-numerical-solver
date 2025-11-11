@@ -1,90 +1,91 @@
 #include "riemann/HLLCRiemannSolver.hpp"
+
 #include <algorithm>
 #include <cmath>
 
-Flux HLLCRiemannSolver::ComputeFlux(const Primitive &left,
-                                    const Primitive &right,
-                                    double gamma) const {
-    const double rhoL = left.rho;
-    const double uL = left.u;
-    const double pL = left.P;
+#include "solver/EOS.hpp"
 
-    const double rhoR = right.rho;
-    const double uR = right.u;
-    const double pR = right.P;
+auto HLLCRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
+                                    double gamma) const -> Flux {
+    const double rho_L = left.rho;
+    const double u_L = left.u;
+    const double p_L = left.P;
 
-    const double aL = std::sqrt(gamma * pL / rhoL);
-    const double aR = std::sqrt(gamma * pR / rhoR);
+    const double rho_R = right.rho;
+    const double u_R = right.u;
+    const double p_R = right.P;
 
-    const Conservative UL = EOS::PrimToCons(left, gamma);
-    const Conservative UR = EOS::PrimToCons(right, gamma);
+    const double a_L = std::sqrt(gamma * p_L / rho_L);
+    const double a_R = std::sqrt(gamma * p_R / rho_R);
 
-    const Flux FL = EulerFlux(left, gamma);
-    const Flux FR = EulerFlux(right, gamma);
+    const Conservative U_L = EOS::PrimToCons(left, gamma);
+    const Conservative U_R = EOS::PrimToCons(right, gamma);
 
-    const double SL = std::min(uL - aL, uR - aR);
-    const double SR = std::max(uL + aL, uR + aR);
+    const Flux F_L = EulerFlux(left, gamma);
+    const Flux F_R = EulerFlux(right, gamma);
 
-    if (SL >= 0.0) {
-        return FL;
+    const double S_L = std::min(u_L - a_L, u_R - a_R);
+    const double S_R = std::max(u_L + a_L, u_R + a_R);
+
+    if (S_L >= 0.0) {
+        return F_L;
     }
 
-    if (SR <= 0.0) {
-        return FR;
+    if (S_R <= 0.0) {
+        return F_R;
     }
 
-    if (SR - SL < 1e-14) {
+    if (S_R - S_L < 1e-14) {
         Flux F;
-        F.mass = 0.5 * (FL.mass + FR.mass);
-        F.momentum = 0.5 * (FL.momentum + FR.momentum);
-        F.energy = 0.5 * (FL.energy + FR.energy);
+        F.mass = 0.5 * (F_L.mass + F_R.mass);
+        F.momentum = 0.5 * (F_L.momentum + F_R.momentum);
+        F.energy = 0.5 * (F_L.energy + F_R.energy);
         return F;
     }
 
-    const double numerator = pR - pL
-                             + rhoL * (SL - uL) * uL
-                             - rhoR * (SR - uR) * uR;
-    const double denominator = rhoL * (SL - uL) - rhoR * (SR - uR);
+    const double numerator =
+        p_R - p_L + rho_L * (S_L - u_L) * u_L - rho_R * (S_R - u_R) * u_R;
+    const double denominator = rho_L * (S_L - u_L) - rho_R * (S_R - u_R);
 
     const double SM = numerator / denominator;
 
-    const double rhoLStar = rhoL * (SL - uL) / (SL - SM);
-    const double rhoRStar = rhoR * (SR - uR) / (SR - SM);
+    const double rho_star_L = rho_L * (S_L - u_L) / (S_L - SM);
+    const double rho_star_R = rho_R * (S_R - u_R) / (S_R - SM);
 
-    const double pLStar = pL + rhoL * (SL - uL) * (SM - uL);
-    const double pRStar = pR + rhoR * (SR - uR) * (SM - uR);
+    const double p_star_L = p_L + rho_L * (S_L - u_L) * (SM - u_L);
+    const double p_star_R = p_R + rho_R * (S_R - u_R) * (SM - u_R);
 
-    const double EL = UL.E;
-    const double ER = UR.E;
+    const double E_L = U_L.E;
+    const double E_R = U_R.E;
 
-    const double ELStar = ((SL - uL) * EL - pL * uL + pLStar * SM) / (SL - SM);
-    const double ERStar = ((SR - uR) * ER - pR * uR + pRStar * SM) / (SR - SM);
+    const double E_star_L = ((S_L - u_L) * E_L - p_L * u_L + p_star_L * SM) / (S_L - SM);
+    const double E_star_R = ((S_R - u_R) * E_R - p_R * u_R + p_star_R * SM) / (S_R - SM);
 
-    Conservative ULStar;
-    ULStar.rho = rhoLStar;
-    ULStar.rhoU = rhoLStar * SM;
-    ULStar.E = ELStar;
+    Conservative U_star_L;
+    U_star_L.rho = rho_star_L;
+    U_star_L.rhoU = rho_star_L * SM;
+    U_star_L.E = E_star_L;
 
-    Conservative URStar;
-    URStar.rho = rhoRStar;
-    URStar.rhoU = rhoRStar * SM;
-    URStar.E = ERStar;
+    Conservative U_star_R;
+    U_star_R.rho = rho_star_R;
+    U_star_R.rhoU = rho_star_R * SM;
+    U_star_R.E = E_star_R;
 
-    if (0.0 <= SL) {
-        return FL;
-    } else if (SL <= 0.0 && 0.0 <= SM) {
+    if (0.0 <= S_L) {
+        return F_L;
+    } else if (S_L <= 0.0 && 0.0 <= SM) {
         Flux F;
-        F.mass = FL.mass + SL * (ULStar.rho - UL.rho);
-        F.momentum = FL.momentum + SL * (ULStar.rhoU - UL.rhoU);
-        F.energy = FL.energy + SL * (ULStar.E - UL.E);
+        F.mass = F_L.mass + S_L * (U_star_L.rho - U_L.rho);
+        F.momentum = F_L.momentum + S_L * (U_star_L.rhoU - U_L.rhoU);
+        F.energy = F_L.energy + S_L * (U_star_L.E - U_L.E);
         return F;
-    } else if (SM <= 0.0 && 0.0 <= SR) {
+    } else if (SM <= 0.0 && 0.0 <= S_R) {
         Flux F;
-        F.mass = FR.mass + SR * (URStar.rho - UR.rho);
-        F.momentum = FR.momentum + SR * (URStar.rhoU - UR.rhoU);
-        F.energy = FR.energy + SR * (URStar.E - UR.E);
+        F.mass = F_R.mass + S_R * (U_star_R.rho - U_R.rho);
+        F.momentum = F_R.momentum + S_R * (U_star_R.rhoU - U_R.rhoU);
+        F.energy = F_R.energy + S_R * (U_star_R.E - U_R.E);
         return F;
     } else {
-        return FR;
+        return F_R;
     }
 }

@@ -5,39 +5,39 @@
 #include <string>
 #include <vector>
 
-#include "solver/EOS.hpp"
-#include "solver/Variables.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
-#include "solver/TimeStepCalculator.hpp"
+#include "riemann/HLLCRiemannSolver.hpp"
+#include "riemann/HLLRiemannSolver.hpp"
+#include "solver/EOS.hpp"
 #include "solver/PositivityLimiter.hpp"
+#include "solver/TimeStepCalculator.hpp"
+#include "solver/Variables.hpp"
 
-GodunovSolver::GodunovSolver(const Settings &settings)
+GodunovSolver::GodunovSolver(const Settings& settings)
     : settings_(settings),
-      boundaryManager_(settings.dim),
-      rhoMin_(1e-10),
-      pMin_(1e-10) {
+      boundary_manager_(settings.dim),
+      rho_min_(1e-10),
+      p_min_(1e-10) {
     cfl_ = settings_.cfl;
     InitializeReconstruction();
     InitializeRiemannSolver();
 }
 
-double GodunovSolver::Step(DataLayer &layer, double &t_cur) {
-    boundaryManager_.ApplyAll(layer);
+auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
+    boundary_manager_.ApplyAll(layer);
 
     const double dx = ComputeDx(layer);
-    const int totalSize = layer.GetTotalSize();
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
+    const int total_size = layer.GetTotalSize();
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
 
-    if (coreEnd - coreStart < 2 || totalSize < 3) {
+    if (core_end - core_start < 2 || total_size < 3) {
         return 0.0;
     }
 
-    std::vector<Primitive> prim(static_cast<std::size_t>(totalSize));
-    for (int i = 0; i < totalSize; ++i) {
+    std::vector<Primitive> prim(static_cast<std::size_t>(total_size));
+    for (int i = 0; i < total_size; ++i) {
         Primitive w;
         w.rho = layer.rho(i);
         w.u = layer.u(i);
@@ -45,13 +45,13 @@ double GodunovSolver::Step(DataLayer &layer, double &t_cur) {
         prim[static_cast<std::size_t>(i)] = w;
     }
 
-    std::vector<Primitive> primCore;
-    primCore.reserve(static_cast<std::size_t>(coreEnd - coreStart));
-    for (int i = coreStart; i < coreEnd; ++i) {
-        primCore.push_back(prim[static_cast<std::size_t>(i)]);
+    std::vector<Primitive> prim_core;
+    prim_core.reserve(static_cast<std::size_t>(core_end - core_start));
+    for (int i = core_start; i < core_end; ++i) {
+        prim_core.push_back(prim[static_cast<std::size_t>(i)]);
     }
 
-    double dt = TimeStepCalculator::ComputeDt(primCore, dx, cfl_, settings_.gamma);
+    double dt = TimeStepCalculator::ComputeDt(prim_core, dx, cfl_, settings_.gamma);
     if (dt <= 0.0) {
         return 0.0;
     }
@@ -63,46 +63,44 @@ double GodunovSolver::Step(DataLayer &layer, double &t_cur) {
         }
     }
 
-    const int nInterfaces = totalSize - 1;
-    std::vector<Primitive> leftStates(static_cast<std::size_t>(nInterfaces));
-    std::vector<Primitive> rightStates(static_cast<std::size_t>(nInterfaces));
-    reconstruction_->Reconstruct(prim, leftStates, rightStates);
+    const int n_interfaces = total_size - 1;
+    std::vector<Primitive> left_states(static_cast<std::size_t>(n_interfaces));
+    std::vector<Primitive> right_states(static_cast<std::size_t>(n_interfaces));
+    reconstruction_->Reconstruct(prim, left_states, right_states);
 
-    std::vector<Flux> fluxes(static_cast<std::size_t>(nInterfaces));
-    for (int i = 0; i < nInterfaces; ++i) {
-        fluxes[static_cast<std::size_t>(i)] =
-            riemannSolver_->ComputeFlux(leftStates[static_cast<std::size_t>(i)],
-                                        rightStates[static_cast<std::size_t>(i)],
-                                        settings_.gamma);
+    std::vector<Flux> fluxes(static_cast<std::size_t>(n_interfaces));
+    for (int i = 0; i < n_interfaces; ++i) {
+        fluxes[static_cast<std::size_t>(i)] = riemann_solver_->ComputeFlux(
+            left_states[static_cast<std::size_t>(i)],
+            right_states[static_cast<std::size_t>(i)], settings_.gamma, settings_.Q_user);
     }
 
-    std::vector<Conservative> cons(static_cast<std::size_t>(totalSize));
-    for (int i = 0; i < totalSize; ++i) {
-        const Primitive &w = prim[static_cast<std::size_t>(i)];
+    std::vector<Conservative> cons(static_cast<std::size_t>(total_size));
+    for (int i = 0; i < total_size; ++i) {
+        const Primitive& w = prim[static_cast<std::size_t>(i)];
 
         Conservative u;
         u.rho = w.rho;
         u.rhoU = w.rho * w.u;
-        u.E = w.P / (settings_.gamma - 1.0)
-              + 0.5 * w.rho * w.u * w.u;
+        u.E = w.P / (settings_.gamma - 1.0) + 0.5 * w.rho * w.u * w.u;
 
         cons[static_cast<std::size_t>(i)] = u;
     }
 
     std::vector<Conservative> updated = cons;
-    const double dtOverDx = dt / dx;
+    const double dt_over_dx = dt / dx;
 
-    for (int j = coreStart; j < coreEnd; ++j) {
-        const Flux &Fminus = fluxes[static_cast<std::size_t>(j - 1)];
-        const Flux &Fplus = fluxes[static_cast<std::size_t>(j)];
+    for (int j = core_start; j < core_end; ++j) {
+        const Flux& f_minus = fluxes[static_cast<std::size_t>(j - 1)];
+        const Flux& f_plus = fluxes[static_cast<std::size_t>(j)];
 
         Conservative u = cons[static_cast<std::size_t>(j)];
 
-        u.rho -= dtOverDx * (Fplus.mass - Fminus.mass);
-        u.rhoU -= dtOverDx * (Fplus.momentum - Fminus.momentum);
-        u.E -= dtOverDx * (Fplus.energy - Fminus.energy);
+        u.rho -= dt_over_dx * (f_plus.mass - f_minus.mass);
+        u.rhoU -= dt_over_dx * (f_plus.momentum - f_minus.momentum);
+        u.E -= dt_over_dx * (f_plus.energy - f_minus.energy);
 
-        PositivityLimiter::Apply(u, settings_.gamma, rhoMin_, pMin_);
+        PositivityLimiter::Apply(u, settings_.gamma, rho_min_, p_min_);
         updated[static_cast<std::size_t>(j)] = u;
     }
 
@@ -112,66 +110,59 @@ double GodunovSolver::Step(DataLayer &layer, double &t_cur) {
     return dt;
 }
 
-void GodunovSolver::SetCfl(double cfl) {
-    cfl_ = cfl;
-}
+void GodunovSolver::SetCfl(double cfl) { cfl_ = cfl; }
 
-void GodunovSolver::AddBoundary(int axis,
-                                std::shared_ptr<BoundaryCondition> left_bc,
+void GodunovSolver::AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                                 std::shared_ptr<BoundaryCondition> right_bc) {
-    boundaryManager_.Set(axis, std::move(left_bc), std::move(right_bc));
+    boundary_manager_.Set(axis, std::move(left_bc), std::move(right_bc));
 }
 
 void GodunovSolver::InitializeReconstruction() {
     std::string name = settings_.reconstruction;
     std::string lower(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    if (lower.find("p0") != std::string::npos) {
-        reconstruction_ = std::make_shared<P0Reconstruction>();
-    } else {
-        reconstruction_ = std::make_shared<P0Reconstruction>();
-    }
+    std::transform(name.begin(), name.end(), lower.begin(), [](unsigned char c) -> char {
+        return static_cast<char>(std::tolower(c));
+    });
 
+    reconstruction_ = std::make_shared<P0Reconstruction>();
 }
 
 void GodunovSolver::InitializeRiemannSolver() {
     std::string name = settings_.riemann_solver;
     std::string lower(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(name.begin(), name.end(), lower.begin(), [](unsigned char c) -> char {
+        return static_cast<char>(std::tolower(c));
+    });
 
-    if (lower.find("hllc") != std::string::npos) {
-        riemannSolver_ = std::make_shared<HLLCRiemannSolver>();
-    } else if (lower.find("hll") != std::string::npos) {
-        riemannSolver_ = std::make_shared<HLLRiemannSolver>();
+    if (lower.find("hll") != std::string::npos) {
+        riemann_solver_ = std::make_shared<HLLRiemannSolver>();
     } else if (lower.find("exact") != std::string::npos) {
-        riemannSolver_ = std::make_shared<ExactIdealGasRiemannSolver>();
+        riemann_solver_ = std::make_shared<ExactIdealGasRiemannSolver>();
     } else {
-        riemannSolver_ = std::make_shared<HLLRiemannSolver>();
+        riemann_solver_ = std::make_shared<HLLCRiemannSolver>();
     }
 }
 
-double GodunovSolver::ComputeDx(const DataLayer &layer) const {
+auto GodunovSolver::ComputeDx(const DataLayer& layer) const -> double {
     if (settings_.N > 0 && settings_.L_x > 0.0) {
         return settings_.L_x / static_cast<double>(settings_.N);
     }
 
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
-    if (coreEnd - coreStart > 1) {
-        return layer.xc(coreStart + 1) - layer.xc(coreStart);
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
+    if (core_end - core_start > 1) {
+        return layer.xc(core_start + 1) - layer.xc(core_start);
     }
 
     return 1.0;
 }
 
-void GodunovSolver::BuildPrimitiveArray(const DataLayer &layer,
-                                        std::vector<Primitive> &primitives) const {
-    const int totalSize = layer.GetTotalSize();
-    primitives.resize(static_cast<std::size_t>(totalSize));
+void GodunovSolver::BuildPrimitiveArray(const DataLayer& layer,
+                                        std::vector<Primitive>& primitives) const {
+    const int total_size = layer.GetTotalSize();
+    primitives.resize(static_cast<std::size_t>(total_size));
 
-    for (int i = 0; i < totalSize; ++i) {
+    for (int i = 0; i < total_size; ++i) {
         Primitive w;
         w.rho = layer.rho(i);
         w.u = layer.u(i);
@@ -180,40 +171,40 @@ void GodunovSolver::BuildPrimitiveArray(const DataLayer &layer,
     }
 }
 
-void GodunovSolver::StoreConservativeArray(const std::vector<Conservative> &updatedConservative,
-                                           DataLayer &layer) const {
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
-    const int totalSize = layer.GetTotalSize();
+void GodunovSolver::StoreConservativeArray(
+    const std::vector<Conservative>& updated_conservative, DataLayer& layer) const {
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
+    const int total_size = layer.GetTotalSize();
 
-    if (static_cast<int>(updatedConservative.size()) < totalSize) {
+    if (static_cast<int>(updated_conservative.size()) < total_size) {
         return;
     }
 
     const double dx = ComputeDx(layer);
 
-    for (int i = coreStart; i < coreEnd; ++i) {
-        const Conservative &uc = updatedConservative[static_cast<std::size_t>(i)];
+    for (int i = core_start; i < core_end; ++i) {
+        const Conservative& uc = updated_conservative[static_cast<std::size_t>(i)];
 
         const double rho = uc.rho;
-        const double uvel = uc.rhoU / rho;
+        const double u_vel = uc.rhoU / rho;
         const double P = EOS::Pressure(uc, settings_.gamma);
 
         layer.rho(i) = rho;
-        layer.u(i) = uvel;
+        layer.u(i) = u_vel;
         layer.P(i) = P;
 
         layer.p(i) = uc.rhoU;
 
         layer.V(i) = rho > 0.0 ? 1.0 / rho : 0.0;
 
-        const double kinetic = 0.5 * rho * uvel * uvel;
-        const double Eint = uc.E - kinetic;
-        const double eint = rho > 0.0 ? Eint / rho : 0.0;
-        const double etot = rho > 0.0 ? uc.E : 0.0;
+        const double kinetic = 0.5 * rho * u_vel * u_vel;
+        const double E_int = uc.E - kinetic;
+        const double e_int = rho > 0.0 ? E_int / rho : 0.0;
+        const double e_tot = rho > 0.0 ? uc.E : 0.0;
 
-        layer.U(i) = eint;
-        layer.e(i) = etot;
+        layer.U(i) = e_int;
+        layer.e(i) = e_tot;
         layer.m(i) = rho * dx;
     }
 }

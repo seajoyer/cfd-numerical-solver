@@ -19,7 +19,7 @@ public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
-    virtual ~Reconstruction() {}
+    virtual ~Reconstruction() = default;
 
     /**
      * @brief Reconstructs left/right states at cell interfaces.
@@ -37,9 +37,9 @@ public:
      * @param leftStates Output array of left states at interfaces.
      * @param rightStates Output array of right states at interfaces.
      */
-    virtual void Reconstruct(const std::vector<Primitive> &cellStates,
-                             std::vector<Primitive> &leftStates,
-                             std::vector<Primitive> &rightStates) const = 0;
+    virtual void Reconstruct(const std::vector<Primitive> &cell_states,
+                             std::vector<Primitive> &left_states,
+                             std::vector<Primitive> &right_states) const = 0;
 };
 
 #endif  // RECONSTRUCTION_HPP

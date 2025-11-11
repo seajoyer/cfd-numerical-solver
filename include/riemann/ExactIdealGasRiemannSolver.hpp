@@ -1,6 +1,7 @@
 #ifndef EXACTIDEALGASRIEMANNSOLVER_HPP
 #define EXACTIDEALGASRIEMANNSOLVER_HPP
 
+#include <stdexcept>
 #include "RiemannSolver.hpp"
 
 /**
@@ -14,7 +15,7 @@
  *       than approximate solvers such as HLL/HLLC.
  */
 class ExactIdealGasRiemannSolver : public RiemannSolver {
-public:
+   public:
     /**
      * @brief Default constructor.
      */
@@ -28,10 +29,13 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Exact flux at the interface.
      */
-    [[nodiscard]] auto ComputeFlux(const Primitive &left,
-                     const Primitive &right,
-                     double Q_user,
-                     double gamma) const -> Flux override;
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                   double gamma, double Q_user) const -> Flux override;
+
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                double gamma) const -> Flux override {
+        throw std::logic_error("ExactIdealGasRiemannSolver requires Q_user parameter");
+    }
 };
 
 #endif  // EXACTIDEALGASRIEMANNSOLVER_HPP

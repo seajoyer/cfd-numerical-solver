@@ -10,15 +10,8 @@
 #include "bc/BoundaryManager.hpp"
 
 #include "reconstruction/Reconstruction.hpp"
-#include "reconstruction/P0Reconstruction.hpp"
-#include "TimeStepCalculator.hpp"
-#include "PositivityLimiter.hpp"
 
-// Подразумевается, что Riemann-солверы лежат в /include/reimann
 #include "riemann/RiemannSolver.hpp"
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
-#include "riemann/ExactIdealGasRiemannSolver.hpp"
 
 /**
  * @class GodunovSolver
@@ -69,7 +62,7 @@ public:
      * @param t_cur Current simulation time (incremented by dt on return).
      * @return Actual time step taken (dt).
      */
-    double Step(DataLayer &layer, double &t_cur) override;
+    auto Step(DataLayer &layer, double &t_cur) -> double override;
 
     /**
      * @brief Sets the CFL number used for time step computation.
@@ -105,7 +98,7 @@ private:
      *
      * Used to update ghost cells before each Godunov step.
      */
-    BoundaryManager boundaryManager_;
+    BoundaryManager boundary_manager_;
 
     /**
      * @brief Reconstruction scheme (currently P0 for first-order Godunov).
@@ -115,17 +108,17 @@ private:
     /**
      * @brief Selected Riemann solver implementation.
      */
-    std::shared_ptr<RiemannSolver> riemannSolver_;
+    std::shared_ptr<RiemannSolver> riemann_solver_;
 
     /**
      * @brief Minimal allowed density for positivity limiting.
      */
-    double rhoMin_;
+    double rho_min_;
 
     /**
      * @brief Minimal allowed pressure for positivity limiting.
      */
-    double pMin_;
+    double p_min_;
 
     /**
      * @brief Initializes the reconstruction strategy.
@@ -151,7 +144,7 @@ private:
      * @param layer Data layer with grid description.
      * @return Cell size dx.
      */
-    double ComputeDx(const DataLayer &layer) const;
+    [[nodiscard]] auto ComputeDx(const DataLayer &layer) const -> double;
 
     /**
      * @brief Converts conservative variables in DataLayer to primitives.
@@ -174,7 +167,7 @@ private:
      * @param updatedConservative Updated conservative states.
      * @param layer Data layer to be modified.
      */
-    void StoreConservativeArray(const std::vector<Conservative> &updatedConservative,
+    void StoreConservativeArray(const std::vector<Conservative> &updated_conservative,
                                 DataLayer &layer) const;
 };
 
