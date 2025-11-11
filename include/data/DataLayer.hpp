@@ -14,16 +14,16 @@
  * convenient accessors for grid size and ghost cell information.
  *
  * Fields stored:
- * - rho: density
- * - u: velocity (x-component)
- * - P: pressure (capital P for thermodynamic pressure)
- * - p: momentum
- * - e: specific internal energy (or total energy density)
- * - U: conserved variable (mass)
- * - V: conserved variable (momentum)
- * - m: momentum
- * - xb: cell boundary coordinates
- * - xc: cell center coordinates
+ * - `rho`: density
+ * - `u`: velocity (x-component)
+ * - `P`: pressure (capital P for thermodynamic pressure)
+ * - `p`: momentum
+ * - `e`: specific internal energy (or total energy density)
+ * - `U`: conserved variable (mass)
+ * - `V`: conserved variable (momentum)
+ * - `m`: momentum
+ * - `xb`: cell boundary coordinates
+ * - `xc`: cell center coordinates
  */
 struct DataLayer {
     xt::xarray<double> rho;  ///< Density

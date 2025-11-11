@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25.1)
+cmake_minimum_required(VERSION 3.25)
 
 set(NAME cfd-numerical-solver)
 project(${NAME} LANGUAGES C CXX)
@@ -37,9 +37,6 @@ safe_fetch_content(xtl https://github.com/xtensor-stack/xtl.git 0.8.1)
 safe_fetch_content(xtensor https://github.com/xtensor-stack/xtensor.git 0.27.1)
 safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
 
-cmake_minimum_required(VERSION 3.14)
-project(MyProject VERSION 1.0.0)
-
 find_package(Doxygen REQUIRED)
 
 if(DOXYGEN_FOUND)
@@ -54,18 +51,37 @@ if(DOXYGEN_FOUND)
     # Get the path where doxygen-awesome-css was downloaded
     FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR AWESOME_CSS_DIR)
 
+    # Set paths for doxygen-awesome-css files
+    set(DOXYGEN_AWESOME_CSS "${AWESOME_CSS_DIR}/doxygen-awesome.css")
+    set(DOXYGEN_AWESOME_DARKMODE_JS "${AWESOME_CSS_DIR}/doxygen-awesome-darkmode-toggle.js")
+    set(DOXYGEN_AWESOME_COPY_JS "${AWESOME_CSS_DIR}/doxygen-awesome-fragment-copy-button.js")
+
     # Configure Doxyfile
     set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
     set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
     configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
     # Copy custom files to build directory
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/header.html 
-                   ${CMAKE_CURRENT_BINARY_DIR}/header.html COPYONLY)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom.css 
-                   ${CMAKE_CURRENT_BINARY_DIR}/custom.css COPYONLY)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/logo1.png 
-                   ${CMAKE_CURRENT_BINARY_DIR}/logo1.png COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom_header.html 
+                   ${CMAKE_CURRENT_BINARY_DIR}/custom_header.html COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom_footer.html 
+                   ${CMAKE_CURRENT_BINARY_DIR}/custom_footer.html COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/extra_stylesheet.css 
+                   ${CMAKE_CURRENT_BINARY_DIR}/extra_stylesheet.css COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/widgets.js 
+                   ${CMAKE_CURRENT_BINARY_DIR}/wxwidgets.js COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/DoxygenLayout.xml 
+                   ${CMAKE_CURRENT_BINARY_DIR}/DoxygenLayout.xml COPYONLY)
+    
+    # Copy logo if it exists
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png 
+                       ${CMAKE_CURRENT_BINARY_DIR}/logo.png COPYONLY)
+    endif()
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png 
+                       ${CMAKE_CURRENT_BINARY_DIR}/full_logo.png COPYONLY)
+    endif()
 
     # Add custom target to generate documentation
     add_custom_target(docs
@@ -74,6 +90,8 @@ if(DOXYGEN_FOUND)
         COMMENT "Generating documentation with Doxygen"
         VERBATIM
     )
+    
+    message(STATUS "Doxygen configured - use 'make docs' or 'cmake --build . --target docs' to generate documentation")
 endif()
 
 # Explicitly list your sources

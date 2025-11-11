@@ -1,0 +1,166 @@
+# Documentation
+
+<div align="center">
+    <img src="./full_logo.png" alt="Project full_logo" width="600">
+</div>
+
+<br>
+
+<div align="center">
+    <pre>Dmitry Sidiuk • Vahe Vahanyan • Kirill Usov</pre>
+</div>
+
+<br>
+
+This project is designed for educational purposes, with `.yaml` configuration and `.vtk` output for visualization (e.g., in ParaView).
+
+## Features
+
+- **Solvers**: Godunov (more are planned).
+- **Riemann Solvers**: Exact (ideal gas), HLL, HLLC.
+- **Reconstruction**: Piecewise constant (P0).
+- **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall.
+- **Equation of State**: Ideal gas
+- **Initial Conditions**: Predefined Sod shock tube tests (1-5).
+- **Dimensions**: Currently 1D (2D/3D upcoming).
+- **Output**: VTK files; configurable logging and output intervals.
+
+## Dependencies
+
+- C++17 compiler (e.g., GCC, Clang).
+- CMake 3.25+.
+- xtensor (for arrays; fetched if not found).
+- yaml-cpp (for config parsing; fetched if not found).
+- VTK (for output; required, install via package manager).
+- Doxygen (optional, for docs).
+
+## Building from Source
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/seajoyer/cfd-numerical-solver
+   cd cfd-numerical-solver
+   ```
+
+2. Create build directory:
+   ```
+   mkdir build && cd build
+   ```
+
+3. Configure and build:
+   ```
+   cmake ..
+   cmake --build .
+   ```
+
+4. (Optional) Generate Doxygen docs:
+   ```
+   cmake --build . --target docs
+   ```
+   Access at `build/docs/html/index.html`.
+
+The executable `cfd-numerical-solver` will be in the `build` directory.
+
+## Usage
+
+Run the executable:
+```
+./cfd-numerical-solver
+```
+
+It loads `../config.yaml` (relative to executable), applies settings and initial conditions (e.g., Sod test), and runs the simulation. Outputs to specified directory (default: `../data/output`).
+
+## Configuration
+
+<details>
+<summary>Sample `config.yaml`:</summary>
+
+```yaml
+config:
+  settings:
+    solver: godunov
+    riemann_solver: exact
+    reconstruction: P0
+    left_boundary:  free_stream
+    right_boundary: free_stream
+                  # inlet
+                  # outlet
+                  # reflective
+                  # non_reflective
+                  # periodic
+                  # symmetry
+                  # wall
+    Q_user: 2.0
+
+    N: 1000
+    cfl: 0.5
+    padding: 2
+    c: 300
+    gamma: 1.4
+    dim: 1
+    L_x: 1
+    L_y: 1
+    L_z: 1
+
+    # set any to zero to disable the endpoint.
+    # set both to zeros to write only the initial state
+    t_end:  0.25  # 0.25 0.15 0.012 0.035 0.035
+    step_end: 0
+
+    # set any to zero to disable the corresponding logs.
+    log_every_steps: 50
+    log_every_time:  0.0
+                                 
+    # set any to zero to disable the corresponding output.
+    output_every_steps: 50
+    output_every_time:  0.0
+
+    output_format: vtk
+    output_dir: "../data/output" # run from `build/`, 
+                                 # so `../` is needed
+
+    sod_test_num: 5
+
+  initial_conditions:
+    sod1:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 1.0
+      rho_R: 0.125
+      u_R: 0.0
+      P_R: 0.1
+    sod2:
+      rho_L: 1.0
+      u_L: -2.0
+      P_L: 0.4
+      rho_R: 1.0
+      u_R: 2.0
+      P_R: 0.4
+    sod3:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 1000.0
+      rho_R: 1.0
+      u_R: 0.0
+      P_R: 0.01
+    sod4:
+      rho_L: 1.0
+      u_L: 0.0
+      P_L: 0.01
+      rho_R: 1.0
+      u_R: 0.0
+      P_R: 100.0
+    sod5:
+      rho_L: 5.99924
+      u_L: 19.5975
+      P_L: 460.894
+      rho_R: 5.99242
+      u_R: -6.19633
+      P_R: 46.0950
+```
+
+</details>
+
+## License
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
