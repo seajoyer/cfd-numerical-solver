@@ -58,29 +58,33 @@ if(DOXYGEN_FOUND)
 
     # Configure Doxyfile
     set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
-    set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile)
     configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
     # Copy custom files to build directory
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom_header.html 
-                   ${CMAKE_CURRENT_BINARY_DIR}/custom_header.html COPYONLY)
+                   ${CMAKE_CURRENT_BINARY_DIR}/doc/custom_header.html COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom_footer.html 
-                   ${CMAKE_CURRENT_BINARY_DIR}/custom_footer.html COPYONLY)
+                   ${CMAKE_CURRENT_BINARY_DIR}/doc/custom_footer.html COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/extra_stylesheet.css 
-                   ${CMAKE_CURRENT_BINARY_DIR}/extra_stylesheet.css COPYONLY)
+                   ${CMAKE_CURRENT_BINARY_DIR}/doc/extra_stylesheet.css COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/widgets.js 
-                   ${CMAKE_CURRENT_BINARY_DIR}/wxwidgets.js COPYONLY)
+                   ${CMAKE_CURRENT_BINARY_DIR}/doc/widgets.js COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/DoxygenLayout.xml 
-                   ${CMAKE_CURRENT_BINARY_DIR}/DoxygenLayout.xml COPYONLY)
+                   ${CMAKE_CURRENT_BINARY_DIR}/doc/DoxygenLayout.xml COPYONLY)
     
     # Copy logo if it exists
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png 
-                       ${CMAKE_CURRENT_BINARY_DIR}/logo.png COPYONLY)
+                       ${CMAKE_CURRENT_BINARY_DIR}/doc/logo.png COPYONLY)
     endif()
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png 
-                       ${CMAKE_CURRENT_BINARY_DIR}/full_logo.png COPYONLY)
+                       ${CMAKE_CURRENT_BINARY_DIR}/doc/full_logo.png COPYONLY)
+    endif()
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/favicon.ico)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/favicon.ico 
+                       ${CMAKE_CURRENT_BINARY_DIR}/doc/favicon.ico COPYONLY)
     endif()
 
     # Add custom target to generate documentation

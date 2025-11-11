@@ -1,7 +1,8 @@
 # Documentation
 
 <div align="center">
-    <img src="./full_logo.png" alt="Project full_logo" width="600">
+    <img src="./doc/full_logo.png" alt="Project full_logo" width="600" 
+        onerror="this.onerror=null; this.src='./full_logo.png';">
 </div>
 
 <br>
