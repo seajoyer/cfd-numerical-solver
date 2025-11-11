@@ -1,0 +1,46 @@
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_BRIEF          = "Your project description here"
+PROJECT_LOGO           = @CMAKE_CURRENT_BINARY_DIR@/logo1.png
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs
+
+# Enable HTML output
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+
+# Base theme + alternative themes + custom CSS
+HTML_EXTRA_STYLESHEET  = @AWESOME_CSS_DIR@/doxygen-awesome.css \
+                         @AWESOME_CSS_DIR@/doxygen-custom/theme-round.css \
+                         @AWESOME_CSS_DIR@/doxygen-custom/theme-robot.css \
+                         @CMAKE_CURRENT_BINARY_DIR@/custom.css
+
+# Add all extensions and custom JS
+HTML_EXTRA_FILES       = @AWESOME_CSS_DIR@/doxygen-awesome-darkmode-toggle.js \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-fragment-copy-button.js \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-paragraph-link.js \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-interactive-toc.js \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-tabs.js \
+                         @AWESOME_CSS_DIR@/doxygen-custom/toggle-alternative-theme.js
+
+# Use custom header
+HTML_HEADER            = @CMAKE_CURRENT_BINARY_DIR@/header.html
+
+# Color scheme
+HTML_COLORSTYLE        = LIGHT
+
+# Sidebar navigation
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+
+# Input files (adjust to your project structure)
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/src \
+                         @CMAKE_CURRENT_SOURCE_DIR@/include \
+                         @CMAKE_CURRENT_SOURCE_DIR@/README.md
+
+USE_MDFILE_AS_MAINPAGE = @CMAKE_CURRENT_SOURCE_DIR@/README.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.cpp *.h *.hpp *.md
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES

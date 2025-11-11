@@ -37,6 +37,45 @@ safe_fetch_content(xtl https://github.com/xtensor-stack/xtl.git 0.8.1)
 safe_fetch_content(xtensor https://github.com/xtensor-stack/xtensor.git 0.27.1)
 safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
 
+cmake_minimum_required(VERSION 3.14)
+project(MyProject VERSION 1.0.0)
+
+find_package(Doxygen REQUIRED)
+
+if(DOXYGEN_FOUND)
+    # Fetch doxygen-awesome-css theme
+    include(FetchContent)
+    FetchContent_Declare(
+        doxygen-awesome-css
+        URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/heads/main.zip
+    )
+    FetchContent_MakeAvailable(doxygen-awesome-css)
+
+    # Get the path where doxygen-awesome-css was downloaded
+    FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR AWESOME_CSS_DIR)
+
+    # Configure Doxyfile
+    set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
+    set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
+
+    # Copy custom files to build directory
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/header.html 
+                   ${CMAKE_CURRENT_BINARY_DIR}/header.html COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/custom.css 
+                   ${CMAKE_CURRENT_BINARY_DIR}/custom.css COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/logo1.png 
+                   ${CMAKE_CURRENT_BINARY_DIR}/logo1.png COPYONLY)
+
+    # Add custom target to generate documentation
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating documentation with Doxygen"
+        VERBATIM
+    )
+endif()
+
 # Explicitly list your sources
 add_executable(${NAME}
     src/main.cpp
