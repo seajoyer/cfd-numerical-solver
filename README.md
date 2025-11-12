@@ -1,8 +1,6 @@
-# Documentation
-
 <div align="center">
-    <img src="./doc/full_logo.png" alt="Project full_logo" width="600" 
-        onerror="this.onerror=null; this.src='./full_logo.png';">
+    <img src="./doc/full_logo.svg" alt="Project full_logo" width="550" 
+        onerror="this.onerror=null; this.src='./full_logo.svg';">
 </div>
 
 <br>

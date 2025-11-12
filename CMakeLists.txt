@@ -55,6 +55,7 @@ if(DOXYGEN_FOUND)
     set(DOXYGEN_AWESOME_CSS "${AWESOME_CSS_DIR}/doxygen-awesome.css")
     set(DOXYGEN_AWESOME_DARKMODE_JS "${AWESOME_CSS_DIR}/doxygen-awesome-darkmode-toggle.js")
     set(DOXYGEN_AWESOME_COPY_JS "${AWESOME_CSS_DIR}/doxygen-awesome-fragment-copy-button.js")
+    set(DOXYGEN_AWESOME_PARAGRAPH_JS "${AWESOME_CSS_DIR}/doxygen-awesome-paragraph-link.js")
 
     # Configure Doxyfile
     set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
@@ -74,13 +75,13 @@ if(DOXYGEN_FOUND)
                    ${CMAKE_CURRENT_BINARY_DIR}/doc/DoxygenLayout.xml COPYONLY)
     
     # Copy logo if it exists
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/logo.png 
-                       ${CMAKE_CURRENT_BINARY_DIR}/doc/logo.png COPYONLY)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.svg)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.svg 
+                       ${CMAKE_CURRENT_BINARY_DIR}/doc/full_logo.svg COPYONLY)
     endif()
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png)
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.png 
-                       ${CMAKE_CURRENT_BINARY_DIR}/doc/full_logo.png COPYONLY)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.svg)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/full_logo.svg 
+                       ${CMAKE_CURRENT_BINARY_DIR}/doc/full_logo.svg COPYONLY)
     endif()
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/favicon.ico)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/favicon.ico 

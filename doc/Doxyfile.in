@@ -8,7 +8,7 @@ DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = CFD Numerical Solver
 PROJECT_NUMBER         = "@PROJECT_VERSION@"
 PROJECT_BRIEF          = 
-PROJECT_LOGO           = @CMAKE_CURRENT_BINARY_DIR@/doc/full_logo.png
+PROJECT_LOGO           = @CMAKE_CURRENT_BINARY_DIR@/doc/full_logo.svg
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = NO
@@ -113,7 +113,7 @@ WARN_LOGFILE           = @CMAKE_CURRENT_BINARY_DIR@/doxygen_warnings.log
 
 INPUT                  = @CMAKE_SOURCE_DIR@/include \
                          @CMAKE_SOURCE_DIR@/src \
-                         @CMAKE_SOURCE_DIR@/README.md
+                         @CMAKE_SOURCE_DIR@/doc/mainpage.dox
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.h \
                          *.hpp \
@@ -138,7 +138,7 @@ INPUT_FILTER           =
 FILTER_PATTERNS        =
 FILTER_SOURCE_FILES    = NO
 FILTER_SOURCE_PATTERNS =
-USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+# USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
 
 #---------------------------------------------------------------------------
 # Source Browsing Options
@@ -175,6 +175,7 @@ HTML_EXTRA_STYLESHEET  = @DOXYGEN_AWESOME_CSS@ \
                          @CMAKE_CURRENT_BINARY_DIR@/doc/extra_stylesheet.css
 HTML_EXTRA_FILES       = @DOXYGEN_AWESOME_DARKMODE_JS@ \
                          @DOXYGEN_AWESOME_COPY_JS@ \
+                         @DOXYGEN_AWESOME_PARAGRAPH_JS@ \
                          @CMAKE_CURRENT_BINARY_DIR@/doc/widgets.js \
                          @CMAKE_CURRENT_BINARY_DIR@/doc/favicon.ico
 HTML_COLORSTYLE_HUE    = 220

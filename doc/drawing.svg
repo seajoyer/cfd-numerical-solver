@@ -1,0 +1,879 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   sodipodi:docname="drawing.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#999999"
+     borderopacity="1"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showguides="true"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="344.00744"
+     inkscape:cy="766.50373"
+     inkscape:window-width="1968"
+     inkscape:window-height="1248"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g7013">
+    <sodipodi:guide
+       position="48.857383,196.87211"
+       orientation="0,-1"
+       id="guide6318"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="48.857383,244.45314"
+       orientation="0,-1"
+       id="guide6319"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="100.04567,118.82143"
+       orientation="1,0"
+       id="guide6876"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="18.398814,146.87247"
+       orientation="0,-1"
+       id="guide6887"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="51.273993,104.99617"
+       orientation="0,-1"
+       id="guide6888"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <inkscape:path-effect
+       effect="mirror_symmetry"
+       start_point="100.05191,138.81868"
+       end_point="100.05283,177.7129"
+       center_point="100.05237,158.26579"
+       id="path-effect7014"
+       is_visible="true"
+       lpeversion="1.2"
+       lpesatellites="#path1"
+       mode="free"
+       discard_orig_path="false"
+       fuse_paths="false"
+       oposite_fuse="false"
+       split_items="true"
+       split_open="false"
+       link_styles="false" />
+    <inkscape:path-effect
+       effect="mirror_symmetry"
+       start_point="100.05191,138.81868"
+       end_point="100.05283,177.7129"
+       center_point="100.05237,158.26579"
+       id="path-effect6976"
+       is_visible="true"
+       lpeversion="1.2"
+       lpesatellites="#path6976"
+       mode="free"
+       discard_orig_path="false"
+       fuse_paths="false"
+       oposite_fuse="false"
+       split_items="true"
+       split_open="false"
+       link_styles="false" />
+    <inkscape:path-effect
+       effect="mirror_symmetry"
+       start_point="100.05191,138.81868"
+       end_point="100.05283,177.7129"
+       center_point="100.05237,158.26579"
+       id="path-effect6893"
+       is_visible="true"
+       lpeversion="1.2"
+       lpesatellites="#path6888"
+       mode="free"
+       discard_orig_path="false"
+       fuse_paths="false"
+       oposite_fuse="false"
+       split_items="true"
+       split_open="false"
+       link_styles="false" />
+    <inkscape:path-effect
+       effect="mirror_symmetry"
+       start_point="100.05191,138.81868"
+       end_point="100.05283,177.7129"
+       center_point="100.05237,158.26579"
+       id="path-effect6877"
+       is_visible="true"
+       lpeversion="1.2"
+       lpesatellites="#path6881"
+       mode="free"
+       discard_orig_path="false"
+       fuse_paths="false"
+       oposite_fuse="false"
+       split_items="true"
+       split_open="false"
+       link_styles="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6225"
+       is_visible="true"
+       lpeversion="1.3"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false"
+       uniform="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6223"
+       is_visible="true"
+       lpeversion="1.3"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false"
+       uniform="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6222"
+       is_visible="true"
+       lpeversion="1.3"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false"
+       uniform="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6220"
+       is_visible="true"
+       lpeversion="1.3"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false"
+       uniform="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6219"
+       is_visible="true"
+       lpeversion="1.3"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false"
+       uniform="false" />
+    <filter
+       id="mask-powermask-path-effect6221_inverse"
+       inkscape:label="filtermask-powermask-path-effect6221"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect6221_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect6221_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+    <mask
+       maskUnits="userSpaceOnUse"
+       id="mask6225">
+      <path
+         id="path6225"
+         style="display:inline;opacity:1;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.476001;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="m 153.69346,74.274019 -74.479689,6.361369 2.74815,22.568652 v 5.3e-4 c -1.315984,1.18048 -2.630426,2.36073 -2.740401,3.49901 -0.108598,1.12394 0.958186,2.20696 2.040187,3.28921 v 0.001 l 0.04444,0.0444 27.124443,27.12445 c 1.40801,1.40801 2.81601,2.81586 4.22403,2.81585 1.40803,-2e-5 2.81602,-1.40784 4.22403,-2.81585 l 27.12445,-27.12445 0.061,-0.061 v -0.002 c 1.07614,-1.0766 2.13168,-2.1541 2.02365,-3.27216 -0.10997,-1.13828 -1.42441,-2.31853 -2.7404,-3.49901 v -5.3e-4 z" />
+    </mask>
+    <mask
+       maskUnits="userSpaceOnUse"
+       id="mask6782">
+      <path
+         id="path6783"
+         style="display:inline;opacity:1;fill:url(#meshgradient6783);fill-opacity:1;stroke-width:0.47625;stroke-linecap:round;stroke-linejoin:round"
+         d="M 112.65462,92.397461 A 48.989258,48.989258 0 0 0 78.013843,106.74594 l 26.192717,26.19272 8.44806,8.44806 8.44807,-8.44806 26.19271,-26.19272 A 48.989258,48.989258 0 0 0 112.65462,92.397461 Z"
+         mask="url(#mask6225)"
+         transform="rotate(-56.308378,112.65427,141.38636)"
+         inkscape:transform-center-x="24.494208"
+         inkscape:transform-center-y="-19.216124" />
+    </mask>
+    <meshgradient
+       inkscape:collect="always"
+       id="meshgradient6783"
+       gradientUnits="userSpaceOnUse"
+       x="78.01398"
+       y="106.74608">
+      <meshrow
+         id="meshrow6807">
+        <meshpatch
+           id="meshpatch6786">
+          <stop
+             path="c 2.26905,-2.26905  4.75555,-4.30966  7.42366,-6.09244"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6783" />
+          <stop
+             path="l 5.44339,8.14662"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6784" />
+          <stop
+             path="c -2.13449,1.42622  -4.12369,3.05872  -5.93893,4.87395"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6785" />
+          <stop
+             path="l -6.92813,-6.92813"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6786" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6789">
+          <stop
+             path="c 2.66812,-1.78278  5.50494,-3.29909  8.4696,-4.52709"
+             id="stop6787" />
+          <stop
+             path="l 3.74948,9.05203"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6788" />
+          <stop
+             path="c -2.37172,0.9824  -4.64118,2.19545  -6.77568,3.62167"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6789" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6792">
+          <stop
+             path="c 2.96465,-1.228  6.04279,-2.16174  9.19005,-2.78777"
+             id="stop6790" />
+          <stop
+             path="l 1.91147,9.60959"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6791" />
+          <stop
+             path="c -2.51781,0.500823  -4.98032,1.24782  -7.35204,2.23022"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6792" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6795">
+          <stop
+             path="c 3.14726,-0.626029  6.34841,-0.941315  9.55733,-0.941315"
+             id="stop6793" />
+          <stop
+             path="l 2.97705e-07,9.79785"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6794" />
+          <stop
+             path="c -2.56713,7.80016e-08  -5.12806,0.252229  -7.64586,0.753052"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6795" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6798">
+          <stop
+             path="c 3.20892,-9.7502e-08  6.41007,0.315286  9.55733,0.941315"
+             id="stop6796" />
+          <stop
+             path="l -1.91147,9.60959"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6797" />
+          <stop
+             path="c -2.51781,-0.500823  -5.07873,-0.753052  -7.64586,-0.753052"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6798" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6801">
+          <stop
+             path="c 3.14726,0.626029  6.22539,1.55977  9.19005,2.78777"
+             id="stop6799" />
+          <stop
+             path="l -3.74948,9.05203"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6800" />
+          <stop
+             path="c -2.37172,-0.982399  -4.83423,-1.72939  -7.35204,-2.23022"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6801" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6804">
+          <stop
+             path="c 2.96465,1.228  5.80148,2.74431  8.4696,4.52709"
+             id="stop6802" />
+          <stop
+             path="l -5.44339,8.14662"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6803" />
+          <stop
+             path="c -2.13449,-1.42622  -4.40395,-2.63927  -6.77568,-3.62167"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6804" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6807">
+          <stop
+             path="c 2.66812,1.78278  5.15462,3.8234  7.42366,6.09244"
+             id="stop6805" />
+          <stop
+             path="l -6.92813,6.92813"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6806" />
+          <stop
+             path="c -1.81524,-1.81524  -3.80444,-3.44773  -5.93893,-4.87395"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6807" />
+        </meshpatch>
+      </meshrow>
+      <meshrow
+         id="meshrow6824">
+        <meshpatch
+           id="meshpatch6810">
+          <stop
+             path="l 5.44339,8.14662"
+             id="stop6808" />
+          <stop
+             path="c -1.60087,1.06967  -3.09277,2.29404  -4.4542,3.65547"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6809" />
+          <stop
+             path="l -6.92813,-6.92813"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6810" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6812">
+          <stop
+             path="l 3.74948,9.05203"
+             id="stop6811" />
+          <stop
+             path="c -1.77879,0.7368  -3.48089,1.64659  -5.08176,2.71626"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6812" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6814">
+          <stop
+             path="l 1.91147,9.60959"
+             id="stop6813" />
+          <stop
+             path="c -1.88836,0.375617  -3.73524,0.935863  -5.51403,1.67266"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6814" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6816">
+          <stop
+             path="l 2.97705e-07,9.79785"
+             id="stop6815" />
+          <stop
+             path="c -1.92535,5.85012e-08  -3.84604,0.189172  -5.7344,0.564789"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6816" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6818">
+          <stop
+             path="l -1.91147,9.60959"
+             id="stop6817" />
+          <stop
+             path="c -1.88836,-0.375617  -3.80905,-0.564789  -5.7344,-0.564789"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6818" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6820">
+          <stop
+             path="l -3.74948,9.05203"
+             id="stop6819" />
+          <stop
+             path="c -1.77879,-0.7368  -3.62567,-1.29704  -5.51403,-1.67266"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6820" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6822">
+          <stop
+             path="l -5.44339,8.14662"
+             id="stop6821" />
+          <stop
+             path="c -1.60087,-1.06967  -3.30297,-1.97946  -5.08176,-2.71626"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6822" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6824">
+          <stop
+             path="l -6.92813,6.92813"
+             id="stop6823" />
+          <stop
+             path="c -1.36143,-1.36143  -2.85333,-2.5858  -4.4542,-3.65547"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6824" />
+        </meshpatch>
+      </meshrow>
+      <meshrow
+         id="meshrow6841">
+        <meshpatch
+           id="meshpatch6827">
+          <stop
+             path="l 5.44339,8.14662"
+             id="stop6825" />
+          <stop
+             path="c -1.06725,0.713112  -2.06185,1.52936  -2.96947,2.43698"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6826" />
+          <stop
+             path="l -6.92813,-6.92813"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6827" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6829">
+          <stop
+             path="l 3.74948,9.05203"
+             id="stop6828" />
+          <stop
+             path="c -1.18586,0.4912  -2.32059,1.09773  -3.38784,1.81084"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6829" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6831">
+          <stop
+             path="l 1.91147,9.60959"
+             id="stop6830" />
+          <stop
+             path="c -1.2589,0.250412  -2.49016,0.623908  -3.67602,1.11511"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6831" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6833">
+          <stop
+             path="l 2.97705e-07,9.79785"
+             id="stop6832" />
+          <stop
+             path="c -1.28357,3.90008e-08  -2.56403,0.126115  -3.82293,0.376526"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6833" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6835">
+          <stop
+             path="l -1.91147,9.60959"
+             id="stop6834" />
+          <stop
+             path="c -1.2589,-0.250411  -2.53937,-0.376526  -3.82293,-0.376526"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6835" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6837">
+          <stop
+             path="l -3.74948,9.05203"
+             id="stop6836" />
+          <stop
+             path="c -1.18586,-0.4912  -2.41712,-0.864697  -3.67602,-1.11511"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6837" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6839">
+          <stop
+             path="l -5.44339,8.14662"
+             id="stop6838" />
+          <stop
+             path="c -1.06725,-0.713111  -2.20198,-1.31964  -3.38784,-1.81084"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6839" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6841">
+          <stop
+             path="l -6.92813,6.92813"
+             id="stop6840" />
+          <stop
+             path="c -0.907619,-0.907619  -1.90222,-1.72387  -2.96947,-2.43698"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6841" />
+        </meshpatch>
+      </meshrow>
+      <meshrow
+         id="meshrow6858">
+        <meshpatch
+           id="meshpatch6844">
+          <stop
+             path="l 5.44339,8.14662"
+             id="stop6842" />
+          <stop
+             path="c -0.533623,0.356556  -1.03092,0.764679  -1.48473,1.21849"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6843" />
+          <stop
+             path="l -6.92813,-6.92813"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6844" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6846">
+          <stop
+             path="l 3.74948,9.05203"
+             id="stop6845" />
+          <stop
+             path="c -0.592931,0.2456  -1.1603,0.548863  -1.69392,0.905419"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6846" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6848">
+          <stop
+             path="l 1.91147,9.60959"
+             id="stop6847" />
+          <stop
+             path="c -0.629452,0.125206  -1.24508,0.311954  -1.83801,0.557554"
+             style="stop-color:#ca1b1b;stop-opacity:1"
+             id="stop6848" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6850">
+          <stop
+             path="l 2.97705e-07,9.79785"
+             id="stop6849" />
+          <stop
+             path="c -0.641783,1.95004e-08  -1.28201,0.0630573  -1.91147,0.188263"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6850" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6852">
+          <stop
+             path="l -1.91147,9.60959"
+             id="stop6851" />
+          <stop
+             path="c -0.629452,-0.125206  -1.26968,-0.188263  -1.91147,-0.188263"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6852" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6854">
+          <stop
+             path="l -3.74948,9.05203"
+             id="stop6853" />
+          <stop
+             path="c -0.592931,-0.2456  -1.20856,-0.432348  -1.83801,-0.557554"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6854" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6856">
+          <stop
+             path="l -5.44339,8.14662"
+             id="stop6855" />
+          <stop
+             path="c -0.533623,-0.356556  -1.10099,-0.659819  -1.69392,-0.905419"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6856" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6858">
+          <stop
+             path="l -6.92813,6.92813"
+             id="stop6857" />
+          <stop
+             path="c -0.453809,-0.453809  -0.951109,-0.861933  -1.48473,-1.21849"
+             style="stop-color:#3515ff;stop-opacity:1"
+             id="stop6858" />
+        </meshpatch>
+      </meshrow>
+      <meshrow
+         id="meshrow6875">
+        <meshpatch
+           id="meshpatch6861">
+          <stop
+             path="l 5.44339,8.14662"
+             id="stop6859" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6860" />
+          <stop
+             path="l -6.92813,-6.92813"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6861" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6863">
+          <stop
+             path="l 3.74948,9.05203"
+             id="stop6862" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6863" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6865">
+          <stop
+             path="l 1.91147,9.60959"
+             id="stop6864" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6865" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6867">
+          <stop
+             path="l 2.97705e-07,9.79785"
+             id="stop6866" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6867" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6869">
+          <stop
+             path="l -1.91147,9.60959"
+             id="stop6868" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6869" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6871">
+          <stop
+             path="l -3.74948,9.05203"
+             id="stop6870" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6871" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6873">
+          <stop
+             path="l -5.44339,8.14662"
+             id="stop6872" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6873" />
+        </meshpatch>
+        <meshpatch
+           id="meshpatch6875">
+          <stop
+             path="l -6.92813,6.92813"
+             id="stop6874" />
+          <stop
+             path="l 0,0"
+             style="stop-color:#c343e2;stop-opacity:1"
+             id="stop6875" />
+        </meshpatch>
+      </meshrow>
+    </meshgradient>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     style="opacity:1">
+    <g
+       id="g7013"
+       inkscape:label="deriv2"
+       transform="translate(-12.8901,60.437853)"
+       style="opacity:1"
+       inkscape:export-filename="full_logo.svg"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96">
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold';text-align:start;letter-spacing:2.64583px;writing-mode:lr-tb;direction:ltr;text-anchor:start;opacity:1;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         x="94.050873"
+         y="166.31119"
+         id="text7010"
+         inkscape:export-filename="full_logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"
+         inkscape:label="text"><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="166.31119"
+           id="tspan7009">NUMERICAL</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="188.35982"
+           id="tspan7010">SOLVER</tspan></text>
+      <path
+         transform="matrix(-1,4.73078e-5,4.73078e-5,1,150.70584,14.588183)"
+         id="path1"
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         style="opacity:1;fill:#005eff;fill-opacity:1;stroke:#005eff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:label="blue" />
+      <path
+         id="path7010"
+         style="opacity:1;fill:#dd0000;fill-opacity:1;stroke:#dd0000;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         sodipodi:type="inkscape:offset"
+         inkscape:radius="0.98666102"
+         inkscape:original="M 89.109375 138.01953 C 82.134095 139.91296 75.653052 143.43178 70.265625 148.25 L 96.957031 174.94141 L 89.109375 138.01953 z "
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         inkscape:path-effect="#path-effect7014"
+         transform="translate(-49.391408,14.592916)"
+         inkscape:export-filename="logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"
+         inkscape:label="red" />
+      <path
+         d="m 38.142365,156.18361 c -1.158073,-0.023 -2.257051,0.1864 -3.238045,0.65629 -0.932165,0.4465 -1.755877,1.0717 -2.437577,1.84743 -0.662804,0.75422 -1.199579,1.61676 -1.60352,2.56677 -0.0012,0.003 -0.0024,0.005 -0.0036,0.008 -0.387563,0.92869 -0.654746,1.89428 -0.800985,2.88872 -7.18e-4,0.004 -0.0014,0.008 -0.0021,0.0119 l -0.136426,0.98805 c -0.0014,0.006 -0.0028,0.0117 -0.0041,0.0176 -0.118132,0.95244 -0.11185,1.89731 0.02325,2.8205 0.138887,0.94906 0.436658,1.84102 0.894519,2.64429 0.480197,0.84245 1.168726,1.54366 2.004012,2.04483 0.0026,0.002 0.0052,0.004 0.0078,0.006 0.88685,0.52325 1.929137,0.766 3.053044,0.7891 h 0.0021 c 1.202244,0.0228 2.360025,-0.19444 3.421496,-0.65835 0.0026,-6.6e-4 0.0052,-0.001 0.0078,-0.002 1.065443,-0.47353 1.984534,-1.18736 2.695443,-2.09755 0.743759,-0.95036 1.191844,-2.10431 1.339969,-3.35948 0.09408,-0.79593 -0.53445,-1.49254 -1.335835,-1.48053 l -2.797246,0.0393 c -0.612707,0.009 -1.139247,0.43715 -1.273307,1.03508 -0.09338,0.41773 -0.231005,0.72971 -0.394291,0.96687 -0.0033,0.004 -0.0066,0.008 -0.0098,0.0114 -0.141214,0.2101 -0.286387,0.33471 -0.510046,0.43976 -0.0026,0.001 -0.0052,0.003 -0.0078,0.004 -0.194598,0.0928 -0.475925,0.15884 -0.900204,0.14469 -0.372236,-0.0123 -0.438074,-0.0865 -0.441317,-0.0899 -0.117334,-0.12148 -0.198367,-0.25468 -0.255798,-0.50953 -0.07753,-0.34407 -0.111613,-0.71241 -0.09612,-1.11518 0.0182,-0.47925 0.05025,-0.90701 0.09612,-1.28313 l 0.0016,-0.0139 0.134876,-1.00407 -0.0021,0.0238 c 0.06804,-0.44792 0.169994,-0.91126 0.308508,-1.387 v -0.002 c 0.131309,-0.43018 0.305304,-0.81253 0.521932,-1.16014 0.185398,-0.2938 0.387087,-0.48757 0.640271,-0.63872 0.0047,-0.003 0.0093,-0.005 0.01395,-0.008 0.183301,-0.11217 0.43263,-0.1903 0.857312,-0.17777 0.407133,0.0139 0.593462,0.10403 0.634586,0.13281 0.0046,0.003 0.0093,0.007 0.01395,0.01 0.08371,0.0569 0.116662,0.0847 0.170015,0.25011 0.0025,0.008 0.0051,0.0169 0.0078,0.0253 0.07628,0.22156 0.128042,0.53035 0.12299,0.93948 -0.0094,0.73657 0.583709,1.33943 1.320333,1.34204 l 2.845304,0.01 c 0.757006,0.003 1.36247,-0.62816 1.328601,-1.38441 -0.05278,-1.15371 -0.311298,-2.22438 -0.805119,-3.16415 -0.490402,-0.95182 -1.233493,-1.74001 -2.153874,-2.27738 -0.943699,-0.5613 -2.054377,-0.8267 -3.258199,-0.84956 z m 23.738603,0.20464 -1.193725,5.2e-4 c -0.643635,5.5e-4 -1.193798,0.46352 -1.304314,1.0976 l -2.464965,14.23996 c -0.139938,0.80968 0.483144,1.55022 1.304829,1.55081 h 1.242302 1.62264 1.537374 c 1.150474,0.008 2.251427,-0.18585 3.263366,-0.59376 0.0026,-0.001 0.0052,-0.003 0.0078,-0.004 0.986687,-0.40539 1.874137,-0.97959 2.632914,-1.70739 0.757449,-0.72686 1.37699,-1.58366 1.845882,-2.543 0.474712,-0.95804 0.788821,-1.98953 0.937411,-3.07423 0.0015,-0.0103 0.0029,-0.0206 0.0041,-0.031 l 0.07803,-0.69505 -0.0021,0.006 c 0.119756,-1.01792 0.08071,-2.01386 -0.128674,-2.96881 v -0.002 c -0.21096,-0.96776 -0.59922,-1.86191 -1.158586,-2.64015 -0.568451,-0.7909 -1.317231,-1.4329 -2.19108,-1.88723 -0.912538,-0.48077 -1.956408,-0.71501 -3.072681,-0.73794 -0.0071,-6e-5 -0.01413,-6e-5 -0.02119,0 l -1.247986,-0.006 c -0.0026,-0.001 -0.0052,-0.003 -0.0078,-0.004 z m -14.038936,5.2e-4 c -0.64383,3e-4 -1.194281,0.46333 -1.30483,1.0976 l -2.464966,14.23996 c -0.140081,0.81051 0.484373,1.55151 1.306897,1.55081 h 2.864941 c 0.643833,-3e-4 1.194285,-0.46334 1.30483,-1.09761 l 0.827857,-4.76922 h 4.390946 c 0.643143,-4.2e-4 1.19313,-0.46259 1.304313,-1.09605 l 0.400493,-2.28875 c 0.142815,-0.81099 -0.480839,-1.55449 -1.304313,-1.55495 h -3.93206 l 0.197404,-1.13481 h 5.054988 c 0.645567,1.5e-4 1.197297,-0.46494 1.306381,-1.10122 l 0.390673,-2.29909 c 0.137178,-0.80899 -0.486363,-1.54693 -1.306897,-1.54667 h -6.15983 -0.793233 z m 16.435119,4.95467 0.408244,0.002 c 0.423836,0.0135 0.614041,0.1057 0.695565,0.16795 0.165389,0.1263 0.260168,0.25325 0.343648,0.47697 0.0026,0.005 0.0052,0.0103 0.0078,0.0155 0.112271,0.28932 0.178684,0.61584 0.193269,0.99994 0.01696,0.44083 -1.54e-4,0.87228 -0.05064,1.29863 l -0.08217,0.65422 c -0.103954,0.66878 -0.298232,1.27315 -0.583944,1.834 -7.05e-4,0.002 -0.0014,0.004 -0.0021,0.006 -0.25361,0.50243 -0.574493,0.86922 -0.999939,1.16789 -0.27225,0.18674 -0.691043,0.24791 -1.13068,0.29869 z"
+         style="font-style:italic;font-weight:bold;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';letter-spacing:2.18508px;baseline-shift:baseline;display:inline;overflow:visible;fill:#000000;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;stroke:#ffffff;stroke-width:1;stroke-dasharray:none"
+         id="path7013"
+         sodipodi:nodetypes="cssccccccssccsscccccccccccccscccccccccccccccccccccccccccccccccccccccccsccccccccccccccccccccccccccccscccccccccc"
+         inkscape:label="CFD" />
+    </g>
+    <g
+       id="g6892"
+       inkscape:label="deriv1"
+       transform="translate(-8.7741493,-12.442909)">
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold';text-align:start;letter-spacing:2.64583px;writing-mode:lr-tb;direction:ltr;text-anchor:start;opacity:1;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         x="94.050873"
+         y="166.31119"
+         id="text6889"
+         inkscape:export-filename="full_logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"
+         inkscape:label="text"><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="166.31119"
+           id="tspan6888">NUMERICAL</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="188.35982"
+           id="tspan6889">SOLVER</tspan></text>
+      <path
+         id="path6889"
+         style="opacity:1;fill:#dd0000;fill-opacity:1;stroke:#dd0000;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         sodipodi:type="inkscape:offset"
+         inkscape:radius="0.98666102"
+         inkscape:original="M 89.109375 138.01953 C 82.134095 139.91296 75.653052 143.43178 70.265625 148.25 L 96.957031 174.94141 L 89.109375 138.01953 z "
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         inkscape:path-effect="#path-effect6893"
+         transform="translate(-49.391408,14.592916)"
+         inkscape:export-filename="logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"
+         inkscape:label="red" />
+      <path
+         id="path6890"
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         style="opacity:1;fill:#005eff;fill-opacity:1;stroke:#005eff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         transform="matrix(-1,4.73078e-5,4.73078e-5,1,150.70584,14.588183)"
+         inkscape:label="blue" />
+      <path
+         style="font-style:italic;font-weight:bold;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';letter-spacing:2.18508px;baseline-shift:baseline;display:inline;overflow:visible;opacity:1;fill:#ffffff;stroke:#ffffff;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+         d="m 38.158203,155.43359 c -1.257846,-0.025 -2.478606,0.20381 -3.578125,0.73047 -1.02292,0.48997 -1.928229,1.17668 -2.675781,2.02735 -0.717428,0.81637 -1.296874,1.74978 -1.730469,2.76953 -0.002,0.004 -0.004,0.008 -0.0059,0.0117 -0.0016,0.004 -0.0023,0.008 -0.0039,0.0117 -0.408477,0.98148 -0.692934,2.00275 -0.847656,3.05274 -1.84e-4,0.001 1.84e-4,0.003 0,0.004 -7.52e-4,0.006 -0.0014,0.013 -0.002,0.0195 l -0.130859,0.94726 v 0.006 c -0.0048,0.0207 -0.0087,0.0415 -0.01172,0.0625 -0.12599,1.01579 -0.119843,2.02905 0.02539,3.02149 0.151377,1.03441 0.477507,2.017 0.984375,2.90625 0.544271,0.95486 1.325512,1.74999 2.269531,2.3164 0.0045,0.003 0.0091,0.007 0.01367,0.01 1.020916,0.60235 2.19566,0.86745 3.417968,0.89258 h 0.0039 c 1.301669,0.0247 2.570209,-0.21106 3.736328,-0.72071 0.0039,-0.001 0.0078,-0.003 0.01172,-0.004 1.174309,-0.52192 2.193757,-1.31349 2.980468,-2.32032 0.679747,-0.86856 1.076978,-1.90581 1.310547,-2.99609 l -0.591797,3.41602 c -0.216848,1.25468 0.771633,2.43077 2.044922,2.42968 h 2.865235 c 1.00323,-4.6e-4 1.870716,-0.73042 2.042968,-1.71875 l 0.720703,-4.14843 h 3.759766 c 1.002169,-6.6e-4 1.86972,-0.72972 2.042969,-1.7168 l 0.40039,-2.28711 c 0.166908,-0.9478 -0.452807,-1.68382 -1.267578,-2.07031 h 0.544922 c 0.59136,1.3e-4 1.078163,-0.29671 1.460938,-0.70703 l -1.769532,10.21875 c -0.216636,1.25345 0.770934,2.42877 2.042969,2.42968 h 1.242188 1.623047 1.53125 c 1.236724,0.009 2.435443,-0.20179 3.544921,-0.64843 -0.01824,0.007 0.03271,-0.0118 0.002,0 0.0052,-0.002 0.01044,-0.004 0.01563,-0.006 1.070736,-0.43993 2.039797,-1.06577 2.867187,-1.85938 0.821442,-0.78827 1.492287,-1.7183 1.998047,-2.75195 v -0.002 c 0.510897,-1.03154 0.848697,-2.1412 1.007812,-3.30274 0.002,-0.0139 0.0057,-0.0287 0.0078,-0.0469 v -0.002 l 0.07813,-0.69531 -0.0039,-0.006 c 0.126339,-1.08767 0.08684,-2.16377 -0.140625,-3.20117 v -0.002 c -0.231271,-1.06094 -0.658981,-2.05222 -1.28125,-2.91797 -0.637526,-0.88701 -1.47796,-1.60656 -2.451172,-2.11328 -1.032335,-0.54389 -2.194721,-0.79934 -3.40625,-0.82422 -0.0033,-2e-5 -0.0065,-2e-5 -0.0098,0 -0.008,-7e-5 -0.01546,-3e-5 -0.02344,0 h -0.0098 l -1.228516,-0.006 c -0.0071,-0.001 -0.0143,-0.003 -0.02148,-0.004 H 61.880859 60.6875 c -0.962412,8.2e-4 -1.768061,0.69177 -1.986328,1.61914 -0.235295,-0.87583 -0.855547,-1.61944 -1.822266,-1.61914 H 50.71875 49.925781 47.841797 c -1.003221,4.7e-4 -1.870711,0.73043 -2.042969,1.71875 v 0.002 l -0.802734,4.63868 c -0.09992,-1.06886 -0.294806,-2.11278 -0.775391,-3.0293 v -0.002 c -0.553635,-1.07389 -1.395822,-1.96675 -2.4375,-2.57618 -1.07555,-0.63972 -2.319248,-0.92978 -3.623047,-0.95507 -6.65e-4,-6.7e-4 -0.0013,-0.001 -0.002,-0.002 z m 1.464844,18.06836 -0.117188,0.0391 c -0.05344,0.0136 -0.01205,0.0133 0.09375,-0.0274 0.0079,-0.004 0.0157,-0.008 0.02344,-0.0117 z m -7.171875,-0.18164 -0.07031,-0.0488 0.0078,0.008 c 0.02014,0.0147 0.041,0.0284 0.0625,0.041 z m 5.439452,-11.41992 c 0.08399,0.003 0.107728,0.012 0.15625,0.0195 0.03443,0.12819 0.07191,0.29222 0.06836,0.58008 -0.01351,1.14344 0.924614,2.09556 2.06836,2.09961 l 2.845703,0.0117 c 0.820231,0.002 1.392179,-0.55501 1.730469,-1.24805 l -0.6875,3.9668 c 0.06497,-1.17985 -0.85513,-2.2219 -2.052735,-2.20508 h -0.002 l -2.794922,0.0391 h -0.002 c -0.955676,0.014 -1.785085,0.68867 -1.994141,1.6211 -0.0765,0.3422 -0.178607,0.55883 -0.279296,0.70507 l 0.03906,-0.0508 c -0.0033,0.004 0.0018,-0.002 0.02344,-0.0254 -0.02248,0.024 -0.04336,0.0495 -0.0625,0.0762 -0.0053,0.006 -0.01053,0.0129 -0.01563,0.0195 -0.08505,0.12653 -0.07496,0.11857 -0.205079,0.17968 -0.0039,0.002 -0.0078,0.004 -0.01172,0.006 -0.06403,0.0305 -0.221101,0.0778 -0.53711,0.0703 -0.0024,-0.0112 -0.0026,8e-4 -0.0059,-0.0137 -0.06266,-0.27807 -0.09132,-0.57887 -0.07813,-0.92187 0.01758,-0.4628 0.04716,-0.87074 0.08984,-1.22071 6.75e-4,-0.002 0.0013,-0.004 0.002,-0.006 v -0.006 l 0.128906,-0.96094 h 0.002 c 0.06287,-0.41386 0.15752,-0.84397 0.28711,-1.28906 4e-6,-0.001 4e-6,-0.003 0,-0.004 0.11305,-0.36728 0.257865,-0.68441 0.4375,-0.97266 0.132246,-0.20861 0.228406,-0.29494 0.388671,-0.39062 0.0066,-0.004 0.01308,-0.008 0.01953,-0.0117 -0.0049,0.003 0.0059,-0.003 0.002,0 0.05679,-0.0348 0.122527,-0.077 0.439453,-0.0684 z m 27.013672,0.20703 c -0.0052,-0.003 0.02816,0.007 0.02148,0.002 0.08257,0.0631 0.04474,0.006 0.0957,0.14258 0.0037,0.009 0.0076,0.0183 0.01172,0.0274 0.07917,0.20455 0.130687,0.4427 0.142578,0.75586 0.01549,0.40267 9.44e-4,0.79431 -0.04492,1.18164 l -0.08008,0.63281 c -0.09292,0.59369 -0.261465,1.1161 -0.509765,1.60351 -0.0013,0.003 -0.0026,0.005 -0.0039,0.008 -0.131006,0.25954 -0.316689,0.40129 -0.486328,0.57031 z"
+         id="path7002"
+         sodipodi:nodetypes="csscccscccccssccsccccccccccccccccccccccccccccccccccscccsccccccccccccccccccccccscccccccccccccsccccccccccccccccccccccccccccccccccsccc"
+         inkscape:label="CFD stroke" />
+      <path
+         d="m 38.142365,156.18361 c -1.158073,-0.023 -2.257051,0.1864 -3.238045,0.65629 -0.932165,0.4465 -1.755877,1.0717 -2.437577,1.84743 -0.662804,0.75422 -1.199579,1.61676 -1.60352,2.56677 -0.0012,0.003 -0.0024,0.005 -0.0036,0.008 -0.387563,0.92869 -0.654746,1.89428 -0.800985,2.88872 -7.18e-4,0.004 -0.0014,0.008 -0.0021,0.0119 l -0.136426,0.98805 c -0.0014,0.006 -0.0028,0.0117 -0.0041,0.0176 -0.118132,0.95244 -0.11185,1.89731 0.02325,2.8205 0.138887,0.94906 0.436658,1.84102 0.894519,2.64429 0.480197,0.84245 1.168726,1.54366 2.004012,2.04483 0.0026,0.002 0.0052,0.004 0.0078,0.006 0.88685,0.52325 1.929137,0.766 3.053044,0.7891 h 0.0021 c 1.202244,0.0228 2.360025,-0.19444 3.421496,-0.65835 0.0026,-6.6e-4 0.0052,-0.001 0.0078,-0.002 1.065443,-0.47353 1.984534,-1.18736 2.695443,-2.09755 0.743759,-0.95036 1.191844,-2.10431 1.339969,-3.35948 0.09408,-0.79593 -0.53445,-1.49254 -1.335835,-1.48053 l -2.797246,0.0393 c -0.612707,0.009 -1.139247,0.43715 -1.273307,1.03508 -0.09338,0.41773 -0.231005,0.72971 -0.394291,0.96687 -0.0033,0.004 -0.0066,0.008 -0.0098,0.0114 -0.141214,0.2101 -0.286387,0.33471 -0.510046,0.43976 -0.0026,0.001 -0.0052,0.003 -0.0078,0.004 -0.194598,0.0928 -0.475925,0.15884 -0.900204,0.14469 -0.372236,-0.0123 -0.438074,-0.0865 -0.441317,-0.0899 -0.117334,-0.12148 -0.198367,-0.25468 -0.255798,-0.50953 -0.07753,-0.34407 -0.111613,-0.71241 -0.09612,-1.11518 0.0182,-0.47925 0.05025,-0.90701 0.09612,-1.28313 l 0.0016,-0.0139 0.134876,-1.00407 -0.0021,0.0238 c 0.06804,-0.44792 0.169994,-0.91126 0.308508,-1.387 v -0.002 c 0.131309,-0.43018 0.305304,-0.81253 0.521932,-1.16014 0.185398,-0.2938 0.387087,-0.48757 0.640271,-0.63872 0.0047,-0.003 0.0093,-0.005 0.01395,-0.008 0.183301,-0.11217 0.43263,-0.1903 0.857312,-0.17777 0.407133,0.0139 0.593462,0.10403 0.634586,0.13281 0.0046,0.003 0.0093,0.007 0.01395,0.01 0.08371,0.0569 0.116662,0.0847 0.170015,0.25011 0.0025,0.008 0.0051,0.0169 0.0078,0.0253 0.07628,0.22156 0.128042,0.53035 0.12299,0.93948 -0.0094,0.73657 0.583709,1.33943 1.320333,1.34204 l 2.845304,0.01 c 0.757006,0.003 1.36247,-0.62816 1.328601,-1.38441 -0.05278,-1.15371 -0.311298,-2.22438 -0.805119,-3.16415 -0.490402,-0.95182 -1.233493,-1.74001 -2.153874,-2.27738 -0.943699,-0.5613 -2.054377,-0.8267 -3.258199,-0.84956 z m 23.738603,0.20464 -1.193725,5.2e-4 c -0.643635,5.5e-4 -1.193798,0.46352 -1.304314,1.0976 l -2.464965,14.23996 c -0.139938,0.80968 0.483144,1.55022 1.304829,1.55081 h 1.242302 1.62264 1.537374 c 1.150474,0.008 2.251427,-0.18585 3.263366,-0.59376 0.0026,-0.001 0.0052,-0.003 0.0078,-0.004 0.986687,-0.40539 1.874137,-0.97959 2.632914,-1.70739 0.757449,-0.72686 1.37699,-1.58366 1.845882,-2.543 0.474712,-0.95804 0.788821,-1.98953 0.937411,-3.07423 0.0015,-0.0103 0.0029,-0.0206 0.0041,-0.031 l 0.07803,-0.69505 -0.0021,0.006 c 0.119756,-1.01792 0.08071,-2.01386 -0.128674,-2.96881 v -0.002 c -0.21096,-0.96776 -0.59922,-1.86191 -1.158586,-2.64015 -0.568451,-0.7909 -1.317231,-1.4329 -2.19108,-1.88723 -0.912538,-0.48077 -1.956408,-0.71501 -3.072681,-0.73794 -0.0071,-6e-5 -0.01413,-6e-5 -0.02119,0 l -1.247986,-0.006 c -0.0026,-0.001 -0.0052,-0.003 -0.0078,-0.004 z m -14.038936,5.2e-4 c -0.64383,3e-4 -1.194281,0.46333 -1.30483,1.0976 l -2.464966,14.23996 c -0.140081,0.81051 0.484373,1.55151 1.306897,1.55081 h 2.864941 c 0.643833,-3e-4 1.194285,-0.46334 1.30483,-1.09761 l 0.827857,-4.76922 h 4.390946 c 0.643143,-4.2e-4 1.19313,-0.46259 1.304313,-1.09605 l 0.400493,-2.28875 c 0.142815,-0.81099 -0.480839,-1.55449 -1.304313,-1.55495 h -3.93206 l 0.197404,-1.13481 h 5.054988 c 0.645567,1.5e-4 1.197297,-0.46494 1.306381,-1.10122 l 0.390673,-2.29909 c 0.137178,-0.80899 -0.486363,-1.54693 -1.306897,-1.54667 h -6.15983 -0.793233 z m 16.435119,4.95467 0.408244,0.002 c 0.423836,0.0135 0.614041,0.1057 0.695565,0.16795 0.165389,0.1263 0.260168,0.25325 0.343648,0.47697 0.0026,0.005 0.0052,0.0103 0.0078,0.0155 0.112271,0.28932 0.178684,0.61584 0.193269,0.99994 0.01696,0.44083 -1.54e-4,0.87228 -0.05064,1.29863 l -0.08217,0.65422 c -0.103954,0.66878 -0.298232,1.27315 -0.583944,1.834 -7.05e-4,0.002 -0.0014,0.004 -0.0021,0.006 -0.25361,0.50243 -0.574493,0.86922 -0.999939,1.16789 -0.27225,0.18674 -0.691043,0.24791 -1.13068,0.29869 z"
+         style="font-style:italic;font-weight:bold;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';letter-spacing:2.18508px;baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#000000;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+         id="path7000"
+         sodipodi:nodetypes="cssccccccssccsscccccccccccccscccccccccccccccccccccccccccccccccccccccccsccccccccccccccccccccccccccccscccccccccc"
+         inkscape:label="CFD" />
+    </g>
+    <g
+       id="g6975"
+       inkscape:label="init"
+       transform="translate(-8.7741493,-83.351242)">
+      <text
+         xml:space="preserve"
+         style="font-weight:bold;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold';text-align:start;letter-spacing:2.64583px;writing-mode:lr-tb;direction:ltr;text-anchor:start;opacity:1;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         x="94.050873"
+         y="166.31119"
+         id="text6973"
+         inkscape:export-filename="full_logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="166.31119"
+           id="tspan6972">NUMERICAL</tspan><tspan
+           sodipodi:role="line"
+           style="font-style:italic;font-variant:normal;font-weight:250;font-stretch:normal;font-size:17.6389px;font-family:Roboto;-inkscape-font-specification:'Roboto weight=250 Italic';text-align:start;letter-spacing:2.64583px;text-anchor:start;fill:#d2dbde;fill-opacity:1;stroke:#d2dbde;stroke-width:3;stroke-dasharray:none;stroke-opacity:1"
+           x="94.050873"
+           y="188.35982"
+           id="tspan6973">SOLVER</tspan></text>
+      <path
+         id="path6973"
+         style="opacity:1;fill:#dd0000;fill-opacity:1;stroke:#dd0000;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         sodipodi:type="inkscape:offset"
+         inkscape:radius="0.98666102"
+         inkscape:original="M 89.109375 138.01953 C 82.134095 139.91296 75.653052 143.43178 70.265625 148.25 L 96.957031 174.94141 L 89.109375 138.01953 z "
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         inkscape:path-effect="#path-effect6976"
+         transform="translate(-49.391408,14.592916)"
+         inkscape:export-filename="logo.svg"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         id="path6974"
+         d="m 88.851562,137.06641 c -7.124422,1.93391 -13.741556,5.52605 -19.24414,10.44726 a 0.98675968,0.98675968 0 0 0 -0.03906,1.4336 l 26.691407,26.6914 a 0.98675968,0.98675968 0 0 0 1.662109,-0.90234 l -7.847656,-36.92188 a 0.98675968,0.98675968 0 0 0 -1.222657,-0.74804 z"
+         style="opacity:1;fill:#005eff;fill-opacity:1;stroke:#005eff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         transform="matrix(-1,4.73078e-5,4.73078e-5,1,150.70584,14.588183)" />
+      <path
+         id="path6975"
+         style="font-style:italic;font-weight:bold;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';letter-spacing:2.18508px;baseline-shift:baseline;display:inline;overflow:visible;fill:#ffffff;stroke:#ffffff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+         d="m 38.145884,155.96 c -1.186622,-0.0233 -2.323289,0.19338 -3.338297,0.67955 -0.958307,0.45902 -1.808336,1.10289 -2.509408,1.90066 -0.679118,0.77279 -1.228158,1.65486 -1.640726,2.62516 a 1.5486349,1.5486349 0 0 0 -0.0041,0.01 c -0.394567,0.94547 -0.667017,1.9306 -0.815971,2.94349 a 1.5486349,1.5486349 0 0 0 -0.0021,0.0134 l -0.136943,0.98651 a 1.5486349,1.5486349 0 0 0 -0.0036,0.0232 c -0.120453,0.97114 -0.112788,1.93513 0.02532,2.87889 0.142566,0.97421 0.447659,1.89445 0.919841,2.72284 0.498591,0.87472 1.217957,1.60731 2.08411,2.127 a 1.5486349,1.5486349 0 0 0 0.0098,0.006 c 0.926198,0.54649 2.006855,0.79695 3.160014,0.82062 a 1.5486349,1.5486349 0 0 0 0.0021,0 c 1.231191,0.0234 2.423381,-0.19861 3.515547,-0.67593 a 1.5486349,1.5486349 0 0 0 0.0098,-0.004 c 1.097419,-0.48774 2.048319,-1.22491 2.781225,-2.16369 0.77037,-0.98437 1.232723,-2.18137 1.384929,-3.47111 a 1.5486349,1.5486349 0 0 0 -1.56064,-1.73067 l -2.797246,0.0387 0.08837,0.0879 a 1.5486349,1.5486349 0 0 0 -1.578198,1.12345 c -0.0881,0.39412 -0.21449,0.67592 -0.359668,0.88677 a 1.5486349,1.5486349 0 0 0 -0.0098,0.0134 c -0.120482,0.17926 -0.231367,0.27487 -0.419612,0.36329 a 1.5486349,1.5486349 0 0 0 -0.0078,0.004 c -0.155687,0.0742 -0.401964,0.1362 -0.798918,0.12299 -0.194922,-0.006 -0.277248,-0.0288 -0.302823,-0.0377 -0.07977,-0.0861 -0.13668,-0.18055 -0.183452,-0.38809 -0.07302,-0.32404 -0.106788,-0.67188 -0.09198,-1.05678 a 1.5486349,1.5486349 0 0 0 0,-0.002 c 0.01794,-0.47242 0.05084,-0.89136 0.0956,-1.25936 l 0.0021,-0.0103 c 2.78e-4,-0.002 -2.78e-4,-0.006 0,-0.008 l 0.130741,-0.97255 v -0.002 c 0.0664,-0.43658 0.167053,-0.88911 0.302824,-1.35547 v -0.002 c 0.125327,-0.41055 0.289973,-0.77318 0.494027,-1.10174 l 0.0021,-0.002 h 5.16e-4 v -5.2e-4 c 1.6e-4,-3.4e-4 7.24e-4,-0.002 10e-4,-0.002 1.44e-4,-2.8e-4 4.17e-4,-7.9e-4 5.17e-4,-0.001 0.167815,-0.26508 0.34263,-0.43247 0.564306,-0.56482 a 1.5486349,1.5486349 0 0 0 0.01602,-0.008 c 0.14095,-0.0862 0.341618,-0.15818 0.732255,-0.14676 0.378819,0.0129 0.520265,0.0986 0.513664,0.0941 a 1.5486349,1.5486349 0 0 0 0.01757,0.0114 c 0.04349,0.0296 0.04211,0.009 0.08217,0.13281 a 1.5486349,1.5486349 0 0 0 0.0098,0.0294 c 0.06579,0.19108 0.115923,0.47554 0.111104,0.86507 a 1.5486349,1.5486349 0 0 0 1.543058,1.56837 l 2.845822,0.0103 a 1.5486349,1.5486349 0 0 0 1.55236,-1.61954 c -0.05394,-1.17899 -0.319706,-2.28126 -0.829924,-3.25355 -0.508626,-0.98791 -1.284287,-1.81132 -2.240173,-2.36936 -0.982374,-0.58394 -2.1331,-0.85694 -3.365169,-0.88057 z m 23.740668,0.20464 -1.19786,5.2e-4 a 1.5486349,1.5486349 0 0 0 -1.52755,1.28312 l -2.4629,14.24048 a 1.5486349,1.5486349 0 0 0 1.52549,1.81229 h 1.2423 1.62315 1.53479 0.0103 l -0.004,-0.002 c 1.17357,0.007 2.3026,-0.19031 3.34191,-0.60926 a 1.5486349,1.5486349 0 0 0 0.0103,-0.004 c 1.01125,-0.41548 1.92419,-1.00463 2.70319,-1.75183 0.77498,-0.74366 1.40935,-1.62025 1.88877,-2.59932 v -0.002 c 0.48629,-0.98076 0.80732,-2.03849 0.95912,-3.14658 a 1.5486349,1.5486349 0 0 0 0.006,-0.0372 l 0.0765,-0.68729 c 0.12238,-1.04025 0.0822,-2.06252 -0.1328,-3.04323 v -0.002 c -0.21681,-0.99459 -0.61565,-1.92009 -1.19373,-2.72438 -0.5887,-0.81905 -1.36627,-1.484 -2.26911,-1.95337 -0.94813,-0.49957 -2.02788,-0.73978 -3.1719,-0.76326 a 1.5486349,1.5486349 0 0 0 -0.0258,0 l -1.24592,-0.004 a 1.5486349,1.5486349 0 0 0 -0.0114,-0.006 z m -14.043585,5.2e-4 a 1.5486349,1.5486349 0 0 0 -1.525488,1.28312 l -2.464966,14.24048 a 1.5486349,1.5486349 0 0 0 1.525488,1.81229 h 2.865458 a 1.5486349,1.5486349 0 0 0 1.525489,-1.28313 l 0.79685,-4.58421 h 4.200774 a 1.5486349,1.5486349 0 0 0 1.52549,-1.28106 l 0.40049,-2.28927 a 1.5486349,1.5486349 0 0 0 -1.52548,-1.81591 h -3.66593 l 0.11937,-0.68781 h 4.86689 a 1.5486349,1.5486349 0 0 0 1.52755,-1.28881 l 0.39068,-2.29702 a 1.5486349,1.5486349 0 0 0 -1.52549,-1.80867 h -6.16242 -0.792712 z m -12.273669,2.70474 c -6.95e-4,8e-4 -0.0023,0.003 -0.0031,0.004 5.9e-4,-6.9e-4 0.0013,-0.002 0.0021,-0.003 z m -0.0062,0.005 c 7.64e-4,-6e-5 0.0015,1.6e-4 0.0021,0 h 5.17e-4 v 5.2e-4 h -5.17e-4 c -0.0013,3.3e-4 -0.0032,3.6e-4 -0.0046,5.2e-4 l 5.16e-4,-5.2e-4 c 6.09e-4,-5e-5 0.0014,-4.6e-4 0.0021,-5.2e-4 z m 4.619873,0.0439 0.01499,0.01 c -3.24e-4,-1.2e-4 -6.8e-4,9e-5 -10e-4,0 l -0.001,-5.2e-4 -0.01292,-0.009 z m 1.280026,1.73478 c 4.09e-4,6.5e-4 0.0011,0.001 0.0015,0.002 h -5.17e-4 c -4.29e-4,-5.2e-4 -6.79e-4,-10e-4 -10e-4,-0.002 z m 26.948745,0.31626 c 3.9e-4,0.002 4.8e-4,0.004 5.1e-4,0.006 -2e-5,-0.002 -1.4e-4,-0.004 -5.1e-4,-0.006 z m -3.94757,0.59996 h 0.21291 c 0.39224,0.0125 0.53389,0.0966 0.56844,0.12299 0.13289,0.10148 0.20127,0.18956 0.2713,0.37724 a 1.5486349,1.5486349 0 0 0 0.006,0.0176 c 0.10253,0.26427 0.16554,0.56535 0.17932,0.92759 0.0165,0.42989 4.5e-4,0.8493 -0.0486,1.26349 l -0.0801,0.64285 c -0.10041,0.64879 -0.28757,1.23128 -0.56276,1.77147 a 1.5486349,1.5486349 0 0 0 -0.004,0.006 c -0.23815,0.4718 -0.53238,0.8063 -0.92811,1.08417 -0.16894,0.11586 -0.48466,0.12872 -0.72657,0.18966 z m -26.194262,9.39426 h 5.17e-4 v 5.1e-4 h -5.17e-4 c 7.7e-5,-1.2e-4 -6.9e-5,-4e-4 0,-5.1e-4 z" />
+      <text
+         xml:space="preserve"
+         style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';text-align:start;letter-spacing:2.18508px;writing-mode:lr-tb;direction:ltr;text-anchor:start;opacity:1;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:2.65;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         x="30.273088"
+         y="171.95302"
+         id="text6975"><tspan
+           sodipodi:role="line"
+           id="tspan6975"
+           style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20.0299px;font-family:Roboto;-inkscape-font-specification:'Roboto Bold Italic';letter-spacing:2.18508px;fill:#000000;stroke:#000000;stroke-width:2.65;stroke-dasharray:none;stroke-opacity:1"
+           x="30.273088"
+           y="171.95302">CFD</tspan></text>
+    </g>
+  </g>
+  <script
+     id="mesh_polyfill"
+     type="text/javascript">
+!function(){const t=&quot;http://www.w3.org/2000/svg&quot;,e=&quot;http://www.w3.org/1999/xlink&quot;,s=&quot;http://www.w3.org/1999/xhtml&quot;,r=2;if(document.createElementNS(t,&quot;meshgradient&quot;).x)return;const n=(t,e,s,r)=&gt;{let n=new x(.5*(e.x+s.x),.5*(e.y+s.y)),o=new x(.5*(t.x+e.x),.5*(t.y+e.y)),i=new x(.5*(s.x+r.x),.5*(s.y+r.y)),a=new x(.5*(n.x+o.x),.5*(n.y+o.y)),h=new x(.5*(n.x+i.x),.5*(n.y+i.y)),l=new x(.5*(a.x+h.x),.5*(a.y+h.y));return[[t,o,a,l],[l,h,i,r]]},o=t=&gt;{let e=t[0].distSquared(t[1]),s=t[2].distSquared(t[3]),r=.25*t[0].distSquared(t[2]),n=.25*t[1].distSquared(t[3]),o=e&gt;s?e:s,i=r&gt;n?r:n;return 18*(o&gt;i?o:i)},i=(t,e)=&gt;Math.sqrt(t.distSquared(e)),a=(t,e)=&gt;t.scale(2/3).add(e.scale(1/3)),h=t=&gt;{let e,s,r,n,o,i,a,h=new g;return t.match(/(\w+\(\s*[^)]+\))+/g).forEach(t=&gt;{let l=t.match(/[\w.-]+/g),d=l.shift();switch(d){case&quot;translate&quot;:2===l.length?e=new g(1,0,0,1,l[0],l[1]):(console.error(&quot;mesh.js: translate does not have 2 arguments!&quot;),e=new g(1,0,0,1,0,0)),h=h.append(e);break;case&quot;scale&quot;:1===l.length?s=new g(l[0],0,0,l[0],0,0):2===l.length?s=new g(l[0],0,0,l[1],0,0):(console.error(&quot;mesh.js: scale does not have 1 or 2 arguments!&quot;),s=new g(1,0,0,1,0,0)),h=h.append(s);break;case&quot;rotate&quot;:if(3===l.length&amp;&amp;(e=new g(1,0,0,1,l[1],l[2]),h=h.append(e)),l[0]){r=l[0]*Math.PI/180;let t=Math.cos(r),e=Math.sin(r);Math.abs(t)&lt;1e-16&amp;&amp;(t=0),Math.abs(e)&lt;1e-16&amp;&amp;(e=0),a=new g(t,e,-e,t,0,0),h=h.append(a)}else console.error(&quot;math.js: No argument to rotate transform!&quot;);3===l.length&amp;&amp;(e=new g(1,0,0,1,-l[1],-l[2]),h=h.append(e));break;case&quot;skewX&quot;:l[0]?(r=l[0]*Math.PI/180,n=Math.tan(r),o=new g(1,0,n,1,0,0),h=h.append(o)):console.error(&quot;math.js: No argument to skewX transform!&quot;);break;case&quot;skewY&quot;:l[0]?(r=l[0]*Math.PI/180,n=Math.tan(r),i=new g(1,n,0,1,0,0),h=h.append(i)):console.error(&quot;math.js: No argument to skewY transform!&quot;);break;case&quot;matrix&quot;:6===l.length?h=h.append(new g(...l)):console.error(&quot;math.js: Incorrect number of arguments for matrix!&quot;);break;default:console.error(&quot;mesh.js: Unhandled transform type: &quot;+d)}}),h},l=t=&gt;{let e=[],s=t.split(/[ ,]+/);for(let t=0,r=s.length-1;t&lt;r;t+=2)e.push(new x(parseFloat(s[t]),parseFloat(s[t+1])));return e},d=(t,e)=&gt;{for(let s in e)t.setAttribute(s,e[s])},c=(t,e,s,r,n)=&gt;{let o,i,a=[0,0,0,0];for(let h=0;h&lt;3;++h)e[h]&lt;t[h]&amp;&amp;e[h]&lt;s[h]||t[h]&lt;e[h]&amp;&amp;s[h]&lt;e[h]?a[h]=0:(a[h]=.5*((e[h]-t[h])/r+(s[h]-e[h])/n),o=Math.abs(3*(e[h]-t[h])/r),i=Math.abs(3*(s[h]-e[h])/n),a[h]&gt;o?a[h]=o:a[h]&gt;i&amp;&amp;(a[h]=i));return a},u=[[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],[-3,3,0,0,-2,-1,0,0,0,0,0,0,0,0,0,0],[2,-2,0,0,1,1,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],[0,0,0,0,0,0,0,0,-3,3,0,0,-2,-1,0,0],[0,0,0,0,0,0,0,0,2,-2,0,0,1,1,0,0],[-3,0,3,0,0,0,0,0,-2,0,-1,0,0,0,0,0],[0,0,0,0,-3,0,3,0,0,0,0,0,-2,0,-1,0],[9,-9,-9,9,6,3,-6,-3,6,-6,3,-3,4,2,2,1],[-6,6,6,-6,-3,-3,3,3,-4,4,-2,2,-2,-2,-1,-1],[2,0,-2,0,0,0,0,0,1,0,1,0,0,0,0,0],[0,0,0,0,2,0,-2,0,0,0,0,0,1,0,1,0],[-6,6,6,-6,-4,-2,4,2,-3,3,-3,3,-2,-1,-2,-1],[4,-4,-4,4,2,2,-2,-2,2,-2,2,-2,1,1,1,1]],f=t=&gt;{let e=[];for(let s=0;s&lt;16;++s){e[s]=0;for(let r=0;r&lt;16;++r)e[s]+=u[s][r]*t[r]}return e},p=(t,e,s)=&gt;{const r=e*e,n=s*s,o=e*e*e,i=s*s*s;return t[0]+t[1]*e+t[2]*r+t[3]*o+t[4]*s+t[5]*s*e+t[6]*s*r+t[7]*s*o+t[8]*n+t[9]*n*e+t[10]*n*r+t[11]*n*o+t[12]*i+t[13]*i*e+t[14]*i*r+t[15]*i*o},y=t=&gt;{let e=[],s=[],r=[];for(let s=0;s&lt;4;++s)e[s]=[],e[s][0]=n(t[0][s],t[1][s],t[2][s],t[3][s]),e[s][1]=[],e[s][1].push(...n(...e[s][0][0])),e[s][1].push(...n(...e[s][0][1])),e[s][2]=[],e[s][2].push(...n(...e[s][1][0])),e[s][2].push(...n(...e[s][1][1])),e[s][2].push(...n(...e[s][1][2])),e[s][2].push(...n(...e[s][1][3]));for(let t=0;t&lt;8;++t){s[t]=[];for(let r=0;r&lt;4;++r)s[t][r]=[],s[t][r][0]=n(e[0][2][t][r],e[1][2][t][r],e[2][2][t][r],e[3][2][t][r]),s[t][r][1]=[],s[t][r][1].push(...n(...s[t][r][0][0])),s[t][r][1].push(...n(...s[t][r][0][1])),s[t][r][2]=[],s[t][r][2].push(...n(...s[t][r][1][0])),s[t][r][2].push(...n(...s[t][r][1][1])),s[t][r][2].push(...n(...s[t][r][1][2])),s[t][r][2].push(...n(...s[t][r][1][3]))}for(let t=0;t&lt;8;++t){r[t]=[];for(let e=0;e&lt;8;++e)r[t][e]=[],r[t][e][0]=s[t][0][2][e],r[t][e][1]=s[t][1][2][e],r[t][e][2]=s[t][2][2][e],r[t][e][3]=s[t][3][2][e]}return r};class x{constructor(t,e){this.x=t||0,this.y=e||0}toString(){return`(x=${this.x}, y=${this.y})`}clone(){return new x(this.x,this.y)}add(t){return new x(this.x+t.x,this.y+t.y)}scale(t){return void 0===t.x?new x(this.x*t,this.y*t):new x(this.x*t.x,this.y*t.y)}distSquared(t){let e=this.x-t.x,s=this.y-t.y;return e*e+s*s}transform(t){let e=this.x*t.a+this.y*t.c+t.e,s=this.x*t.b+this.y*t.d+t.f;return new x(e,s)}}class g{constructor(t,e,s,r,n,o){void 0===t?(this.a=1,this.b=0,this.c=0,this.d=1,this.e=0,this.f=0):(this.a=t,this.b=e,this.c=s,this.d=r,this.e=n,this.f=o)}toString(){return`affine: ${this.a} ${this.c} ${this.e} \n       ${this.b} ${this.d} ${this.f}`}append(t){t instanceof g||console.error(&quot;mesh.js: argument to Affine.append is not affine!&quot;);let e=this.a*t.a+this.c*t.b,s=this.b*t.a+this.d*t.b,r=this.a*t.c+this.c*t.d,n=this.b*t.c+this.d*t.d,o=this.a*t.e+this.c*t.f+this.e,i=this.b*t.e+this.d*t.f+this.f;return new g(e,s,r,n,o,i)}}class w{constructor(t,e){this.nodes=t,this.colors=e}paintCurve(t,e){if(o(this.nodes)&gt;r){const s=n(...this.nodes);let r=[[],[]],o=[[],[]];for(let t=0;t&lt;4;++t)r[0][t]=this.colors[0][t],r[1][t]=(this.colors[0][t]+this.colors[1][t])/2,o[0][t]=r[1][t],o[1][t]=this.colors[1][t];let i=new w(s[0],r),a=new w(s[1],o);i.paintCurve(t,e),a.paintCurve(t,e)}else{let s=Math.round(this.nodes[0].x);if(s&gt;=0&amp;&amp;s&lt;e){let r=4*(~~this.nodes[0].y*e+s);t[r]=Math.round(this.colors[0][0]),t[r+1]=Math.round(this.colors[0][1]),t[r+2]=Math.round(this.colors[0][2]),t[r+3]=Math.round(this.colors[0][3])}}}}class m{constructor(t,e){this.nodes=t,this.colors=e}split(){let t=[[],[],[],[]],e=[[],[],[],[]],s=[[[],[]],[[],[]]],r=[[[],[]],[[],[]]];for(let s=0;s&lt;4;++s){const r=n(this.nodes[0][s],this.nodes[1][s],this.nodes[2][s],this.nodes[3][s]);t[0][s]=r[0][0],t[1][s]=r[0][1],t[2][s]=r[0][2],t[3][s]=r[0][3],e[0][s]=r[1][0],e[1][s]=r[1][1],e[2][s]=r[1][2],e[3][s]=r[1][3]}for(let t=0;t&lt;4;++t)s[0][0][t]=this.colors[0][0][t],s[0][1][t]=this.colors[0][1][t],s[1][0][t]=(this.colors[0][0][t]+this.colors[1][0][t])/2,s[1][1][t]=(this.colors[0][1][t]+this.colors[1][1][t])/2,r[0][0][t]=s[1][0][t],r[0][1][t]=s[1][1][t],r[1][0][t]=this.colors[1][0][t],r[1][1][t]=this.colors[1][1][t];return[new m(t,s),new m(e,r)]}paint(t,e){let s,n=!1;for(let t=0;t&lt;4;++t)if((s=o([this.nodes[0][t],this.nodes[1][t],this.nodes[2][t],this.nodes[3][t]]))&gt;r){n=!0;break}if(n){let s=this.split();s[0].paint(t,e),s[1].paint(t,e)}else{new w([...this.nodes[0]],[...this.colors[0]]).paintCurve(t,e)}}}class b{constructor(t){this.readMesh(t),this.type=t.getAttribute(&quot;type&quot;)||&quot;bilinear&quot;}readMesh(t){let e=[[]],s=[[]],r=Number(t.getAttribute(&quot;x&quot;)),n=Number(t.getAttribute(&quot;y&quot;));e[0][0]=new x(r,n);let o=t.children;for(let t=0,r=o.length;t&lt;r;++t){e[3*t+1]=[],e[3*t+2]=[],e[3*t+3]=[],s[t+1]=[];let r=o[t].children;for(let n=0,o=r.length;n&lt;o;++n){let o=r[n].children;for(let r=0,i=o.length;r&lt;i;++r){let i=r;0!==t&amp;&amp;++i;let h,d=o[r].getAttribute(&quot;path&quot;),c=&quot;l&quot;;null!=d&amp;&amp;(c=(h=d.match(/\s*([lLcC])\s*(.*)/))[1]);let u=l(h[2]);switch(c){case&quot;l&quot;:0===i?(e[3*t][3*n+3]=u[0].add(e[3*t][3*n]),e[3*t][3*n+1]=a(e[3*t][3*n],e[3*t][3*n+3]),e[3*t][3*n+2]=a(e[3*t][3*n+3],e[3*t][3*n])):1===i?(e[3*t+3][3*n+3]=u[0].add(e[3*t][3*n+3]),e[3*t+1][3*n+3]=a(e[3*t][3*n+3],e[3*t+3][3*n+3]),e[3*t+2][3*n+3]=a(e[3*t+3][3*n+3],e[3*t][3*n+3])):2===i?(0===n&amp;&amp;(e[3*t+3][3*n+0]=u[0].add(e[3*t+3][3*n+3])),e[3*t+3][3*n+1]=a(e[3*t+3][3*n],e[3*t+3][3*n+3]),e[3*t+3][3*n+2]=a(e[3*t+3][3*n+3],e[3*t+3][3*n])):(e[3*t+1][3*n]=a(e[3*t][3*n],e[3*t+3][3*n]),e[3*t+2][3*n]=a(e[3*t+3][3*n],e[3*t][3*n]));break;case&quot;L&quot;:0===i?(e[3*t][3*n+3]=u[0],e[3*t][3*n+1]=a(e[3*t][3*n],e[3*t][3*n+3]),e[3*t][3*n+2]=a(e[3*t][3*n+3],e[3*t][3*n])):1===i?(e[3*t+3][3*n+3]=u[0],e[3*t+1][3*n+3]=a(e[3*t][3*n+3],e[3*t+3][3*n+3]),e[3*t+2][3*n+3]=a(e[3*t+3][3*n+3],e[3*t][3*n+3])):2===i?(0===n&amp;&amp;(e[3*t+3][3*n+0]=u[0]),e[3*t+3][3*n+1]=a(e[3*t+3][3*n],e[3*t+3][3*n+3]),e[3*t+3][3*n+2]=a(e[3*t+3][3*n+3],e[3*t+3][3*n])):(e[3*t+1][3*n]=a(e[3*t][3*n],e[3*t+3][3*n]),e[3*t+2][3*n]=a(e[3*t+3][3*n],e[3*t][3*n]));break;case&quot;c&quot;:0===i?(e[3*t][3*n+1]=u[0].add(e[3*t][3*n]),e[3*t][3*n+2]=u[1].add(e[3*t][3*n]),e[3*t][3*n+3]=u[2].add(e[3*t][3*n])):1===i?(e[3*t+1][3*n+3]=u[0].add(e[3*t][3*n+3]),e[3*t+2][3*n+3]=u[1].add(e[3*t][3*n+3]),e[3*t+3][3*n+3]=u[2].add(e[3*t][3*n+3])):2===i?(e[3*t+3][3*n+2]=u[0].add(e[3*t+3][3*n+3]),e[3*t+3][3*n+1]=u[1].add(e[3*t+3][3*n+3]),0===n&amp;&amp;(e[3*t+3][3*n+0]=u[2].add(e[3*t+3][3*n+3]))):(e[3*t+2][3*n]=u[0].add(e[3*t+3][3*n]),e[3*t+1][3*n]=u[1].add(e[3*t+3][3*n]));break;case&quot;C&quot;:0===i?(e[3*t][3*n+1]=u[0],e[3*t][3*n+2]=u[1],e[3*t][3*n+3]=u[2]):1===i?(e[3*t+1][3*n+3]=u[0],e[3*t+2][3*n+3]=u[1],e[3*t+3][3*n+3]=u[2]):2===i?(e[3*t+3][3*n+2]=u[0],e[3*t+3][3*n+1]=u[1],0===n&amp;&amp;(e[3*t+3][3*n+0]=u[2])):(e[3*t+2][3*n]=u[0],e[3*t+1][3*n]=u[1]);break;default:console.error(&quot;mesh.js: &quot;+c+&quot; invalid path type.&quot;)}if(0===t&amp;&amp;0===n||r&gt;0){let e=window.getComputedStyle(o[r]).stopColor.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i),a=window.getComputedStyle(o[r]).stopOpacity,h=255;a&amp;&amp;(h=Math.floor(255*a)),e&amp;&amp;(0===i?(s[t][n]=[],s[t][n][0]=Math.floor(e[1]),s[t][n][1]=Math.floor(e[2]),s[t][n][2]=Math.floor(e[3]),s[t][n][3]=h):1===i?(s[t][n+1]=[],s[t][n+1][0]=Math.floor(e[1]),s[t][n+1][1]=Math.floor(e[2]),s[t][n+1][2]=Math.floor(e[3]),s[t][n+1][3]=h):2===i?(s[t+1][n+1]=[],s[t+1][n+1][0]=Math.floor(e[1]),s[t+1][n+1][1]=Math.floor(e[2]),s[t+1][n+1][2]=Math.floor(e[3]),s[t+1][n+1][3]=h):3===i&amp;&amp;(s[t+1][n]=[],s[t+1][n][0]=Math.floor(e[1]),s[t+1][n][1]=Math.floor(e[2]),s[t+1][n][2]=Math.floor(e[3]),s[t+1][n][3]=h))}}e[3*t+1][3*n+1]=new x,e[3*t+1][3*n+2]=new x,e[3*t+2][3*n+1]=new x,e[3*t+2][3*n+2]=new x,e[3*t+1][3*n+1].x=(-4*e[3*t][3*n].x+6*(e[3*t][3*n+1].x+e[3*t+1][3*n].x)+-2*(e[3*t][3*n+3].x+e[3*t+3][3*n].x)+3*(e[3*t+3][3*n+1].x+e[3*t+1][3*n+3].x)+-1*e[3*t+3][3*n+3].x)/9,e[3*t+1][3*n+2].x=(-4*e[3*t][3*n+3].x+6*(e[3*t][3*n+2].x+e[3*t+1][3*n+3].x)+-2*(e[3*t][3*n].x+e[3*t+3][3*n+3].x)+3*(e[3*t+3][3*n+2].x+e[3*t+1][3*n].x)+-1*e[3*t+3][3*n].x)/9,e[3*t+2][3*n+1].x=(-4*e[3*t+3][3*n].x+6*(e[3*t+3][3*n+1].x+e[3*t+2][3*n].x)+-2*(e[3*t+3][3*n+3].x+e[3*t][3*n].x)+3*(e[3*t][3*n+1].x+e[3*t+2][3*n+3].x)+-1*e[3*t][3*n+3].x)/9,e[3*t+2][3*n+2].x=(-4*e[3*t+3][3*n+3].x+6*(e[3*t+3][3*n+2].x+e[3*t+2][3*n+3].x)+-2*(e[3*t+3][3*n].x+e[3*t][3*n+3].x)+3*(e[3*t][3*n+2].x+e[3*t+2][3*n].x)+-1*e[3*t][3*n].x)/9,e[3*t+1][3*n+1].y=(-4*e[3*t][3*n].y+6*(e[3*t][3*n+1].y+e[3*t+1][3*n].y)+-2*(e[3*t][3*n+3].y+e[3*t+3][3*n].y)+3*(e[3*t+3][3*n+1].y+e[3*t+1][3*n+3].y)+-1*e[3*t+3][3*n+3].y)/9,e[3*t+1][3*n+2].y=(-4*e[3*t][3*n+3].y+6*(e[3*t][3*n+2].y+e[3*t+1][3*n+3].y)+-2*(e[3*t][3*n].y+e[3*t+3][3*n+3].y)+3*(e[3*t+3][3*n+2].y+e[3*t+1][3*n].y)+-1*e[3*t+3][3*n].y)/9,e[3*t+2][3*n+1].y=(-4*e[3*t+3][3*n].y+6*(e[3*t+3][3*n+1].y+e[3*t+2][3*n].y)+-2*(e[3*t+3][3*n+3].y+e[3*t][3*n].y)+3*(e[3*t][3*n+1].y+e[3*t+2][3*n+3].y)+-1*e[3*t][3*n+3].y)/9,e[3*t+2][3*n+2].y=(-4*e[3*t+3][3*n+3].y+6*(e[3*t+3][3*n+2].y+e[3*t+2][3*n+3].y)+-2*(e[3*t+3][3*n].y+e[3*t][3*n+3].y)+3*(e[3*t][3*n+2].y+e[3*t+2][3*n].y)+-1*e[3*t][3*n].y)/9}}this.nodes=e,this.colors=s}paintMesh(t,e){let s=(this.nodes.length-1)/3,r=(this.nodes[0].length-1)/3;if(&quot;bilinear&quot;===this.type||s&lt;2||r&lt;2){let n;for(let o=0;o&lt;s;++o)for(let s=0;s&lt;r;++s){let r=[];for(let t=3*o,e=3*o+4;t&lt;e;++t)r.push(this.nodes[t].slice(3*s,3*s+4));let i=[];i.push(this.colors[o].slice(s,s+2)),i.push(this.colors[o+1].slice(s,s+2)),(n=new m(r,i)).paint(t,e)}}else{let n,o,a,h,l,d,u;const x=s,g=r;s++,r++;let w=new Array(s);for(let t=0;t&lt;s;++t){w[t]=new Array(r);for(let e=0;e&lt;r;++e)w[t][e]=[],w[t][e][0]=this.nodes[3*t][3*e],w[t][e][1]=this.colors[t][e]}for(let t=0;t&lt;s;++t)for(let e=0;e&lt;r;++e)0!==t&amp;&amp;t!==x&amp;&amp;(n=i(w[t-1][e][0],w[t][e][0]),o=i(w[t+1][e][0],w[t][e][0]),w[t][e][2]=c(w[t-1][e][1],w[t][e][1],w[t+1][e][1],n,o)),0!==e&amp;&amp;e!==g&amp;&amp;(n=i(w[t][e-1][0],w[t][e][0]),o=i(w[t][e+1][0],w[t][e][0]),w[t][e][3]=c(w[t][e-1][1],w[t][e][1],w[t][e+1][1],n,o));for(let t=0;t&lt;r;++t){w[0][t][2]=[],w[x][t][2]=[];for(let e=0;e&lt;4;++e)n=i(w[1][t][0],w[0][t][0]),o=i(w[x][t][0],w[x-1][t][0]),w[0][t][2][e]=n&gt;0?2*(w[1][t][1][e]-w[0][t][1][e])/n-w[1][t][2][e]:0,w[x][t][2][e]=o&gt;0?2*(w[x][t][1][e]-w[x-1][t][1][e])/o-w[x-1][t][2][e]:0}for(let t=0;t&lt;s;++t){w[t][0][3]=[],w[t][g][3]=[];for(let e=0;e&lt;4;++e)n=i(w[t][1][0],w[t][0][0]),o=i(w[t][g][0],w[t][g-1][0]),w[t][0][3][e]=n&gt;0?2*(w[t][1][1][e]-w[t][0][1][e])/n-w[t][1][3][e]:0,w[t][g][3][e]=o&gt;0?2*(w[t][g][1][e]-w[t][g-1][1][e])/o-w[t][g-1][3][e]:0}for(let s=0;s&lt;x;++s)for(let r=0;r&lt;g;++r){let n=i(w[s][r][0],w[s+1][r][0]),o=i(w[s][r+1][0],w[s+1][r+1][0]),c=i(w[s][r][0],w[s][r+1][0]),x=i(w[s+1][r][0],w[s+1][r+1][0]),g=[[],[],[],[]];for(let t=0;t&lt;4;++t){(d=[])[0]=w[s][r][1][t],d[1]=w[s+1][r][1][t],d[2]=w[s][r+1][1][t],d[3]=w[s+1][r+1][1][t],d[4]=w[s][r][2][t]*n,d[5]=w[s+1][r][2][t]*n,d[6]=w[s][r+1][2][t]*o,d[7]=w[s+1][r+1][2][t]*o,d[8]=w[s][r][3][t]*c,d[9]=w[s+1][r][3][t]*x,d[10]=w[s][r+1][3][t]*c,d[11]=w[s+1][r+1][3][t]*x,d[12]=0,d[13]=0,d[14]=0,d[15]=0,u=f(d);for(let e=0;e&lt;9;++e){g[t][e]=[];for(let s=0;s&lt;9;++s)g[t][e][s]=p(u,e/8,s/8),g[t][e][s]&gt;255?g[t][e][s]=255:g[t][e][s]&lt;0&amp;&amp;(g[t][e][s]=0)}}h=[];for(let t=3*s,e=3*s+4;t&lt;e;++t)h.push(this.nodes[t].slice(3*r,3*r+4));l=y(h);for(let s=0;s&lt;8;++s)for(let r=0;r&lt;8;++r)(a=new m(l[s][r],[[[g[0][s][r],g[1][s][r],g[2][s][r],g[3][s][r]],[g[0][s][r+1],g[1][s][r+1],g[2][s][r+1],g[3][s][r+1]]],[[g[0][s+1][r],g[1][s+1][r],g[2][s+1][r],g[3][s+1][r]],[g[0][s+1][r+1],g[1][s+1][r+1],g[2][s+1][r+1],g[3][s+1][r+1]]]])).paint(t,e)}}}transform(t){if(t instanceof x)for(let e=0,s=this.nodes.length;e&lt;s;++e)for(let s=0,r=this.nodes[0].length;s&lt;r;++s)this.nodes[e][s]=this.nodes[e][s].add(t);else if(t instanceof g)for(let e=0,s=this.nodes.length;e&lt;s;++e)for(let s=0,r=this.nodes[0].length;s&lt;r;++s)this.nodes[e][s]=this.nodes[e][s].transform(t)}scale(t){for(let e=0,s=this.nodes.length;e&lt;s;++e)for(let s=0,r=this.nodes[0].length;s&lt;r;++s)this.nodes[e][s]=this.nodes[e][s].scale(t)}}document.querySelectorAll(&quot;rect,circle,ellipse,path,text&quot;).forEach((r,n)=&gt;{let o=r.getAttribute(&quot;id&quot;);o||(o=&quot;patchjs_shape&quot;+n,r.setAttribute(&quot;id&quot;,o));const i=r.style.fill.match(/^url\(\s*&quot;?\s*#([^\s&quot;]+)&quot;?\s*\)/),a=r.style.stroke.match(/^url\(\s*&quot;?\s*#([^\s&quot;]+)&quot;?\s*\)/);if(i&amp;&amp;i[1]){const a=document.getElementById(i[1]);if(a&amp;&amp;&quot;meshgradient&quot;===a.nodeName){const i=r.getBBox();let l=document.createElementNS(s,&quot;canvas&quot;);d(l,{width:i.width,height:i.height});const c=l.getContext(&quot;2d&quot;);let u=c.createImageData(i.width,i.height);const f=new b(a);&quot;objectBoundingBox&quot;===a.getAttribute(&quot;gradientUnits&quot;)&amp;&amp;f.scale(new x(i.width,i.height));const p=a.getAttribute(&quot;gradientTransform&quot;);null!=p&amp;&amp;f.transform(h(p)),&quot;userSpaceOnUse&quot;===a.getAttribute(&quot;gradientUnits&quot;)&amp;&amp;f.transform(new x(-i.x,-i.y)),f.paintMesh(u.data,l.width),c.putImageData(u,0,0);const y=document.createElementNS(t,&quot;image&quot;);d(y,{width:i.width,height:i.height,x:i.x,y:i.y});let g=l.toDataURL();y.setAttributeNS(e,&quot;xlink:href&quot;,g),r.parentNode.insertBefore(y,r),r.style.fill=&quot;none&quot;;const w=document.createElementNS(t,&quot;use&quot;);w.setAttributeNS(e,&quot;xlink:href&quot;,&quot;#&quot;+o);const m=&quot;patchjs_clip&quot;+n,M=document.createElementNS(t,&quot;clipPath&quot;);M.setAttribute(&quot;id&quot;,m),M.appendChild(w),r.parentElement.insertBefore(M,r),y.setAttribute(&quot;clip-path&quot;,&quot;url(#&quot;+m+&quot;)&quot;),u=null,l=null,g=null}}if(a&amp;&amp;a[1]){const o=document.getElementById(a[1]);if(o&amp;&amp;&quot;meshgradient&quot;===o.nodeName){const i=parseFloat(r.style.strokeWidth.slice(0,-2))*(parseFloat(r.style.strokeMiterlimit)||parseFloat(r.getAttribute(&quot;stroke-miterlimit&quot;))||1),a=r.getBBox(),l=Math.trunc(a.width+i),c=Math.trunc(a.height+i),u=Math.trunc(a.x-i/2),f=Math.trunc(a.y-i/2);let p=document.createElementNS(s,&quot;canvas&quot;);d(p,{width:l,height:c});const y=p.getContext(&quot;2d&quot;);let g=y.createImageData(l,c);const w=new b(o);&quot;objectBoundingBox&quot;===o.getAttribute(&quot;gradientUnits&quot;)&amp;&amp;w.scale(new x(l,c));const m=o.getAttribute(&quot;gradientTransform&quot;);null!=m&amp;&amp;w.transform(h(m)),&quot;userSpaceOnUse&quot;===o.getAttribute(&quot;gradientUnits&quot;)&amp;&amp;w.transform(new x(-u,-f)),w.paintMesh(g.data,p.width),y.putImageData(g,0,0);const M=document.createElementNS(t,&quot;image&quot;);d(M,{width:l,height:c,x:0,y:0});let S=p.toDataURL();M.setAttributeNS(e,&quot;xlink:href&quot;,S);const k=&quot;pattern_clip&quot;+n,A=document.createElementNS(t,&quot;pattern&quot;);d(A,{id:k,patternUnits:&quot;userSpaceOnUse&quot;,width:l,height:c,x:u,y:f}),A.appendChild(M),o.parentNode.appendChild(A),r.style.stroke=&quot;url(#&quot;+k+&quot;)&quot;,g=null,p=null,S=null}}})}();
+</script>
+</svg>
