@@ -176,7 +176,6 @@ HTML_EXTRA_STYLESHEET  = @DOXYGEN_AWESOME_CSS@ \
 HTML_EXTRA_FILES       = @DOXYGEN_AWESOME_DARKMODE_JS@ \
                          @DOXYGEN_AWESOME_COPY_JS@ \
                          @DOXYGEN_AWESOME_PARAGRAPH_JS@ \
-                         @CMAKE_CURRENT_BINARY_DIR@/doc/widgets.js \
                          @CMAKE_CURRENT_BINARY_DIR@/doc/favicon.ico
 HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 255
