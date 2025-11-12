@@ -107,14 +107,13 @@
  cmake ..
  cmake --build .
  @endcode
+ The executable <code>cfd-numerical-solver</code> will be in the <code>build</code> directory.
 
  @subsection step4 4. (Optional) Generate Doxygen docs:
  @code
  cmake --build . --target docs
  @endcode
  Access at <code>build/docs/html/index.html</code>.
-
- The executable <code>cfd-numerical-solver</code> will be in the <code>build</code> directory.
 
  @section usage Usage
 

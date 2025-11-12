@@ -69,8 +69,6 @@ if(DOXYGEN_FOUND)
                    ${CMAKE_CURRENT_BINARY_DIR}/doc/custom_footer.html COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/extra_stylesheet.css 
                    ${CMAKE_CURRENT_BINARY_DIR}/doc/extra_stylesheet.css COPYONLY)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/widgets.js 
-                   ${CMAKE_CURRENT_BINARY_DIR}/doc/widgets.js COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doc/DoxygenLayout.xml 
                    ${CMAKE_CURRENT_BINARY_DIR}/doc/DoxygenLayout.xml COPYONLY)
     

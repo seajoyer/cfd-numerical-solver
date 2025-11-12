@@ -51,14 +51,13 @@ This project is designed for educational purposes, with `.yaml` configuration an
    cmake ..
    cmake --build .
    ```
+   The executable `cfd-numerical-solver` will be in the `build` directory.
 
 4. (Optional) Generate Doxygen docs:
    ```
    cmake --build . --target docs
    ```
    Access at `build/docs/html/index.html`.
-
-The executable `cfd-numerical-solver` will be in the `build` directory.
 
 ## Usage
 
