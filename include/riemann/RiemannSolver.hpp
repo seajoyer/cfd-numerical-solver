@@ -2,7 +2,6 @@
 #define RIEMANNSOLVER_HPP
 
 #include "solver/Variables.hpp"
-#include "solver/EOS.hpp"
 
 /**
  * @class RiemannSolver
@@ -18,12 +17,11 @@
  * - Returned Flux is used in the finite-volume update of conservative variables.
  */
 class RiemannSolver {
-public:
+   public:
     /**
      * @brief Virtual destructor for safe polymorphic deletion.
      */
-    virtual ~RiemannSolver() {
-    }
+    virtual ~RiemannSolver() = default;
 
     /**
      * @brief Computes the numerical flux at an interface.
@@ -33,10 +31,13 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Numerical flux for the Euler equations.
      */
-    virtual Flux ComputeFlux(const Primitive &left,
-                             const Primitive &right,
-                             double gamma) const = 0;
-};
+    [[nodiscard]] virtual auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                           double gamma) const -> Flux = 0;
 
+    [[nodiscard]] virtual auto ComputeFlux(const Primitive& left, const Primitive& right,
+                                           double gamma, double Q_user) const -> Flux {
+        return ComputeFlux(left, right, gamma);
+    }
+};
 
 #endif  // RIEMANNSOLVER_HPP

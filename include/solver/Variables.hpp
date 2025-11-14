@@ -1,8 +1,6 @@
 #ifndef VARIABLES_HPP
 #define VARIABLES_HPP
 
-#include <cstddef>
-
 /**
  * @struct Primitive
  * @brief Primitive (physical) variables for 1D Euler equations.
@@ -61,6 +59,6 @@ struct Flux {
  * @param gamma Ratio of specific heats.
  * @return Flux vector (mass, momentum, energy).
  */
-Flux EulerFlux(const Primitive &state, double gamma);
+auto EulerFlux(const Primitive &state, double gamma) -> Flux;
 
 #endif  // VARIABLES_HPP

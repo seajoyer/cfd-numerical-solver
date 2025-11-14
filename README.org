@@ -1,5 +1,0 @@
-#+title: CFD numerical solver
-
-[[file:external/STRUCTURE.org][Project Structure and Tasks]]
-
-[[file:external/VARIABLES.org][Variable Standards]]

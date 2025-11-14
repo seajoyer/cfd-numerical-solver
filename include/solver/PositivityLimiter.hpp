@@ -2,7 +2,6 @@
 #define POSITIVITYLIMITER_HPP
 
 #include "Variables.hpp"
-#include "EOS.hpp"
 
 /**
  * @class PositivityLimiter
@@ -28,8 +27,8 @@ public:
      */
     static void Apply(Conservative &u,
                       double gamma,
-                      double rhoMin,
-                      double pMin);
+                      double rho_min,
+                      double p_min);
 };
 
 #endif  // POSITIVITYLIMITER_HPP

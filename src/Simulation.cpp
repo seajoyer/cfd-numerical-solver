@@ -10,25 +10,21 @@
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 
-Simulation::Simulation(Settings settings, const InitialConditions &initial_conditions,
-                       const bool log_progress)
-    : settings_(std::move(settings)),
-      initial_conditions_(initial_conditions),
-      log_progress_(log_progress) {
-}
+Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions)
+    : settings_(std::move(settings)), initial_conditions_(initial_conditions) {}
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
     return SolverFactory::Create(settings_);
 }
 
-auto Simulation::CreateBoundaryCondition(const std::string &boundary_type, double rho_inf,
+auto Simulation::CreateBoundaryCondition(const std::string& boundary_type, double rho_inf,
                                          double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
     return BoundaryFactory::Create(boundary_type, rho_inf, u_inf, p_inf);
 }
 
-auto Simulation::CreateWriter(const std::string &output_format,
-                              const std::string &output_dir)
+auto Simulation::CreateWriter(const std::string& output_format,
+                              const std::string& output_dir)
     -> std::unique_ptr<StepWriter> {
     return WriterFactory::Create(output_format, output_dir);
 }
@@ -137,32 +133,77 @@ void Simulation::Initialize() {
               << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
 }
 
-auto Simulation::GetDataLayer() -> DataLayer & {
+auto Simulation::GetDataLayer() -> DataLayer& {
     if (!layer_) {
         throw std::runtime_error("DataLayer is not initialized.");
     }
     return *layer_;
 }
 
-auto Simulation::GetCurrentStep() const -> std::size_t { return step_; }
+auto Simulation::GetCurrentStep() const -> std::size_t { return step_cur_; }
 
 auto Simulation::GetCurrentTime() const -> double { return t_cur_; }
 
-auto Simulation::ShouldWrite(std::size_t step) const -> bool {
-    if (settings_.output_every_steps == 0) return false;
-    return (step % settings_.output_every_steps) == 0;
+auto Simulation::ShouldWrite() const -> bool {
+    if (settings_.output_every_time == 0.0 && settings_.output_every_steps == 0) {
+        return false;
+    }
+    
+    const bool time_ok = settings_.output_every_time == 0.0 ||
+        (std::floor((t_cur_ - dt_) / settings_.output_every_time) < 
+         std::floor(t_cur_ / settings_.output_every_time));
+    
+    const bool step_ok = settings_.output_every_steps == 0 || 
+                         (step_cur_ % settings_.output_every_steps == 0);
+    
+    return time_ok && step_ok;
+}
+
+auto Simulation::ShouldLog() const -> bool {
+    if (settings_.log_every_time == 0.0 && settings_.log_every_steps == 0) {
+        return false;
+    }
+    
+    const bool time_ok = settings_.log_every_time == 0.0 ||
+        (std::floor((t_cur_ - dt_) / settings_.log_every_time) < 
+         std::floor(t_cur_ / settings_.log_every_time));
+    
+    const bool step_ok = settings_.log_every_steps == 0 || 
+                         (step_cur_ % settings_.log_every_steps == 0);
+    
+    return time_ok && step_ok;
+}
+
+auto Simulation::ShouldRun() const -> bool {
+    if (settings_.t_end == 0.0 && settings_.step_end == 0) return false;
+
+    const bool time_ok = (settings_.t_end == 0.0) || (t_cur_ < settings_.t_end);
+    const bool step_ok = (settings_.step_end == 0) || (step_cur_ < settings_.step_end);
+
+    return time_ok && step_ok;
 }
 
 void Simulation::WriteInitialState() const {
-    std::cout << "\nWriting the initial state..." << '\n';;
+    std::cout << "\nWriting the initial state..." << '\n';
+    ;
     if (writer_) {
         writer_->Write(*layer_, 0, 0.0);
     }
 }
 
-void Simulation::WriteStepState(std::size_t step, double t_cur) const {
-    if (writer_ && ShouldWrite(step)) {
-        writer_->Write(*layer_, step, t_cur);
+void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
+    if (writer_ && ShouldWrite()) {
+        writer_->Write(*layer_, step_cur, t_cur);
+    }
+}
+
+void Simulation::PrintLog() const {
+    if (ShouldLog()) {
+        double progress = (t_cur_ / settings_.t_end) * 100.0;
+        int percent = static_cast<int>(progress);
+        std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
+                  << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
+        std::cout << '\n';
     }
 }
 
@@ -171,38 +212,24 @@ void Simulation::Run() {
     WriteInitialState();
 
     t_cur_ = 0.0;
-    step_ = 0;
+    step_cur_ = 0;
 
     std::cout << "\nStarting simulation..." << '\n';
 
-    while (t_cur_ < settings_.t_end) {
+    while (ShouldRun()) {
         // Advance one time step and get the actual dt used
-        double dt = solver_->Step(*layer_, t_cur_);
+        dt_ = solver_->Step(*layer_, t_cur_);
 
-        t_cur_ += dt;
-        ++step_;
+        t_cur_ += dt_;
+        ++step_cur_;
 
-        // Write output if needed
-        WriteStepState(step_, t_cur_);
+        WriteStepState(t_cur_, step_cur_);
 
-        // Progress output
-        if (log_progress_ && 0 == step_ % settings_.output_every_steps) {
-            double progress = (t_cur_ / settings_.t_end) * 100.0;
-            int percent = static_cast<int>(progress);
-            std::cout << ">>> [PROGRESS]: Step " << step_ << ", " << percent
-                      << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
-            // if (t_cur_ > 0.0) {
-            //     double est_total_steps = step_ * (settings_.t_end / t_cur_);
-            //     std::cout << ", total steps: " << est_total_steps;
-            // } else {
-            //     std::cout << ", total steps: unknown";
-            // }
-            std::cout << '\n';
-        }
+        PrintLog();
     }
 
     std::cout << '\n';
     std::cout << "Simulation completed!" << '\n';
     std::cout << ">>> Final time:  " << t_cur_ << '\n';
-    std::cout << ">>> Total steps: " << step_ << '\n';
+    std::cout << ">>> Total steps: " << step_cur_ << '\n';
 }

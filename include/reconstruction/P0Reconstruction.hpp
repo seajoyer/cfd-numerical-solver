@@ -20,7 +20,7 @@ public:
     /**
      * @brief Default constructor.
      */
-    P0Reconstruction() {}
+    P0Reconstruction() = default;
 
     /**
      * @brief Performs piecewise-constant reconstruction.
@@ -33,9 +33,9 @@ public:
      * @param leftStates Output array of left states at interfaces.
      * @param rightStates Output array of right states at interfaces.
      */
-    void Reconstruct(const std::vector<Primitive> &cellStates,
-                     std::vector<Primitive> &leftStates,
-                     std::vector<Primitive> &rightStates) const override;
+    void Reconstruct(const std::vector<Primitive> &cell_states,
+                     std::vector<Primitive> &left_states,
+                     std::vector<Primitive> &right_states) const override;
 };
 
 #endif  // P0RECONSTRUCTION_HPP

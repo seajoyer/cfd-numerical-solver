@@ -3,7 +3,6 @@
 
 #include <vector>
 #include "Variables.hpp"
-#include "EOS.hpp"
 
 /**
  * @class TimeStepCalculator
@@ -28,10 +27,10 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Stable time step size.
      */
-    static double ComputeDt(const std::vector<Primitive> &cellStates,
+    static auto ComputeDt(const std::vector<Primitive> &cell_states,
                             double dx,
                             double cfl,
-                            double gamma);
+                            double gamma) -> double;
 };
 
 #endif  // TIMESTEPCALCULATOR_HPP

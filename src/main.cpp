@@ -17,8 +17,7 @@ auto main(int argc, char* argv[]) -> int {
         InitialConditions initial_conditions = parser.GetSODTest(test_num);
         std::cout << "Using initial conditions: sod" << test_num << "\n\n";
 
-        bool log_progress = true;
-        Simulation sim(settings, initial_conditions, log_progress);
+        Simulation sim(settings, initial_conditions);
         sim.Run();
 
         return 0;

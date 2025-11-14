@@ -7,5 +7,6 @@ cmake-build-default/
 build/
 data/
 flake.lock
+doc/drawing.svg
 .envrc
 result/

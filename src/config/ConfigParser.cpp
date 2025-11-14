@@ -41,12 +41,12 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
     settings.riemann_solver = node["riemann_solver"].as<std::string>();
     settings.reconstruction = node["reconstruction"].as<std::string>();
-    settings.right_boundary = node["left_boundary"].as<std::string>();
+    settings.right_boundary = node["left_boundary" ].as<std::string>();
     settings.left_boundary  = node["right_boundary"].as<std::string>();
+    settings.Q_user         = node["Q_user"].as<double>();
 
     settings.N = node["N"].as<int>();
     settings.cfl = node["cfl"].as<double>();
-    settings.t_end = node["t_end"].as<double>();
     settings.padding = node["padding"].as<int>();
     settings.c = node["c"].as<double>();
     settings.gamma = node["gamma"].as<double>();
@@ -55,11 +55,19 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.L_y = node["L_y"].as<double>();
     settings.L_z = node["L_z"].as<double>();
 
-    settings.sod_test_num = node["sod_test_num"].as<int>();
+    settings.t_end = node["t_end"].as<double>();
+    settings.step_end = node["step_end"].as<std::size_t>();
+
+    settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
+    settings.log_every_time  = node["log_every_time"].as<double>();
 
     settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    settings.output_every_time  = node["output_every_time"].as<double>();
+
     settings.output_format = node["output_format"].as<std::string>();
     settings.output_dir = node["output_dir"].as<std::string>();
+
+    settings.sod_test_num = node["sod_test_num"].as<int>();
 }
 
 void ConfigParser::LoadInitialConditions(const YAML::Node& node, std::array<InitialConditions, 5>& sod_tests) {

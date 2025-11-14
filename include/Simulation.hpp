@@ -1,6 +1,7 @@
 #ifndef SIMULATION_HPP
 #define SIMULATION_HPP
 
+#include <cstddef>
 #include <memory>
 
 #include "config/InitialConditions.hpp"
@@ -40,8 +41,7 @@ class Simulation {
      * @param log_progress
      */
     explicit Simulation(Settings settings,
-                        const InitialConditions &initial_conditions,
-                        bool log_progress = true);
+                        const InitialConditions &initial_conditions);
 
     /**
      * @brief Runs the full simulation loop.
@@ -134,7 +134,23 @@ class Simulation {
      * @param step Current time step index.
      * @return true if the step should be written according to configuration.
      */
-    [[nodiscard]] auto ShouldWrite(std::size_t step) const -> bool;
+    [[nodiscard]] auto ShouldWrite() const -> bool;
+
+    /**
+     * @brief Determines whether the current time step should be logged.
+     *
+     * @return true if the step should be logged.
+     */
+    [[nodiscard]] auto ShouldLog() const -> bool;
+
+    /**
+     * @brief Determines whether the simulation shoult calculate the next step.
+     *
+     * @param t_end Maximum time of the simulation.
+     * @param step_end Maximum steps the simulation is allowed to calculate.
+     * @return true if the next step should calculated.
+     */
+    [[nodiscard]] auto ShouldRun() const -> bool;
 
     /**
      * @brief Writes the initial state of the system before any time advancement.
@@ -151,7 +167,14 @@ class Simulation {
      *
      * @note The method checks output frequency using ShouldWrite() before writing.
      */
-    void WriteStepState(std::size_t step, double t_cur) const;
+    void WriteStepState(double t_cur, std::size_t step_cur) const;
+
+    /**
+     * @brief Prints simulation log for a specific time step.
+     *
+     * @note The method checks output frequency using ShouldLog() before writing.
+     */
+    void PrintLog() const;
 
     Settings settings_;
     InitialConditions initial_conditions_;
@@ -161,7 +184,8 @@ class Simulation {
     std::unique_ptr<DataLayer> layer_;
 
     double t_cur_ = 0.0;
-    std::size_t step_ = 0;
+    std::size_t step_cur_ = 0;
+    double dt_ = 1.0;
 };
 
 #endif  // SIMULATION_HPP
