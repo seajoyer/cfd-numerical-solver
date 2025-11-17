@@ -1,7 +1,7 @@
 #ifndef RIEMANNSOLVER_HPP
 #define RIEMANNSOLVER_HPP
 
-#include "solver/Variables.hpp"
+#include "../data/Variables.hpp"
 #include "solver/EOS.hpp"
 
 /**
@@ -33,8 +33,8 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Numerical flux for the Euler equations.
      */
-    virtual Flux ComputeFlux(const Primitive &left,
-                             const Primitive &right,
+    virtual Flux ComputeFlux(const Primitive& left,
+                             const Primitive& right,
                              double gamma) const = 0;
 };
 

@@ -17,7 +17,7 @@ public:
     /**
      * @brief Default constructor.
      */
-    HLLRiemannSolver() {}
+    HLLRiemannSolver() = default;
 
     /**
      * @brief Computes the HLL numerical flux.
@@ -27,9 +27,9 @@ public:
      * @param gamma Ratio of specific heats.
      * @return HLL flux at the interface.
      */
-    Flux ComputeFlux(const Primitive &left,
-                     const Primitive &right,
-                     double gamma) const override;
+    [[nodiscard]] auto ComputeFlux(const Primitive& left,
+                                   const Primitive& right,
+                                   double gamma) const -> Flux override;
 };
 
 #endif  // HLLRIEMANNSOLVER_HPP

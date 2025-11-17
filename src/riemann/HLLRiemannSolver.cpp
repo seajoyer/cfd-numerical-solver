@@ -2,43 +2,40 @@
 #include <algorithm>
 #include <cmath>
 
-Flux HLLRiemannSolver::ComputeFlux(const Primitive &left,
-                                   const Primitive &right,
-                                   double gamma) const {
-    const double rhoL = left.rho;
-    const double uL = left.u;
-    const double pL = left.P;
+auto HLLRiemannSolver::ComputeFlux(const Primitive& left,
+                                   const Primitive& right,
+                                   double gamma) const -> Flux {
+    const double rho_l = left.rho;
+    const double u_l = left.u;
+    const double p_l = left.P;
 
-    const double rhoR = right.rho;
-    const double uR = right.u;
-    const double pR = right.P;
+    const double rho_r = right.rho;
+    const double u_r = right.u;
+    const double p_r = right.P;
 
-    const double aL = std::sqrt(gamma * pL / rhoL);
-    const double aR = std::sqrt(gamma * pR / rhoR);
+    const double a_l = std::sqrt(gamma * p_l / rho_l);
+    const double a_r = std::sqrt(gamma * p_r / rho_r);
 
-    const Conservative UL = EOS::PrimToCons(left, gamma);
-    const Conservative UR = EOS::PrimToCons(right, gamma);
+    const Conservative ul = EOS::PrimToCons(left, gamma);
+    const Conservative ur = EOS::PrimToCons(right, gamma);
 
-    const Flux FL = EulerFlux(left, gamma);
-    const Flux FR = EulerFlux(right, gamma);
+    const Flux fl = EulerFlux(left, gamma);
+    const Flux fr = EulerFlux(right, gamma);
 
-    const double SL = std::min(uL - aL, uR - aR);
-    const double SR = std::max(uL + aL, uR + aR);
+    const double sl = std::min(u_l - a_l, u_r - a_r);
+    const double sr = std::max(u_l + a_l, u_r + a_r);
 
-    if (SL >= 0.0) {
-        return FL;
+    if (sl >= 0.0) {
+        return fl;
     }
 
-    if (SR <= 0.0) {
-        return FR;
+    if (sr <= 0.0) {
+        return fr;
     }
 
-    const double invDen = 1.0 / (SR - SL);
+    const double inv_den = 1.0 / (sr - sl);
 
-    Flux F;
-    F.mass = (SR * FL.mass - SL * FR.mass + SL * SR * (UR.rho - UL.rho)) * invDen;
-    F.momentum = (SR * FL.momentum - SL * FR.momentum + SL * SR * (UR.rhoU - UL.rhoU)) * invDen;
-    F.energy = (SR * FL.energy - SL * FR.energy + SL * SR * (UR.E - UL.E)) * invDen;
+    Flux f = (sr * fl - sl * fr + sl * sr * (ur - ul)) * inv_den;
 
-    return F;
+    return f;
 }
