@@ -119,11 +119,13 @@ add_executable(${NAME}
     src/riemann/HLLRiemannSolver.cpp
     src/riemann/HLLCRiemannSolver.cpp
     src/riemann/ExactIdealGasRiemannSolver.cpp
+    src/riemann/AcousticRiemannSolver.cpp
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
 
     src/data/DataLayer.cpp
+    src/data/Variables.cpp
 
     src/config/ConfigParser.cpp
     include/config/Settings.hpp

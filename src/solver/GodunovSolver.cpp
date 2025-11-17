@@ -48,9 +48,6 @@ double GodunovSolver::Step(DataLayer& layer, double& t_cur) {
         fluxes(i) = riemannSolver_->ComputeFlux(WL, WR, settings_.gamma);
     }
 
-    for (int j = core_start; j < core_end; ++j) {
-        const Flux& f_minus = fluxes[static_cast<std::size_t>(j - 1)];
-        const Flux& f_plus = fluxes[static_cast<std::size_t>(j)];
     for (int j = coreStart; j < coreEnd; ++j) {
         const Flux& Fminus = fluxes(j - 1); // F_{j-1/2}
         const Flux& Fplus = fluxes(j); // F_{j+1/2}

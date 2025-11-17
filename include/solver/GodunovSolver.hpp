@@ -10,10 +10,20 @@
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
 #include "bc/BoundaryManager.hpp"
+#include "bc/BoundaryCondition.hpp"
+
+#include "TimeStepCalculator.hpp"
+#include "PositivityLimiter.hpp"
+
+#include "riemann/HLLRiemannSolver.hpp"
+#include "riemann/HLLCRiemannSolver.hpp"
+#include "riemann/ExactIdealGasRiemannSolver.hpp"
+#include "riemann/AcousticRiemannSolver.hpp"
 
 #include "reconstruction/Reconstruction.hpp"
+#include "reconstruction/P0Reconstruction.hpp"
+#include "reconstruction/P1Reconstruction.hpp"
 
-#include "solver/EOS.hpp"
 #include "data/Variables.hpp"
 
 #include "riemann/RiemannSolver.hpp"

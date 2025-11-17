@@ -216,16 +216,17 @@ void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
 
 void Simulation::PrintLog() const {
     if (ShouldLog()) {
-        double progress = (t_cur_ / settings_.t_end) * 100.0;
+        double progress = t_cur_ / settings_.t_end * 100.0;
         int percent = static_cast<int>(progress);
+        std::cout << '\r';
         std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
                   << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
-        std::cout << '\n';
+        std::cout.flush();
     }
 }
 
 void Simulation::WriteAnalyticalStepState(std::size_t step, double t_cur) const {
-    if (analytical_writer_ && analytical_layer_ && ShouldWrite(step)) {
+    if (analytical_writer_ && analytical_layer_ && ShouldWrite()) {
         analytical_writer_->Write(*analytical_layer_, step, t_cur);
     }
 }
