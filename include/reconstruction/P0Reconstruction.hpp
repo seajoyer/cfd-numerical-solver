@@ -1,41 +1,39 @@
 #ifndef P0RECONSTRUCTION_HPP
 #define P0RECONSTRUCTION_HPP
 
-#include <vector>
-#include "solver/Variables.hpp"
-#include "Reconstruction.hpp"
-
+#include "reconstruction/Reconstruction.hpp"
 
 /**
  * @class P0Reconstruction
- * @brief Piecewise-constant (first-order) reconstruction scheme.
+ * @brief Piecewise-constant reconstruction (Godunov's original scheme).
  *
- * Implements a zero-order reconstruction where the interface states
- * are taken directly from the adjacent cell-centered values without
- * any slope or limiter. This corresponds to the classical first-order
- * Godunov method.
+ * For each interface between cell i and cell i+1, this scheme assigns
+ *
+ *  - left state  = cell-average in cell i,
+ *  - right state = cell-average in cell i+1.
+ *
+ * This yields a first-order accurate Godunov method in space.
  */
 class P0Reconstruction : public Reconstruction {
 public:
-    /**
-     * @brief Default constructor.
-     */
-    P0Reconstruction() {}
+    P0Reconstruction() = default;
+    ~P0Reconstruction() override = default;
 
     /**
-     * @brief Performs piecewise-constant reconstruction.
+     * @brief Computes left/right primitive states at interface i.
      *
-     * For each interface i, assigns:
-     * - leftStates[i]  from the cell on the left side,
-     * - rightStates[i] from the cell on the right side.
+     * Simply reads the primitive states from cell i (left) and cell i+1
+     * (right) using DataLayer::GetPrimitive().
      *
-     * @param cellStates Cell-centered primitive variables.
-     * @param leftStates Output array of left states at interfaces.
-     * @param rightStates Output array of right states at interfaces.
+     * @param layer          DataLayer with primitive fields.
+     * @param interface_index Interface index (0 ≤ i < totalSize - 1).
+     * @param left_state      Output: primitive state from cell i.
+     * @param right_state     Output: primitive state from cell i+1.
      */
-    void Reconstruct(const std::vector<Primitive> &cellStates,
-                     std::vector<Primitive> &leftStates,
-                     std::vector<Primitive> &rightStates) const override;
+    void ComputeInterfaceStates(const DataLayer& layer,
+                                int interface_index,
+                                Primitive& left_state,
+                                Primitive& right_state) const override;
 };
 
 #endif  // P0RECONSTRUCTION_HPP

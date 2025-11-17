@@ -1,45 +1,48 @@
 #ifndef RECONSTRUCTION_HPP
 #define RECONSTRUCTION_HPP
 
-#include <vector>
-#include "../solver/Variables.hpp"
+#include "data/DataLayer.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class Reconstruction
- * @brief Abstract base class for spatial reconstruction schemes.
+ * @brief Interface for 1D spatial reconstruction schemes.
  *
- * Provides an interface for reconstructing left and right primitive
- * states at cell interfaces from cell-centered primitive values.
+ * Reconstruction schemes take the cell-centered primitive variables stored
+ * in a DataLayer and build left/right primitive states at cell interfaces.
  *
- * The reconstruction is performed in 1D along a given indexing, and
- * is typically used before evaluating Riemann fluxes.
+ * Implementations in this project include:
+ *  - P0Reconstruction: piecewise constant Godunov reconstruction,
+ *  - P1Reconstruction: piecewise linear reconstruction with a minmod limiter.
+ *
+ * Design:
+ *  - The interface is per-interface and stateless: given an interface index,
+ *    it computes the corresponding left/right states using the current
+ *    DataLayer.
+ *  - This design avoids storing temporary vectors of reconstructed states
+ *    and works naturally with SoA storage (DataLayer).
  */
 class Reconstruction {
 public:
-    /**
-     * @brief Virtual destructor for safe polymorphic deletion.
-     */
-    virtual ~Reconstruction() {}
+    virtual ~Reconstruction() = default;
 
     /**
-     * @brief Reconstructs left/right states at cell interfaces.
+     * @brief Computes left/right primitive states at a given interface.
      *
-     * Given an array of cell-centered primitive states, this method
-     * computes the corresponding left and right states at each
-     * interface between cells.
+     * Interface i is understood as lying between cell i and cell i+1
+     * in the 1D layout (including ghost cells). Implementations may
+     * use neighboring cells (ghosts included) to construct higher-order
+     * approximations.
      *
-     * The expected sizes:
-     * - cellStates.size() = number of cells (including ghosts if used).
-     * - leftStates.size() and rightStates.size() must be preallocated
-     *   by the caller to the number of interfaces to be filled.
-     *
-     * @param cellStates Cell-centered primitive variables.
-     * @param leftStates Output array of left states at interfaces.
-     * @param rightStates Output array of right states at interfaces.
+     * @param layer          DataLayer containing current primitive fields.
+     * @param interfaceIndex Index of the interface (0 ≤ i < totalSize - 1).
+     * @param leftState      Output: left primitive state at the interface.
+     * @param rightState     Output: right primitive state at the interface.
      */
-    virtual void Reconstruct(const std::vector<Primitive> &cellStates,
-                             std::vector<Primitive> &leftStates,
-                             std::vector<Primitive> &rightStates) const = 0;
+    virtual void ComputeInterfaceStates(const DataLayer& layer,
+                                        int interfaceIndex,
+                                        Primitive& leftState,
+                                        Primitive& rightState) const = 0;
 };
 
 #endif  // RECONSTRUCTION_HPP
