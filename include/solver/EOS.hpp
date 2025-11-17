@@ -1,7 +1,7 @@
 #ifndef EOS_HPP
 #define EOS_HPP
 
-#include "Variables.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class EOS
