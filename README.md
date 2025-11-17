@@ -15,9 +15,9 @@ This project is designed for educational purposes, with `.yaml` configuration an
 
 ## Features
 
-- **Solvers**: Godunov (more are planned).
-- **Riemann Solvers**: Exact (ideal gas), HLL, HLLC.
-- **Reconstruction**: Piecewise constant (P0).
+- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov (more coming soon)
+- **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC.
+- **Reconstruction**: Piecewise constant (P0), Piecewise-linear (P1).
 - **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall.
 - **Equation of State**: Ideal gas
 - **Initial Conditions**: Predefined Sod shock tube tests (1-5).

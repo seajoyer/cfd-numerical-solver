@@ -3,7 +3,7 @@
 
 #include "reconstruction/Reconstruction.hpp"
 
-enum class LimiterType : std::uint8_t{ kMinmod, kMc, kSuperbee };
+enum class LimiterType : std::uint8_t { kMinmod, kMc, kSuperbee };
 
 /**
  * @class P1Reconstruction
