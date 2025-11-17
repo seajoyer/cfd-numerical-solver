@@ -45,23 +45,27 @@ add_executable(${NAME}
 
     src/solver/SolverFactory.cpp
     src/solver/GodunovSolver.cpp
+    src/solver/GodunovKolganRodionovSolver.cpp
+    src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
-    src/solver/Variables.cpp
     src/solver/EOS.cpp
     src/solver/TimeStepCalculator.cpp
     src/solver/PositivityLimiter.cpp
 
     src/reconstruction/P0Reconstruction.cpp
+    src/reconstruction/P1Reconstruction.cpp
     include/reconstruction/Reconstruction.hpp
 
     src/riemann/HLLRiemannSolver.cpp
     src/riemann/HLLCRiemannSolver.cpp
     src/riemann/ExactIdealGasRiemannSolver.cpp
+    src/riemann/AcousticRiemannSolver.cpp
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
 
     src/data/DataLayer.cpp
+    src/data/Variables.cpp
 
     src/config/ConfigParser.cpp
     include/config/Settings.hpp
