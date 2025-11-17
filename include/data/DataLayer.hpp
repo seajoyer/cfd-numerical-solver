@@ -3,6 +3,11 @@
 
 #include <xtensor/containers/xarray.hpp>
 #include <xtensor/io/xio.hpp>
+#include <stdexcept>
+#include <xtensor/containers/xarray.hpp>
+
+#include "data/Variables.hpp"
+
 
 /**
  * @struct DataLayer
@@ -18,22 +23,22 @@
  * - u: velocity (x-component)
  * - P: pressure (capital P for thermodynamic pressure)
  * - p: momentum
- * - e: specific internal energy (or total energy density)
- * - U: conserved variable (mass)
- * - V: conserved variable (momentum)
- * - m: momentum
+ * - e: total energy density
+ * - U: internal energy
+ * - V: specific volume
+ * - m: mass
  * - xb: cell boundary coordinates
  * - xc: cell center coordinates
  */
 struct DataLayer {
     xt::xarray<double> rho;  ///< Density
     xt::xarray<double> u;    ///< Velocity
-    xt::xarray<double> P;    ///< Pressure
-    xt::xarray<double> p;    ///< Momentum density
-    xt::xarray<double> e;    ///< total energy density
-    xt::xarray<double> U;    ///< internal energy
-    xt::xarray<double> V;    ///< Conserved variable (momentum)
-    xt::xarray<double> m;    ///< specific volume
+    xt::xarray<double> P;    ///< Thermodynamic pressure
+    xt::xarray<double> p;    ///< Momentum
+    xt::xarray<double> e;    ///< Total energy density
+    xt::xarray<double> U;    ///< Specific internal energy
+    xt::xarray<double> V;    ///< Specific volume
+    xt::xarray<double> m;    ///< Cell mass
     xt::xarray<double> xb;   ///< Cell boundary coordinates
     xt::xarray<double> xc;   ///< Cell center coordinates
 
@@ -125,6 +130,31 @@ struct DataLayer {
      * @param new_dim Dimension (1, 2, or 3)
      */
     void SetDim(int new_dim);
+
+    /**
+     * @brief Returns primitive state (rho, u, P) in a given 1D cell.
+     *
+     * This is a convenience accessor that bundles the SoA storage
+     * (rho(i), u(i), P(i)) into a single Primitive structure.
+     * Only 1D index is currently supported; 2D/3D overloads can be
+     * added later without changing existing code.
+     *
+     * @param i Cell index in the 1D layout (including ghost cells).
+     * @return Primitive state at cell i.
+     */
+    [[nodiscard]] Primitive GetPrimitive(int i) const;
+
+    /**
+     * @brief Sets primitive state (rho, u, P) in a given 1D cell.
+     *
+     * Writes the components of the provided Primitive structure into
+     * the SoA arrays (rho, u, P) at index i. Auxiliary quantities
+     * (e, U, V, m) are left unchanged by this method.
+     *
+     * @param i Cell index in the 1D layout (including ghost cells).
+     * @param w Primitive state to store.
+     */
+    void SetPrimitive(int i, const Primitive &w);
 
    private:
     int n_ = 0;              ///< Number of core cells

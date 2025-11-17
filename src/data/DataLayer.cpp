@@ -1,6 +1,5 @@
 #include "data/DataLayer.hpp"
-#include <stdexcept>
-#include <xtensor/containers/xarray.hpp>
+
 
 DataLayer::DataLayer(const int N, const int padding)
     : n_(N), n_ghost_cells_(padding) {
@@ -65,8 +64,7 @@ void DataLayer::RecomputeSizes() {
 
 void DataLayer::Allocate1D() {
     const auto size = static_cast<std::size_t>(total_size_);
-    
-    // Allocate xtensor arrays with the appropriate shape
+
     rho = xt::zeros<double>({size});
     u = xt::zeros<double>({size});
     P = xt::zeros<double>({size});
@@ -80,11 +78,25 @@ void DataLayer::Allocate1D() {
 }
 
 auto DataLayer::GetCoreStart(const int axis) const -> int {
-    (void)axis;  // TODO: Currently unused for 1D
+    (void)axis; // Currently unused for 1D
     return n_ghost_cells_;
 }
 
 auto DataLayer::GetCoreEndExclusive(const int axis) const -> int {
-    (void)axis;  // TODO: Currently unused for 1D
+    (void)axis; // Currently unused for 1D
     return n_ghost_cells_ + n_;
+}
+
+Primitive DataLayer::GetPrimitive(const int i) const {
+    Primitive w;
+    w.rho = rho(i);
+    w.u = u(i);
+    w.P = P(i);
+    return w;
+}
+
+void DataLayer::SetPrimitive(const int i, const Primitive& w) {
+    rho(i) = w.rho;
+    u(i) = w.u;
+    P(i) = w.P;
 }
