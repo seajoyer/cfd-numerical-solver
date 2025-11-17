@@ -10,12 +10,8 @@
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 
-Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions,
-                       const bool log_progress) :
-    settings_(std::move(settings)),
-    initial_conditions_(initial_conditions),
-    log_progress_(log_progress) {
-}
+Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions)
+    : settings_(std::move(settings)), initial_conditions_(initial_conditions) {}
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
     return SolverFactory::Create(settings_);
@@ -34,6 +30,10 @@ auto Simulation::CreateWriter(const std::string& output_format,
 }
 
 void Simulation::ApplyInitialConditions(DataLayer& layer) {
+    if (!layer_) {
+        throw std::runtime_error(
+            "DataLayer must be initialized before applying initial conditions");
+    }
     const int n_ghost = layer.GetNGhostCells();
     const int n = layer.GetN();
     const int total = layer.GetTotalSize();
@@ -106,7 +106,7 @@ void Simulation::Initialize() {
                                 initial_conditions_.u_R, initial_conditions_.P_R);
     solver_->AddBoundary(0, left_bc, right_bc);
 
-    // Initialize output_rodionov writer
+    // Initialize output writer
     writer_ = CreateWriter(settings_.output_format, settings_.output_dir);
 
     if (settings_.analytical) {
@@ -144,11 +144,11 @@ void Simulation::Initialize() {
     std::cout << ">>> Initial conditions:" << '\n';
     std::cout << std::fixed << std::setprecision(4);
     std::cout << ">>>     Left:  rho = " << std::setw(7) << initial_conditions_.rho_L
-        << ",    u = " << std::setw(7) << initial_conditions_.u_L
-        << ",    P = " << std::setw(7) << initial_conditions_.P_L << '\n';
+              << ",    u = " << std::setw(7) << initial_conditions_.u_L
+              << ",    P = " << std::setw(7) << initial_conditions_.P_L << '\n';
     std::cout << ">>>     Right: rho = " << std::setw(7) << initial_conditions_.rho_R
-        << ",    u = " << std::setw(7) << initial_conditions_.u_R
-        << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
+              << ",    u = " << std::setw(7) << initial_conditions_.u_R
+              << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
 }
 
 auto Simulation::GetDataLayer() -> DataLayer& {
@@ -158,14 +158,47 @@ auto Simulation::GetDataLayer() -> DataLayer& {
     return *layer_;
 }
 
-auto Simulation::GetCurrentStep() const -> std::size_t { return step_; }
+auto Simulation::GetCurrentStep() const -> std::size_t { return step_cur_; }
 
 auto Simulation::GetCurrentTime() const -> double { return t_cur_; }
 
-auto Simulation::ShouldWrite(std::size_t step) const -> bool {
-    if (settings_.output_every_steps == 0)
+auto Simulation::ShouldWrite() const -> bool {
+    if (settings_.output_every_time == 0.0 && settings_.output_every_steps == 0) {
         return false;
-    return (step % settings_.output_every_steps == 0 or t_cur_ >= settings_.t_end);
+    }
+
+    const bool time_ok = settings_.output_every_time == 0.0 ||
+        (std::floor((t_cur_ - dt_) / settings_.output_every_time) <
+         std::floor(t_cur_ / settings_.output_every_time));
+
+    const bool step_ok = settings_.output_every_steps == 0 ||
+                         (step_cur_ % settings_.output_every_steps == 0);
+
+    return time_ok && step_ok;
+}
+
+auto Simulation::ShouldLog() const -> bool {
+    if (settings_.log_every_time == 0.0 && settings_.log_every_steps == 0) {
+        return false;
+    }
+
+    const bool time_ok = settings_.log_every_time == 0.0 ||
+        (std::floor((t_cur_ - dt_) / settings_.log_every_time) <
+         std::floor(t_cur_ / settings_.log_every_time));
+
+    const bool step_ok = settings_.log_every_steps == 0 ||
+                         (step_cur_ % settings_.log_every_steps == 0);
+
+    return time_ok && step_ok;
+}
+
+auto Simulation::ShouldRun() const -> bool {
+    if (settings_.t_end == 0.0 && settings_.step_end == 0) return false;
+
+    const bool time_ok = (settings_.t_end == 0.0) || (t_cur_ < settings_.t_end);
+    const bool step_ok = (settings_.step_end == 0) || (step_cur_ < settings_.step_end);
+
+    return time_ok && step_ok;
 }
 
 void Simulation::WriteInitialState() const {
@@ -175,9 +208,19 @@ void Simulation::WriteInitialState() const {
     }
 }
 
-void Simulation::WriteStepState(std::size_t step, double t_cur) const {
-    if (writer_ && ShouldWrite(step)) {
-        writer_->Write(*layer_, step, t_cur);
+void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
+    if (writer_ && ShouldWrite()) {
+        writer_->Write(*layer_, step_cur, t_cur);
+    }
+}
+
+void Simulation::PrintLog() const {
+    if (ShouldLog()) {
+        double progress = (t_cur_ / settings_.t_end) * 100.0;
+        int percent = static_cast<int>(progress);
+        std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
+                  << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
+        std::cout << '\n';
     }
 }
 
@@ -193,52 +236,36 @@ void Simulation::Run() {
     WriteInitialState();
 
     t_cur_ = 0.0;
-    step_ = 0;
+    step_cur_ = 0;
 
     std::cout << "\nStarting simulation..." << '\n';
 
-    while (t_cur_ < settings_.t_end) {
+    while (ShouldRun()) {
         // Advance one time step and get the actual dt used
-        double dt = solver_->Step(*layer_, t_cur_);
+        dt_ = solver_->Step(*layer_, t_cur_);
 
         if (settings_.solver == "analytical") {
-            t_cur_ += dt;
+            t_cur_ += dt_;
         }
+        ++step_cur_;
 
-        ++step_;
-
-        // Write output_rodionov if needed
-        WriteStepState(step_, t_cur_);
+        WriteStepState(t_cur_, step_cur_);
 
         if (settings_.analytical) {
             // Force this step size
             if (auto* as = dynamic_cast<AnalyticalSolver*>(analytical_solver_.get())) {
-                as->SetDt(dt);
+                as->SetDt(dt_);
             }
             const double dt_a = analytical_solver_->Step(*analytical_layer_, t_cur_);
             (void)dt_a;
-            WriteAnalyticalStepState(step_, t_cur_);
+            WriteAnalyticalStepState(step_cur_, t_cur_);
         }
 
-        // Progress output_rodionov
-        if (log_progress_ && 0 == step_ % settings_.output_every_steps or settings_.t_end
-            <= t_cur_) {
-            double progress = (t_cur_ / settings_.t_end) * 100.0;
-            int percent = static_cast<int>(progress);
-            std::cout << '\r' << ">>> [PROGRESS]: Step " << step_ << ", " << percent
-                << "% processed, time: " << t_cur_ << " of " << settings_.t_end <<
-                std::flush;
-            // if (t_cur_ > 0.0) {
-            //     double est_total_steps = step_ * (settings_.t_end / t_cur_);
-            //     std::cout << ", total steps: " << est_total_steps;
-            // } else {
-            //     std::cout << ", total steps: unknown";
-            // }
-        }
+        PrintLog();
     }
 
     std::cout << '\n';
     std::cout << "Simulation completed!" << '\n';
     std::cout << ">>> Final time:  " << t_cur_ << '\n';
-    std::cout << ">>> Total steps: " << step_ << '\n';
+    std::cout << ">>> Total steps: " << step_cur_ << '\n';
 }

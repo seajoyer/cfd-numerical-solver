@@ -12,20 +12,11 @@
 #include "bc/BoundaryManager.hpp"
 
 #include "reconstruction/Reconstruction.hpp"
-#include "reconstruction/P0Reconstruction.hpp"
-#include "reconstruction/P1Reconstruction.hpp"
-
-#include "TimeStepCalculator.hpp"
-#include "PositivityLimiter.hpp"
 
 #include "solver/EOS.hpp"
 #include "data/Variables.hpp"
 
 #include "riemann/RiemannSolver.hpp"
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
-#include "riemann/AcousticRiemannSolver.hpp"
-#include "riemann/ExactIdealGasRiemannSolver.hpp"
 
 /**
  * @class GodunovSolver

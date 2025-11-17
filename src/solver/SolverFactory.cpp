@@ -10,7 +10,7 @@ auto SolverFactory::Create(Settings &settings) -> std::unique_ptr<Solver> {
     // Convert to lowercase for case-insensitive comparison
     std::string type_lower = settings.solver;
     std::transform(type_lower.begin(), type_lower.end(), type_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) -> int { return std::tolower(c); });
 
     if (type_lower == "analytical") {
         return std::make_unique<AnalyticalSolver>(settings);

@@ -20,6 +20,7 @@
           nativeBuildInputs = with pkgs; [
             cmake
             pkg-config
+            doxygen
           ];
           
           buildInputs = with pkgs; [
@@ -61,6 +62,8 @@
             cmake
             ninja
             pkg-config
+            doxygen
+            doxygen_gui
             
             xtensor
             xtl

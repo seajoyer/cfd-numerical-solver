@@ -1,4 +1,5 @@
 #include "riemann/HLLCRiemannSolver.hpp"
+
 #include <algorithm>
 #include <cmath>
 

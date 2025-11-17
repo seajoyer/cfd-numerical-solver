@@ -22,7 +22,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Conservative variables (rho, rhoU, E).
      */
-    static Conservative PrimToCons(const Primitive &w, double gamma);
+    static auto PrimToCons(const Primitive &w, double gamma) -> Conservative;
 
     /**
      * @brief Converts conservative to primitive variables.
@@ -31,7 +31,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Primitive variables (rho, u, P).
      */
-    static Primitive ConsToPrim(const Conservative &u, double gamma);
+    static auto ConsToPrim(const Conservative &u, double gamma) -> Primitive;
 
     /**
      * @brief Computes thermodynamic pressure from conservative variables.
@@ -43,7 +43,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Pressure P.
      */
-    static double Pressure(const Conservative &u, double gamma);
+    static auto Pressure(const Conservative &u, double gamma) -> double;
 
     /**
      * @brief Computes the speed of sound from primitive variables.
@@ -55,7 +55,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Speed of sound.
      */
-    static double SoundSpeed(const Primitive &w, double gamma);
+    static auto SoundSpeed(const Primitive &w, double gamma) -> double;
 };
 
 #endif  // EOS_HPP

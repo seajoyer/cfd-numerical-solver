@@ -1,6 +1,7 @@
 #ifndef SIMULATION_HPP
 #define SIMULATION_HPP
 
+#include <cstddef>
 #include <memory>
 
 #include "config/InitialConditions.hpp"
@@ -41,8 +42,7 @@ class Simulation {
      * @param log_progress
      */
     explicit Simulation(Settings settings,
-                        const InitialConditions &initial_conditions,
-                        bool log_progress = true);
+                        const InitialConditions &initial_conditions);
 
     /**
      * @brief Runs the full simulation loop.
@@ -80,7 +80,7 @@ class Simulation {
      * @brief Initializes all simulation components before the first time step.
      *
      * Allocates the DataLayer, creates the Solver, assigns boundary conditions,
-     * and prepares the StepWriter for output_rodionov.
+     * and prepares the StepWriter for output.
      *
      * @note Called automatically inside Run(), typically not used externally.
      */
@@ -109,12 +109,12 @@ class Simulation {
         -> std::shared_ptr<BoundaryCondition>;
 
     /**
-     * @brief Creates an output_rodionov writer based on the configured format and directory.
+     * @brief Creates an output writer based on the configured format and directory.
      *
      * Delegates to WriterFactory for instantiation.
      *
-     * @param output_format String identifier for the output_rodionov format (e.g., "vtk").
-     * @param output_dir Directory path for output_rodionov files.
+     * @param output_format String identifier for the output format (e.g., "vtk").
+     * @param output_dir Directory path for output files.
      * @return Unique pointer to the created StepWriter.
      * @throws std::runtime_error if format is unsupported (propagated from factory).
      */
@@ -122,7 +122,7 @@ class Simulation {
         -> std::unique_ptr<StepWriter>;
 
     /**
-     * @brief Applies initial conditions to the layer.
+     * @brief Applies initial conditions to the data layer.
      *
      * Sets up the initial state of the physical fields based on the
      * configured initial conditions (e.g., Sod shock tube problems).
@@ -135,12 +135,28 @@ class Simulation {
      * @param step Current time step index.
      * @return true if the step should be written according to configuration.
      */
-    [[nodiscard]] auto ShouldWrite(std::size_t step) const -> bool;
+    [[nodiscard]] auto ShouldWrite() const -> bool;
+
+    /**
+     * @brief Determines whether the current time step should be logged.
+     *
+     * @return true if the step should be logged.
+     */
+    [[nodiscard]] auto ShouldLog() const -> bool;
+
+    /**
+     * @brief Determines whether the simulation shoult calculate the next step.
+     *
+     * @param t_end Maximum time of the simulation.
+     * @param step_end Maximum steps the simulation is allowed to calculate.
+     * @return true if the next step should calculated.
+     */
+    [[nodiscard]] auto ShouldRun() const -> bool;
 
     /**
      * @brief Writes the initial state of the system before any time advancement.
      *
-     * The output_rodionov is handled by the StepWriter component.
+     * The output is handled by the StepWriter component.
      */
     void WriteInitialState() const;
 
@@ -150,10 +166,17 @@ class Simulation {
      * @param step Current time step index.
      * @param t_cur Physical time corresponding to this step.
      *
-     * @note The method checks output_rodionov frequency using ShouldWrite() before writing.
+     * @note The method checks output frequency using ShouldWrite() before writing.
      */
-    void WriteStepState(std::size_t step, double t_cur) const;
+    void WriteStepState(double t_cur, std::size_t step_cur) const;
     void WriteAnalyticalStepState(std::size_t step, double t_cur) const;
+
+    /**
+     * @brief Prints simulation log for a specific time step.
+     *
+     * @note The method checks output frequency using ShouldLog() before writing.
+     */
+    void PrintLog() const;
 
     Settings settings_;
     Settings analytical_settings_;
@@ -167,7 +190,8 @@ class Simulation {
     std::unique_ptr<DataLayer> analytical_layer_;
 
     double t_cur_ = 0.0;
-    std::size_t step_ = 0;
+    std::size_t step_cur_ = 0;
+    double dt_ = 1.0;
 };
 
 #endif  // SIMULATION_HPP

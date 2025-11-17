@@ -2,7 +2,6 @@
 #define SOLVERFACTORY_HPP
 
 #include <memory>
-#include <string>
 
 #include "config/Settings.hpp"
 #include "solver/Solver.hpp"
@@ -23,7 +22,7 @@ public:
      * @return Unique pointer to the created solver.
      * @throws std::runtime_error if solver type is not recognized.
      */
-    static auto Create(Settings &settings_) -> std::unique_ptr<Solver>;
+    static auto Create(Settings &settings) -> std::unique_ptr<Solver>;
 };
 
 #endif  // SOLVERFACTORY_HPP

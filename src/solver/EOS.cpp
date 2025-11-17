@@ -1,7 +1,7 @@
 #include "solver/EOS.hpp"
 #include <cmath>
 
-Conservative EOS::PrimToCons(const Primitive &w, double gamma) {
+auto EOS::PrimToCons(const Primitive &w, double gamma) -> Conservative {
     Conservative u;
     u.rho = w.rho;
     u.rhoU = w.rho * w.u;
@@ -9,7 +9,7 @@ Conservative EOS::PrimToCons(const Primitive &w, double gamma) {
     return u;
 }
 
-Primitive EOS::ConsToPrim(const Conservative &u, double gamma) {
+auto EOS::ConsToPrim(const Conservative &u, double gamma) -> Primitive {
     Primitive w;
     w.rho = u.rho;
     const double inv_rho = 1.0 / u.rho;
@@ -18,7 +18,7 @@ Primitive EOS::ConsToPrim(const Conservative &u, double gamma) {
     return w;
 }
 
-double EOS::Pressure(const Conservative &u, double gamma) {
+auto EOS::Pressure(const Conservative &u, double gamma) -> double {
     const double rho = u.rho;
     const double u_vel = u.rhoU / rho;
     const double kinetic = 0.5 * rho * u_vel * u_vel;
@@ -26,6 +26,6 @@ double EOS::Pressure(const Conservative &u, double gamma) {
     return (gamma - 1.0) * internal;
 }
 
-double EOS::SoundSpeed(const Primitive &w, double gamma) {
+auto EOS::SoundSpeed(const Primitive &w, double gamma) -> double {
     return std::sqrt(gamma * w.P / w.rho);
 }

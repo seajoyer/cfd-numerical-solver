@@ -1,7 +1,7 @@
 #include "solver/GodunovSolver.hpp"
 
 
-GodunovSolver::GodunovSolver(const Settings& settings)
+GodunovSolver::GodunovSolver(const Settings &settings)
     : settings_(settings),
       boundaryManager_(settings.dim),
       rhoMin_(1e-10),
@@ -48,6 +48,9 @@ double GodunovSolver::Step(DataLayer& layer, double& t_cur) {
         fluxes(i) = riemannSolver_->ComputeFlux(WL, WR, settings_.gamma);
     }
 
+    for (int j = core_start; j < core_end; ++j) {
+        const Flux& f_minus = fluxes[static_cast<std::size_t>(j - 1)];
+        const Flux& f_plus = fluxes[static_cast<std::size_t>(j)];
     for (int j = coreStart; j < coreEnd; ++j) {
         const Flux& Fminus = fluxes(j - 1); // F_{j-1/2}
         const Flux& Fplus = fluxes(j); // F_{j+1/2}
