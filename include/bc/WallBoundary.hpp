@@ -24,7 +24,7 @@
  * @see SymmetryBoundary
  */
 class WallBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies wall boundary condition along a specified axis.
      *
@@ -41,7 +41,7 @@ public:
      *       For multidimensional cases, only the velocity component normal
      *       to the wall is reversed.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // WALLBOUNDARY_HPP
+#endif  // WALLBOUNDARY_HPP

@@ -2,7 +2,6 @@
 #define HLLCRIEMANNSOLVER_HPP
 
 #include "RiemannSolver.hpp"
-#include "solver/EOS.hpp"
 
 /**
  * @class HLLCRiemannSolver
@@ -12,7 +11,7 @@
  * of contact discontinuities and shear layers while remaining robust.
  */
 class HLLCRiemannSolver : public RiemannSolver {
-public:
+   public:
     /**
      * @brief Default constructor.
      */
@@ -26,8 +25,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return HLLC flux at the interface.
      */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left,
-                                   const Primitive& right,
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
                                    double gamma) const -> Flux override;
 };
 

@@ -3,31 +3,29 @@
 #include <algorithm>
 #include <cmath>
 
-AnalyticalSolver::AnalyticalSolver(const Settings& settings) :
-    settings_(settings),
-    gamma_(settings.gamma),
-    x0_(settings.x0),
-    has_initial_states_(false),
-    dt_external_(-1.0) {
-    exact_.SetQ(settings_.Q);
+AnalyticalSolver::AnalyticalSolver(const Settings& settings)
+    : settings_(settings),
+      gamma_(settings.gamma),
+      x0_(settings.x0),
+      has_initial_states_(false),
+      dt_external_(-1.0) {
+    exact_.SetQ(settings_.Q_user);
 }
 
-void AnalyticalSolver::SetDt(double dt) {
-    dt_external_ = dt;
-}
+void AnalyticalSolver::SetDt(double dt) { dt_external_ = dt; }
 
 void AnalyticalSolver::InitializeStatesFromLayer(const DataLayer& layer) {
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
 
     // Find interface index near x0_
-    int idx = coreStart;
-    while (idx < coreEnd && layer.xc(idx) < x0_) {
+    int idx = core_start;
+    while (idx < core_end && layer.xc(idx) < x0_) {
         ++idx;
     }
 
-    const int iL = std::max(coreStart, idx - 1);
-    const int iR = std::min(coreEnd - 1, idx);
+    const int iL = std::max(core_start, idx - 1);
+    const int iR = std::min(core_end - 1, idx);
 
     Primitive wl;
     wl.rho = layer.rho(iL);
@@ -44,7 +42,7 @@ void AnalyticalSolver::InitializeStatesFromLayer(const DataLayer& layer) {
     has_initial_states_ = true;
 }
 
-double AnalyticalSolver::Step(DataLayer& layer, double& t_cur) {
+auto AnalyticalSolver::Step(DataLayer& layer, double& t_cur) -> double {
     const double t_end = settings_.t_end;
     if (t_cur >= t_end) {
         return 0.0;
@@ -68,15 +66,15 @@ double AnalyticalSolver::Step(DataLayer& layer, double& t_cur) {
 
     const double t = t_cur + dt;
 
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
 
     double dx = 0.0;
-    if (coreEnd - coreStart > 1) {
-        dx = layer.xc(coreStart + 1) - layer.xc(coreStart);
+    if (core_end - core_start > 1) {
+        dx = layer.xc(core_start + 1) - layer.xc(core_start);
     }
 
-    for (int i = coreStart; i < coreEnd; ++i) {
+    for (int i = core_start; i < core_end; ++i) {
         const double x = layer.xc(i);
         const double xi = t > 0.0 ? (x - x0_) / t : 0.0;
 
@@ -117,12 +115,9 @@ double AnalyticalSolver::Step(DataLayer& layer, double& t_cur) {
     return dt;
 }
 
-void AnalyticalSolver::SetCfl(double cfl) {
-    (void)cfl;
-}
+void AnalyticalSolver::SetCfl(double cfl) { (void)cfl; }
 
-void AnalyticalSolver::AddBoundary(int axis,
-                                   std::shared_ptr<BoundaryCondition> left_bc,
+void AnalyticalSolver::AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                                    std::shared_ptr<BoundaryCondition> right_bc) {
     (void)axis;
     (void)left_bc;

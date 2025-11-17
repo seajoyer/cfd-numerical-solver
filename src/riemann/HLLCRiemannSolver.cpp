@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
-auto HLLCRiemannSolver::ComputeFlux(const Primitive& left,
-                                    const Primitive& right,
+#include "solver/EOS.hpp"
+
+auto HLLCRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
                                     double gamma) const -> Flux {
     const double rho_l = left.rho;
     const double u_l = left.u;
@@ -38,9 +39,8 @@ auto HLLCRiemannSolver::ComputeFlux(const Primitive& left,
         return 0.5 * (fl + fr);
     }
 
-    const double numerator = p_r - p_l
-                             + rho_l * (sl - u_l) * u_l
-                             - rho_r * (sr - u_r) * u_r;
+    const double numerator =
+        p_r - p_l + rho_l * (sl - u_l) * u_l - rho_r * (sr - u_r) * u_r;
     const double denominator = rho_l * (sl - u_l) - rho_r * (sr - u_r);
 
     const double sm = numerator / denominator;

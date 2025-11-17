@@ -1,8 +1,9 @@
 #include "bc/NonReflectiveBoundary.hpp"
+
 #include "data/DataLayer.hpp"
 
-void NonReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void NonReflectiveBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int padding = layer.GetPadding();
     const int core_start = layer.GetCoreStart();

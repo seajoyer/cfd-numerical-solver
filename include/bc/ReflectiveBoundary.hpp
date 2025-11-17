@@ -26,7 +26,7 @@
  * @see WallBoundary
  */
 class ReflectiveBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies reflective boundary condition along the specified axis.
      *
@@ -41,7 +41,7 @@ public:
      *       would involve reversing the normal component of velocity along
      *       the corresponding axis.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // REFLECTIVEBOUNDARY_HPP
+#endif  // REFLECTIVEBOUNDARY_HPP

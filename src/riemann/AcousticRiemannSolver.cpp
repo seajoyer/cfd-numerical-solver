@@ -3,21 +3,16 @@
 #include <algorithm>
 #include <cmath>
 
-AcousticRiemannSolver::AcousticRiemannSolver()
-    : rho_min_(1e-10),
-      p_min_(1e-10) {
-}
+AcousticRiemannSolver::AcousticRiemannSolver() : rho_min_(1e-10), p_min_(1e-10) {}
 
-static Flux CentralFlux(const Primitive& left,
-                        const Primitive& right,
-                        double gamma) {
+static auto CentralFlux(const Primitive& left, const Primitive& right, double gamma)
+    -> Flux {
     const Flux FL = EulerFlux(left, gamma);
     const Flux FR = EulerFlux(right, gamma);
     return 0.5 * (FL + FR);
 }
 
-auto AcousticRiemannSolver::ComputeFlux(const Primitive& left,
-                                        const Primitive& right,
+auto AcousticRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
                                         const double gamma) const -> Flux {
     const double rhoL = left.rho;
     const double uL = left.u;
@@ -27,16 +22,14 @@ auto AcousticRiemannSolver::ComputeFlux(const Primitive& left,
     const double uR = right.u;
     const double pR = right.P;
 
-    if (rhoL <= rho_min_ || rhoR <= rho_min_ ||
-        pL <= p_min_ || pR <= p_min_) {
+    if (rhoL <= rho_min_ || rhoR <= rho_min_ || pL <= p_min_ || pR <= p_min_) {
         return CentralFlux(left, right, gamma);
     }
 
     const double cL = std::sqrt(gamma * pL / rhoL);
     const double cR = std::sqrt(gamma * pR / rhoR);
 
-    if (!std::isfinite(cL) || !std::isfinite(cR) ||
-        cL <= 0.0 || cR <= 0.0) {
+    if (!std::isfinite(cL) || !std::isfinite(cR) || cL <= 0.0 || cR <= 0.0) {
         return CentralFlux(left, right, gamma);
     }
 
@@ -49,8 +42,7 @@ auto AcousticRiemannSolver::ComputeFlux(const Primitive& left,
     }
 
     // u* = (u_L Z_L - u_R Z_R + (p_L - p_R)) / (Z_L + Z_R)
-    const double u_star =
-        (uL * ZL - uR * ZR + (pL - pR)) / denom;
+    const double u_star = (uL * ZL - uR * ZR + (pL - pR)) / denom;
 
     // p* = (Z_L Z_R (u_L - u_R) + p_R / Z_R + p_L / Z_L) / (Z_L + Z_R)
     const double term1 = ZL * ZR * (uL - uR);

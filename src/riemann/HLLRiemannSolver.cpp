@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
-auto HLLRiemannSolver::ComputeFlux(const Primitive& left,
-                                   const Primitive& right,
+#include "solver/EOS.hpp"
+
+auto HLLRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
                                    double gamma) const -> Flux {
     const double rho_l = left.rho;
     const double u_l = left.u;

@@ -1,26 +1,35 @@
 #include "solver/GodunovSolver.hpp"
 
+#include "reconstruction/P0Reconstruction.hpp"
+#include "reconstruction/P1Reconstruction.hpp"
+#include "riemann/AcousticRiemannSolver.hpp"
+#include "riemann/ExactIdealGasRiemannSolver.hpp"
+#include "riemann/HLLCRiemannSolver.hpp"
+#include "riemann/HLLRiemannSolver.hpp"
+#include "solver/EOS.hpp"
+#include "solver/PositivityLimiter.hpp"
+#include "solver/TimeStepCalculator.hpp"
 
-GodunovSolver::GodunovSolver(const Settings &settings)
+GodunovSolver::GodunovSolver(const Settings& settings)
     : settings_(settings),
-      boundaryManager_(settings.dim),
-      rhoMin_(1e-10),
-      pMin_(1e-10) {
+      boundary_manager_(settings.dim),
+      rho_min_(1e-10),
+      p_min_(1e-10) {
     cfl_ = settings_.cfl;
     InitializeReconstruction();
     InitializeRiemannSolver();
 }
 
-double GodunovSolver::Step(DataLayer& layer, double& t_cur) {
-    boundaryManager_.ApplyAll(layer);
+auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
+    boundary_manager_.ApplyAll(layer);
 
     const double dx = ComputeDx(layer);
-    const int totalSize = layer.GetTotalSize();
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
-    const int nCore = coreEnd - coreStart;
+    const int total_size = layer.GetTotalSize();
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
+    const int n_core = core_end - core_start;
 
-    if (nCore < 2 || totalSize < 3) {
+    if (n_core < 2 || total_size < 3) {
         return 0.0;
     }
 
@@ -36,28 +45,28 @@ double GodunovSolver::Step(DataLayer& layer, double& t_cur) {
         }
     }
 
-    const double dtOverDx = dt / dx;
+    const double dt_over_dx = dt / dx;
 
-    const int nInterfaces = totalSize - 1;
+    const int n_interfaces = total_size - 1;
     xt::xarray<Flux> fluxes =
-        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(nInterfaces)});
+        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(n_interfaces)});
 
-    for (int i = 0; i < nInterfaces; ++i) {
+    for (int i = 0; i < n_interfaces; ++i) {
         Primitive WL, WR;
         reconstruction_->ComputeInterfaceStates(layer, i, WL, WR);
-        fluxes(i) = riemannSolver_->ComputeFlux(WL, WR, settings_.gamma);
+        fluxes(i) = riemann_solver_->ComputeFlux(WL, WR, settings_.gamma);
     }
 
-    for (int j = coreStart; j < coreEnd; ++j) {
-        const Flux& Fminus = fluxes(j - 1); // F_{j-1/2}
-        const Flux& Fplus = fluxes(j); // F_{j+1/2}
+    for (int j = core_start; j < core_end; ++j) {
+        const Flux& Fminus = fluxes(j - 1);  // F_{j-1/2}
+        const Flux& Fplus = fluxes(j);       // F_{j+1/2}
 
         Primitive w = layer.GetPrimitive(j);
         Conservative U = ToConservative(w, settings_.gamma);
 
-        U -= dtOverDx * Flux::Diff(Fplus, Fminus);
+        U -= dt_over_dx * Flux::Diff(Fplus, Fminus);
 
-        PositivityLimiter::Apply(U, settings_.gamma, rhoMin_, pMin_);
+        PositivityLimiter::Apply(U, settings_.gamma, rho_min_, p_min_);
         StoreConservativeCell(U, j, dx, layer);
     }
 
@@ -65,25 +74,18 @@ double GodunovSolver::Step(DataLayer& layer, double& t_cur) {
     return dt;
 }
 
+void GodunovSolver::SetCfl(double cfl) { cfl_ = cfl; }
 
-void GodunovSolver::SetCfl(double cfl) {
-    cfl_ = cfl;
-}
-
-void GodunovSolver::AddBoundary(
-    int axis,
-    std::shared_ptr<BoundaryCondition> left_bc,
-    std::shared_ptr<BoundaryCondition> right_bc) {
-    boundaryManager_.Set(axis, std::move(left_bc), std::move(right_bc));
+void GodunovSolver::AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
+                                std::shared_ptr<BoundaryCondition> right_bc) {
+    boundary_manager_.Set(axis, std::move(left_bc), std::move(right_bc));
 }
 
 void GodunovSolver::InitializeReconstruction() {
     std::string name = settings_.reconstruction;
     std::string lower(name.size(), '\0');
     std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) {
-                       return static_cast<char>(std::tolower(c));
-                   });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (lower.find("p1") != std::string::npos) {
         reconstruction_ = std::make_shared<P1Reconstruction>();
@@ -97,42 +99,40 @@ void GodunovSolver::InitializeReconstruction() {
 void GodunovSolver::InitializeRiemannSolver() {
     std::string name = settings_.riemann_solver;
     std::string lower(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) {
-                       return static_cast<char>(std::tolower(c));
-                   });
+    std::transform(name.begin(), name.end(), lower.begin(), [](unsigned char c) -> char {
+        return static_cast<char>(std::tolower(c));
+    });
 
     if (lower.find("hllc") != std::string::npos) {
-        riemannSolver_ = std::make_shared<HLLCRiemannSolver>();
+        riemann_solver_ = std::make_shared<HLLCRiemannSolver>();
     } else if (lower.find("hll") != std::string::npos) {
-        riemannSolver_ = std::make_shared<HLLRiemannSolver>();
+        riemann_solver_ = std::make_shared<HLLRiemannSolver>();
     } else if (lower.find("exact") != std::string::npos) {
-        riemannSolver_ = std::make_shared<ExactIdealGasRiemannSolver>(0, settings_.Q);
+        riemann_solver_ =
+            std::make_shared<ExactIdealGasRiemannSolver>(0, settings_.Q_user);
     } else if (lower.find("acoustic") != std::string::npos) {
-        riemannSolver_ = std::make_shared<AcousticRiemannSolver>();
+        riemann_solver_ = std::make_shared<AcousticRiemannSolver>();
     } else {
-        riemannSolver_ = std::make_shared<HLLRiemannSolver>();
+        riemann_solver_ = std::make_shared<HLLRiemannSolver>();
     }
 }
 
-double GodunovSolver::ComputeDx(const DataLayer& layer) const {
+auto GodunovSolver::ComputeDx(const DataLayer& layer) const -> double {
     if (settings_.N > 0 && settings_.L_x > 0.0) {
         return settings_.L_x / static_cast<double>(settings_.N);
     }
 
-    const int coreStart = layer.GetCoreStart(0);
-    const int coreEnd = layer.GetCoreEndExclusive(0);
-    if (coreEnd - coreStart > 1) {
-        return layer.xc(coreStart + 1) - layer.xc(coreStart);
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
+    if (core_end - core_start > 1) {
+        return layer.xc(core_start + 1) - layer.xc(core_start);
     }
 
     return 1.0;
 }
 
-void GodunovSolver::StoreConservativeCell(const Conservative& uc,
-                                          const int i,
-                                          const double dx,
-                                          DataLayer& layer) const {
+void GodunovSolver::StoreConservativeCell(const Conservative& uc, const int i,
+                                          const double dx, DataLayer& layer) const {
     const double rho = uc.rho;
     const double rhoU = uc.rhoU;
 

@@ -2,7 +2,6 @@
 #define HLLRIEMANNSOLVER_HPP
 
 #include "RiemannSolver.hpp"
-#include "solver/EOS.hpp"
 
 /**
  * @class HLLRiemannSolver
@@ -13,7 +12,7 @@
  * contact discontinuities exactly.
  */
 class HLLRiemannSolver : public RiemannSolver {
-public:
+   public:
     /**
      * @brief Default constructor.
      */
@@ -27,8 +26,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return HLL flux at the interface.
      */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left,
-                                   const Primitive& right,
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
                                    double gamma) const -> Flux override;
 };
 

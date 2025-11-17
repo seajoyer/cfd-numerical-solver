@@ -1,29 +1,16 @@
 #ifndef GODUNOVKOLGANRODIONOVSOLVER_HPP
 #define GODUNOVKOLGANRODIONOVSOLVER_HPP
 
-#include <memory>
-#include <string>
-#include <algorithm>
 #include <cctype>
-
+#include <memory>
 
 #include "Solver.hpp"
+#include "bc/BoundaryManager.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "bc/BoundaryManager.hpp"
-
-#include "TimeStepCalculator.hpp"
-#include "PositivityLimiter.hpp"
-
-#include "solver/EOS.hpp"
 #include "data/Variables.hpp"
-
-#include "riemann/RiemannSolver.hpp"
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
-#include "riemann/ExactIdealGasRiemannSolver.hpp"
 #include "reconstruction/Reconstruction.hpp"
-#include "reconstruction/P1Reconstruction.hpp"
+#include "riemann/RiemannSolver.hpp"
 
 /**
  * @class GodunovKolganRodionovSolver
@@ -44,7 +31,7 @@
  * writing them back to DataLayer.
  */
 class GodunovKolganRodionovSolver : public Solver {
-public:
+   public:
     /**
      * @brief Constructs the solver using global simulation settings.
      *
@@ -83,7 +70,7 @@ public:
      * @param t_cur Current simulation time; incremented by dt on return.
      * @return The actual timestep taken (dt), or 0.0 if no step is performed.
      */
-    double Step(DataLayer& layer, double& t_cur) override;
+    auto Step(DataLayer& layer, double& t_cur) -> double override;
 
     /**
      * @brief Sets the CFL number used for timestep computation.
@@ -101,28 +88,27 @@ public:
      * @param left_bc  Boundary condition for the left / lower boundary.
      * @param right_bc Boundary condition for the right / upper boundary.
      */
-    void AddBoundary(int axis,
-                     std::shared_ptr<BoundaryCondition> left_bc,
+    void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                      std::shared_ptr<BoundaryCondition> right_bc) override;
 
-private:
+   private:
     /** @brief Local copy of simulation settings. */
     Settings settings_;
 
     /** @brief Manager for boundary conditions. */
-    BoundaryManager boundaryManager_;
+    BoundaryManager boundary_manager_;
 
     /** @brief Reconstruction strategy (P1 piecewise-linear). */
     std::shared_ptr<Reconstruction> reconstruction_;
 
     /** @brief Selected Riemann solver implementation. */
-    std::shared_ptr<RiemannSolver> riemannSolver_;
+    std::shared_ptr<RiemannSolver> riemann_solver_;
 
     /** @brief Minimal allowed density for positivity limiting. */
-    double rhoMin_;
+    double rho_min_;
 
     /** @brief Minimal allowed pressure for positivity limiting. */
-    double pMin_;
+    double p_min_;
 
     /**
      * @brief Initializes the reconstruction scheme.
@@ -157,7 +143,7 @@ private:
      * @param layer Data layer with mesh coordinates.
      * @return Cell size dx.
      */
-    double ComputeDx(const DataLayer& layer) const;
+    [[nodiscard]] auto ComputeDx(const DataLayer& layer) const -> double;
 
     /**
      * @brief Writes a single conservative state back into the DataLayer.
@@ -178,13 +164,12 @@ private:
      * @param dx    Cell size (used for mass computation).
      * @param layer Data layer to modify.
      */
-    void StoreConservativeCell(const Conservative& uc,
-                               int i,
-                               double dx,
+    void StoreConservativeCell(const Conservative& uc, int i, double dx,
                                DataLayer& layer) const;
 
     /**
-     * @brief Computes MUSCL–Hancock predicted states in a given cell using P1 reconstruction.
+     * @brief Computes MUSCL–Hancock predicted states in a given cell using P1
+     * reconstruction.
      *
      * For cell index i, this function:
      *  - calls P1-based reconstruction at interfaces i-1/2 and i+1/2
@@ -207,10 +192,8 @@ private:
      * @param U_L_star_out Output: predicted left state U_i^{L,*}.
      * @param U_R_star_out Output: predicted right state U_i^{R,*}.
      */
-    void ComputePredictedStatesAtCell(const DataLayer& layer,
-                                      int i,
-                                      double halfDtOverDx,
-                                      Conservative& U_L_star_out,
+    void ComputePredictedStatesAtCell(const DataLayer& layer, int i,
+                                      double half_dt_over_dx, Conservative& U_L_star_out,
                                       Conservative& U_R_star_out) const;
 };
 

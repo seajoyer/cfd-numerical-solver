@@ -10,4 +10,4 @@ struct InitialConditions {
     double P_R;
 };
 
-#endif // INITIALCONDITIONS_HPP
+#endif  // INITIALCONDITIONS_HPP

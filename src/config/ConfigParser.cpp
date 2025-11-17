@@ -1,7 +1,9 @@
 #include "config/ConfigParser.hpp"
+
 #include <iostream>
-#include "config/Settings.hpp"
+
 #include "config/InitialConditions.hpp"
+#include "config/Settings.hpp"
 
 ConfigParser::ConfigParser() = default;
 
@@ -22,9 +24,7 @@ auto ConfigParser::Parse(const std::string& filename) -> bool {
     }
 }
 
-auto ConfigParser::GetSettings() const -> const Settings& {
-    return settings_;
-}
+auto ConfigParser::GetSettings() const -> const Settings& { return settings_; }
 
 auto ConfigParser::GetSODTests() const -> const std::array<InitialConditions, 5>& {
     return sod_tests_;
@@ -42,7 +42,7 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.riemann_solver = node["riemann_solver"].as<std::string>();
     settings.reconstruction = node["reconstruction"].as<std::string>();
     settings.right_boundary = node["left_boundary"].as<std::string>();
-    settings.left_boundary  = node["right_boundary"].as<std::string>();
+    settings.left_boundary = node["right_boundary"].as<std::string>();
 
     settings.N = node["N"].as<int>();
     settings.cfl = node["cfl"].as<double>();
@@ -54,7 +54,7 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.L_y = node["L_y"].as<double>();
     settings.L_z = node["L_z"].as<double>();
 
-    settings.Q = node["Q"].as<double>();
+    settings.Q_user = node["Q_user"].as<double>();
 
     settings.sod_test_num = node["sod_test_num"].as<int>();
     settings.x0 = node["x0"].as<double>();
@@ -65,14 +65,15 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.output_dir = node["output_dir"].as<std::string>();
 }
 
-void ConfigParser::LoadInitialConditions(const YAML::Node& node, std::array<InitialConditions, 5>& sod_tests) {
+void ConfigParser::LoadInitialConditions(const YAML::Node& node,
+                                         std::array<InitialConditions, 5>& sod_tests) {
     for (int i = 1; i <= 5; ++i) {
         std::string key = "sod" + std::to_string(i);
         sod_tests[i - 1].rho_L = node[key]["rho_L"].as<double>();
-        sod_tests[i - 1].u_L   = node[key]["u_L"].as<double>();
-        sod_tests[i - 1].P_L   = node[key]["P_L"].as<double>();
+        sod_tests[i - 1].u_L = node[key]["u_L"].as<double>();
+        sod_tests[i - 1].P_L = node[key]["P_L"].as<double>();
         sod_tests[i - 1].rho_R = node[key]["rho_R"].as<double>();
-        sod_tests[i - 1].u_R   = node[key]["u_R"].as<double>();
-        sod_tests[i - 1].P_R   = node[key]["P_R"].as<double>();
+        sod_tests[i - 1].u_R = node[key]["u_R"].as<double>();
+        sod_tests[i - 1].P_R = node[key]["P_R"].as<double>();
     }
 }

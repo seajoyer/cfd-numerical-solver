@@ -1,31 +1,16 @@
 #ifndef GODUNOVSOLVER_HPP
 #define GODUNOVSOLVER_HPP
 
-#include <memory>
-#include <algorithm>
 #include <cctype>
-#include <string>
+#include <memory>
 
 #include "Solver.hpp"
+#include "bc/BoundaryCondition.hpp"
+#include "bc/BoundaryManager.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "bc/BoundaryManager.hpp"
-#include "bc/BoundaryCondition.hpp"
-
-#include "TimeStepCalculator.hpp"
-#include "PositivityLimiter.hpp"
-
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
-#include "riemann/ExactIdealGasRiemannSolver.hpp"
-#include "riemann/AcousticRiemannSolver.hpp"
-
-#include "reconstruction/Reconstruction.hpp"
-#include "reconstruction/P0Reconstruction.hpp"
-#include "reconstruction/P1Reconstruction.hpp"
-
 #include "data/Variables.hpp"
-
+#include "reconstruction/Reconstruction.hpp"
 #include "riemann/RiemannSolver.hpp"
 
 /**
@@ -71,7 +56,7 @@
  *   - characteristic-based reconstruction.
  */
 class GodunovSolver : public Solver {
-public:
+   public:
     /**
      * @brief Constructs a Godunov solver using the global simulation settings.
      *
@@ -100,7 +85,7 @@ public:
      * @param t_cur Current simulation time (incremented by `dt` on return).
      * @return The actual timestep taken (`dt`), or `0.0` if no step is performed.
      */
-    double Step(DataLayer& layer, double& t_cur) override;
+    auto Step(DataLayer& layer, double& t_cur) -> double override;
 
     /**
      * @brief Overrides the CFL number used for timestep computation.
@@ -120,28 +105,27 @@ public:
      * @param left_bc  Boundary condition at the lower/left boundary.
      * @param right_bc Boundary condition at the upper/right boundary.
      */
-    void AddBoundary(int axis,
-                     std::shared_ptr<BoundaryCondition> left_bc,
+    void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                      std::shared_ptr<BoundaryCondition> right_bc) override;
 
-private:
+   private:
     /** @brief Local copy of global simulation settings. */
     Settings settings_;
 
     /** @brief Manager responsible for applying all boundary conditions. */
-    BoundaryManager boundaryManager_;
+    BoundaryManager boundary_manager_;
 
     /** @brief Selected reconstruction strategy (P0 or P1). */
     std::shared_ptr<Reconstruction> reconstruction_;
 
     /** @brief Selected Riemann solver (HLL, HLLC, or Exact). */
-    std::shared_ptr<RiemannSolver> riemannSolver_;
+    std::shared_ptr<RiemannSolver> riemann_solver_;
 
     /** @brief Minimum allowed density (for positivity limiting). */
-    double rhoMin_;
+    double rho_min_;
 
     /** @brief Minimum allowed pressure (for positivity limiting). */
-    double pMin_;
+    double p_min_;
 
     /**
      * @brief Selects and constructs the reconstruction scheme.
@@ -177,7 +161,7 @@ private:
      * @param layer DataLayer storing mesh coordinates.
      * @return Cell size `dx`.
      */
-    double ComputeDx(const DataLayer& layer) const;
+    [[nodiscard]] auto ComputeDx(const DataLayer& layer) const -> double;
 
     /**
      * @brief Writes a conservative state back into the DataLayer.
@@ -199,9 +183,7 @@ private:
      * @param dx Spatial step size.
      * @param layer DataLayer to modify.
      */
-    void StoreConservativeCell(const Conservative& uc,
-                               int i,
-                               double dx,
+    void StoreConservativeCell(const Conservative& uc, int i, double dx,
                                DataLayer& layer) const;
 };
 

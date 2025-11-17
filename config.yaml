@@ -22,7 +22,7 @@ config:
     L_y: 1
     L_z: 1
 
-    Q: 2
+    Q_user: 2
 
     # set any to zero to disable the endpoint.
     # set both to zeros to write only the initial state

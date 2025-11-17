@@ -9,7 +9,6 @@
 #include "data/DataLayer.hpp"
 #include "output/StepWriter.hpp"
 #include "solver/Solver.hpp"
-#include "solver/AnalyticalSolver.hpp"
 
 /**
  * @class Simulation
@@ -41,8 +40,7 @@ class Simulation {
      * @param initial_conditions Initial conditions for the simulation (optional).
      * @param log_progress
      */
-    explicit Simulation(Settings settings,
-                        const InitialConditions &initial_conditions);
+    explicit Simulation(Settings settings, const InitialConditions& initial_conditions);
 
     /**
      * @brief Runs the full simulation loop.
@@ -127,7 +125,7 @@ class Simulation {
      * Sets up the initial state of the physical fields based on the
      * configured initial conditions (e.g., Sod shock tube problems).
      */
-    void ApplyInitialConditions(DataLayer &layer);
+    void ApplyInitialConditions(DataLayer& layer);
 
     /**
      * @brief Determines whether the current time step should be written to disk.

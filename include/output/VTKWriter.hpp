@@ -1,9 +1,10 @@
 #ifndef VTKWRITER_HPP
 #define VTKWRITER_HPP
 
-#include "StepWriter.hpp"
-#include <string>
 #include <memory>
+#include <string>
+
+#include "StepWriter.hpp"
 
 /**
  * @class VTKWriter
@@ -16,7 +17,7 @@
  * Files are named as: output_dir/N_<gridsize>__step_<stepnum>.vtk
  */
 class VTKWriter : public StepWriter {
-public:
+   public:
     /**
      * @brief Constructs a VTKWriter with specified output directory.
      * @param output_dir Directory where VTK files will be written
@@ -32,9 +33,9 @@ public:
      */
     void Write(const DataLayer& layer, std::size_t step, double time) const override;
 
-private:
+   private:
     std::string output_dir_;
-    
+
     // PIMPL to hide VTK implementation details
     class Impl;
     std::unique_ptr<Impl> pimpl_;
@@ -63,4 +64,4 @@ private:
     void Write3D(const DataLayer& layer, std::size_t step, double time) const;
 };
 
-#endif // VTKWRITER_HPP
+#endif  // VTKWRITER_HPP

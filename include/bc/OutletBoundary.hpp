@@ -26,7 +26,7 @@
  * @see NonReflectingBoundary
  */
 class OutletBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies outlet boundary condition along the specified axis.
      *
@@ -40,7 +40,7 @@ public:
      * @note For multidimensional extensions, the same logic is applied
      *       independently for each axis.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // OUTLETBOUNDARY_HPP
+#endif  // OUTLETBOUNDARY_HPP

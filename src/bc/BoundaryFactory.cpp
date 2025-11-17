@@ -15,7 +15,6 @@
 auto BoundaryFactory::Create(const std::string& boundary_type, double rho_inf,
                              double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
-
     if (boundary_type == "free_stream") {
         return std::make_shared<FreeStreamBoundary>(rho_inf, u_inf, p_inf);
     }

@@ -20,7 +20,7 @@
  *  dt = cfl * dx / maxSpeed.
  */
 class TimeStepCalculator {
-public:
+   public:
     /**
      * @brief Computes a stable timestep from the CFL condition.
      *
@@ -37,10 +37,8 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Stable timestep dt; 0.0 if no stable timestep can be computed.
      */
-    static double ComputeDt(const DataLayer &layer,
-                            double dx,
-                            double cfl,
-                            double gamma);
+    static auto ComputeDt(const DataLayer& layer, double dx, double cfl, double gamma)
+        -> double;
 };
 
 #endif  // TIMESTEPCALCULATOR_HPP

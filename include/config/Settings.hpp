@@ -8,7 +8,7 @@ struct Settings {
     std::string solver = "godunov";
     std::string riemann_solver = "exact";
     std::string reconstruction = "p0";
-    std::string left_boundary  = "free_stream";
+    std::string left_boundary = "free_stream";
     std::string right_boundary = "free_stream";
 
     int N = 200;
@@ -20,7 +20,7 @@ struct Settings {
     double L_y = 10;
     double L_z = 10;
 
-    double Q = 2.;
+    double Q_user = 2.;
 
     int sod_test_num = 1;
     double x0 = 0.5;
@@ -29,13 +29,13 @@ struct Settings {
     std::size_t step_end = 10000;
 
     std::size_t log_every_steps = 1;
-    double      log_every_time  = 0.0;
+    double      log_every_time = 0.0;
 
     std::size_t output_every_steps = 1;
-    double      output_every_time  = 0.0;
+    double      output_every_time = 0.0;
 
     std::string output_format = "vtk";
     std::string output_dir = "data/output";
 };
 
-#endif // SETTINGS_HPP
+#endif  // SETTINGS_HPP

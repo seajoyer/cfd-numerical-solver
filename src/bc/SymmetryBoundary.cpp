@@ -1,9 +1,9 @@
 #include "bc/SymmetryBoundary.hpp"
+
 #include "data/DataLayer.hpp"
 
-
-void SymmetryBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void SymmetryBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int padding = layer.GetPadding();
     const int core_start = layer.GetCoreStart();

@@ -3,14 +3,14 @@
 #include <algorithm>
 #include <cmath>
 
-auto P1Reconstruction::minmod(const double a, const double b) -> double {
+auto P1Reconstruction::Minmod(const double a, const double b) -> double {
     if (a * b <= 0.0) {
         return 0.0;
     }
     return std::abs(a) < std::abs(b) ? a : b;
 }
 
-auto P1Reconstruction::mc(const double a, const double b) -> double {
+auto P1Reconstruction::Mc(const double a, const double b) -> double {
     if (a * b <= 0.0) {
         return 0.0;
     }
@@ -18,12 +18,10 @@ auto P1Reconstruction::mc(const double a, const double b) -> double {
     const double abs_a = std::abs(a);
     const double abs_b = std::abs(b);
 
-    return sign_a * std::min({2.0 * abs_a,
-                              2.0 * abs_b,
-                              0.5 * (abs_a + abs_b)});
+    return sign_a * std::min({2.0 * abs_a, 2.0 * abs_b, 0.5 * (abs_a + abs_b)});
 }
 
-auto P1Reconstruction::superbee(const double a, const double b) -> double {
+auto P1Reconstruction::Superbee(const double a, const double b) -> double {
     if (a * b <= 0.0) {
         return 0.0;
     }
@@ -37,15 +35,15 @@ auto P1Reconstruction::superbee(const double a, const double b) -> double {
     return sign_a * std::max(term1, term2);
 }
 
-double P1Reconstruction::apply_limiter(const double a, const double b) const {
+auto P1Reconstruction::ApplyLimiter(const double a, const double b) const -> double {
     switch (limiter_type_) {
-        case LimiterType::MC:
-            return mc(a, b);
-        case LimiterType::SUPERBEE:
-            return superbee(a, b);
-        case LimiterType::MINMOD:
+        case LimiterType::kMc:
+            return Mc(a, b);
+        case LimiterType::kSuperbee:
+            return Superbee(a, b);
+        case LimiterType::kMinmod:
         default:
-            return minmod(a, b);
+            return Minmod(a, b);
     }
 }
 
@@ -79,13 +77,13 @@ void P1Reconstruction::ComputeInterfaceStates(const DataLayer& layer,
 
     Primitive slope_i, slope_j;
 
-    slope_i.rho = apply_limiter(w_i.rho - w_i_l.rho, w_i_r.rho - w_i.rho);
-    slope_i.u = apply_limiter(w_i.u - w_i_l.u, w_i_r.u - w_i.u);
-    slope_i.P = apply_limiter(w_i.P - w_i_l.P, w_i_r.P - w_i.P);
+    slope_i.rho = ApplyLimiter(w_i.rho - w_i_l.rho, w_i_r.rho - w_i.rho);
+    slope_i.u = ApplyLimiter(w_i.u - w_i_l.u, w_i_r.u - w_i.u);
+    slope_i.P = ApplyLimiter(w_i.P - w_i_l.P, w_i_r.P - w_i.P);
 
-    slope_j.rho = apply_limiter(w_j.rho - w_j_l.rho, w_j_r.rho - w_j.rho);
-    slope_j.u = apply_limiter(w_j.u - w_j_l.u, w_j_r.u - w_j.u);
-    slope_j.P = apply_limiter(w_j.P - w_j_l.P, w_j_r.P - w_j.P);
+    slope_j.rho = ApplyLimiter(w_j.rho - w_j_l.rho, w_j_r.rho - w_j.rho);
+    slope_j.u = ApplyLimiter(w_j.u - w_j_l.u, w_j_r.u - w_j.u);
+    slope_j.P = ApplyLimiter(w_j.P - w_j_l.P, w_j_r.P - w_j.P);
 
     left_state = w_i + 0.5 * slope_i;
     right_state = w_j - 0.5 * slope_j;

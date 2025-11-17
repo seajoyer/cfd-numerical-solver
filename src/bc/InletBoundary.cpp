@@ -1,9 +1,9 @@
 #include "bc/InletBoundary.hpp"
+
 #include "data/DataLayer.hpp"
 
-
-void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void InletBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int pad = layer.GetPadding();
     const int core_start = layer.GetCoreStart();
@@ -25,7 +25,6 @@ void InletBoundary::Apply(DataLayer &layer, int axis, Side side) const {
                 layer.rho(dst) = rho_in_;
                 layer.u(dst) = u_in_;
                 layer.P(dst) = p_in_;
-
 
                 int src = core_start;
                 layer.p(dst) = layer.p(src);

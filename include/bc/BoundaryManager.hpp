@@ -7,7 +7,6 @@
 struct DataLayer;
 class BoundaryCondition;
 
-
 struct AxisBc {
     std::shared_ptr<BoundaryCondition> left_bc;
     std::shared_ptr<BoundaryCondition> right_bc;
@@ -28,7 +27,7 @@ struct AxisBc {
  *       independent boundary pairs for each coordinate direction.
  */
 class BoundaryManager {
-public:
+   public:
     /**
      * @brief Constructs BoundaryManager for a given dimensionality.
      *
@@ -45,8 +44,7 @@ public:
      *
      * @note Passing nullptr disables the corresponding boundary.
      */
-    void Set(int axis,
-             std::shared_ptr<BoundaryCondition> left_bc,
+    void Set(int axis, std::shared_ptr<BoundaryCondition> left_bc,
              std::shared_ptr<BoundaryCondition> right_bc);
 
     /**
@@ -56,10 +54,10 @@ public:
      *
      * @param layer Reference to the DataLayer whose ghost zones should be updated.
      */
-    void ApplyAll(DataLayer &layer) const;
+    void ApplyAll(DataLayer& layer) const;
 
-private:
+   private:
     std::vector<AxisBc> axes_;
 };
 
-#endif // BOUNDARYMANAGER_HPP
+#endif  // BOUNDARYMANAGER_HPP

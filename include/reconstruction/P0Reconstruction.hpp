@@ -15,7 +15,7 @@
  * This yields a first-order accurate Godunov method in space.
  */
 class P0Reconstruction : public Reconstruction {
-public:
+   public:
     P0Reconstruction() = default;
     ~P0Reconstruction() override = default;
 
@@ -30,8 +30,7 @@ public:
      * @param left_state      Output: primitive state from cell i.
      * @param right_state     Output: primitive state from cell i+1.
      */
-    void ComputeInterfaceStates(const DataLayer& layer,
-                                int interface_index,
+    void ComputeInterfaceStates(const DataLayer& layer, int interface_index,
                                 Primitive& left_state,
                                 Primitive& right_state) const override;
 };

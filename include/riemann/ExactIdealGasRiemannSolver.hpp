@@ -2,8 +2,6 @@
 #define EXACTIDEALGASRIEMANNSOLVER_HPP
 
 #include "RiemannSolver.hpp"
-#include "solver/EOS.hpp"
-
 /**
  * @class ExactIdealGasRiemannSolver
  * @brief Exact Riemann solver for the 1D ideal-gas Euler equations.
@@ -15,7 +13,7 @@
  *       than approximate solvers such as HLL/HLLC.
  */
 class ExactIdealGasRiemannSolver : public RiemannSolver {
-public:
+   public:
     /**
      * @brief Constructs the solver with xi = 0 and Q = 2.
      */
@@ -27,8 +25,8 @@ public:
      * @param xi Similarity coordinate (x - x0) / t.
      * @param Q_user boundary for P_max / P_min.
      */
-    ExactIdealGasRiemannSolver(const double xi,
-                               const double Q_user) : xi_(xi), Q_user_(Q_user) {}
+    ExactIdealGasRiemannSolver(const double xi, const double Q_user)
+        : xi_(xi), Q_user_(Q_user) {}
 
     /**
      * @brief Sets the similarity coordinate xi used for sampling.
@@ -56,9 +54,7 @@ public:
      * @param xi Similarity coordinate (x - x0) / t.
      * @return Primitive state of the exact solution at xi.
      */
-    [[nodiscard]] auto Sample(const Primitive& left,
-                              const Primitive& right,
-                              double gamma,
+    [[nodiscard]] auto Sample(const Primitive& left, const Primitive& right, double gamma,
                               double xi) const -> Primitive;
 
     /**
@@ -69,11 +65,10 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Exact flux at the interface.
      */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left,
-                                   const Primitive& right,
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
                                    double gamma) const -> Flux override;
 
-private:
+   private:
     double xi_;
     double Q_user_{2.};
 };

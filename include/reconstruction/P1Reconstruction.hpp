@@ -3,7 +3,7 @@
 
 #include "reconstruction/Reconstruction.hpp"
 
-enum class LimiterType { MINMOD, MC, SUPERBEE };
+enum class LimiterType : std::uint8_t{ kMinmod, kMc, kSuperbee };
 
 /**
  * @class P1Reconstruction
@@ -19,7 +19,7 @@ enum class LimiterType { MINMOD, MC, SUPERBEE };
  * where ghost cells provide the necessary neighbors near boundaries.
  */
 class P1Reconstruction : public Reconstruction {
-public:
+   public:
     P1Reconstruction() = default;
     ~P1Reconstruction() override = default;
 
@@ -39,15 +39,15 @@ public:
      * @param left_state      Output: left primitive state at the interface.
      * @param right_state     Output: right primitive state at the interface.
      */
-    void ComputeInterfaceStates(const DataLayer& layer,
-                                int interface_index,
+    void Extracted() const;
+    void ComputeInterfaceStates(const DataLayer& layer, int interface_index,
                                 Primitive& left_state,
                                 Primitive& right_state) const override;
 
     void SetLimiter(LimiterType type) { limiter_type_ = type; }
 
-private:
-    LimiterType limiter_type_{LimiterType::MINMOD};
+   private:
+    LimiterType limiter_type_{LimiterType::kMinmod};
 
     /**
      * @brief Minmod limiter for two arguments.
@@ -60,11 +60,11 @@ private:
      * @param b Second slope candidate.
      * @return Limited slope.
      */
-    static double minmod(double a, double b);
-    static double mc(double a, double b);
-    static double superbee(double a, double b);
+    static auto Minmod(double a, double b) -> double;
+    static auto Mc(double a, double b) -> double;
+    static auto Superbee(double a, double b) -> double;
 
-    double apply_limiter(double a, double b) const;
+    [[nodiscard]] auto ApplyLimiter(double a, double b) const -> double;
 };
 
 #endif  // P1RECONSTRUCTION_HPP

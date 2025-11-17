@@ -1,9 +1,9 @@
 #include "bc/ReflectiveBoundary.hpp"
+
 #include "data/DataLayer.hpp"
 
-
-void ReflectiveBoundary::Apply(DataLayer &layer, int axis, Side side) const {
-    (void) axis;
+void ReflectiveBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    (void)axis;
 
     const int pad = layer.GetPadding();
     const int core_start = layer.GetCoreStart();

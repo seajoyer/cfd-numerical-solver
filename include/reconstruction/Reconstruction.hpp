@@ -23,7 +23,7 @@
  *    and works naturally with SoA storage (DataLayer).
  */
 class Reconstruction {
-public:
+   public:
     virtual ~Reconstruction() = default;
 
     /**
@@ -39,10 +39,9 @@ public:
      * @param leftState      Output: left primitive state at the interface.
      * @param rightState     Output: right primitive state at the interface.
      */
-    virtual void ComputeInterfaceStates(const DataLayer& layer,
-                                        int interfaceIndex,
-                                        Primitive& leftState,
-                                        Primitive& rightState) const = 0;
+    virtual void ComputeInterfaceStates(const DataLayer& layer, int interface_index,
+                                        Primitive& left_state,
+                                        Primitive& right_state) const = 0;
 };
 
 #endif  // RECONSTRUCTION_HPP

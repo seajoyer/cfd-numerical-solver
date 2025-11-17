@@ -1,8 +1,6 @@
 #include "data/DataLayer.hpp"
 
-
-DataLayer::DataLayer(const int N, const int padding)
-    : n_(N), n_ghost_cells_(padding) {
+DataLayer::DataLayer(const int N, const int padding) : n_(N), n_ghost_cells_(padding) {
     if (N <= 0) {
         throw std::invalid_argument("Number of cells N must be positive");
     }
@@ -78,16 +76,16 @@ void DataLayer::Allocate1D() {
 }
 
 auto DataLayer::GetCoreStart(const int axis) const -> int {
-    (void)axis; // Currently unused for 1D
+    (void)axis;  // Currently unused for 1D
     return n_ghost_cells_;
 }
 
 auto DataLayer::GetCoreEndExclusive(const int axis) const -> int {
-    (void)axis; // Currently unused for 1D
+    (void)axis;  // Currently unused for 1D
     return n_ghost_cells_ + n_;
 }
 
-Primitive DataLayer::GetPrimitive(const int i) const {
+auto DataLayer::GetPrimitive(const int i) const -> Primitive {
     Primitive w;
     w.rho = rho(i);
     w.u = u(i);

@@ -1,5 +1,4 @@
 #include "output/VTKWriter.hpp"
-#include "data/DataLayer.hpp"
 
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
@@ -9,14 +8,16 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
 #include <stdexcept>
+
+#include "data/DataLayer.hpp"
 
 // PIMPL implementation
 class VTKWriter::Impl {
-public:
+   public:
     vtkSmartPointer<vtkStructuredGrid> structured_grid;
     vtkSmartPointer<vtkPoints> points;
 
@@ -36,14 +37,14 @@ VTKWriter::~VTKWriter() = default;
 
 auto VTKWriter::GenerateFilename(int N, std::size_t step) const -> std::string {
     std::ostringstream oss;
-    oss << output_dir_ << "/N_" << N << "__step_" 
-        << std::setw(4) << std::setfill('0') << step << ".vtk";
+    oss << output_dir_ << "/N_" << N << "__step_" << std::setw(4) << std::setfill('0')
+        << step << ".vtk";
     return oss.str();
 }
 
 void VTKWriter::Write(const DataLayer& layer, std::size_t step, double time) const {
     const int dim = layer.GetDim();
-    
+
     switch (dim) {
         case 1:
             Write1D(layer, step, time);
@@ -63,13 +64,14 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     const int N = layer.GetN();
     const int start = layer.GetCoreStart();
     const int end = layer.GetCoreEndExclusive();
-    
+
     // Fix: Use actual core size for nx
     const int nx = end - start;
     if (nx <= 0) {
-        throw std::runtime_error("Invalid core range: start=" + std::to_string(start) + ", end=" + std::to_string(end));
+        throw std::runtime_error("Invalid core range: start=" + std::to_string(start) +
+                                 ", end=" + std::to_string(end));
     }
-    
+
     // Generate filename
     std::string filename = GenerateFilename(N, step);
 
@@ -100,7 +102,8 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
             for (int i = 0; i < nx; ++i) {
                 double x = layer.xc(start + i);
                 double z = 0.0;
-                auto pid = static_cast<vtkIdType>(i + j * nx) + static_cast<vtkIdType>(k * nx * ny);
+                auto pid = static_cast<vtkIdType>(i + j * nx) +
+                           static_cast<vtkIdType>(k * nx * ny);
                 points->SetPoint(pid, x, y, z);
             }
         }
@@ -108,7 +111,8 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     grid->SetPoints(points);
 
     // Helper lambda to add scalar field (repeated along Y)
-    auto add_scalar_field = [&](const xt::xarray<double>& data, const char* name) -> void {
+    auto add_scalar_field = [&](const xt::xarray<double>& data,
+                                const char* name) -> void {
         vtkSmartPointer<vtkDoubleArray> array = vtkSmartPointer<vtkDoubleArray>::New();
         array->SetName(name);
         array->SetNumberOfComponents(1);
@@ -118,7 +122,8 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
                 for (int i = 0; i < nx; ++i) {
                     const int idx = start + i;
                     double val = data(idx);
-                    auto pid = static_cast<vtkIdType>(i + j * nx) + static_cast<vtkIdType>(k * nx * ny);
+                    auto pid = static_cast<vtkIdType>(i + j * nx) +
+                               static_cast<vtkIdType>(k * nx * ny);
                     array->SetValue(pid, val);
                 }
             }
@@ -146,7 +151,7 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     grid->GetFieldData()->AddArray(time_array);
 
     // Write to file
-    vtkSmartPointer<vtkStructuredGridWriter> writer = 
+    vtkSmartPointer<vtkStructuredGridWriter> writer =
         vtkSmartPointer<vtkStructuredGridWriter>::New();
     writer->SetFileName(filename.c_str());
     writer->SetInputData(grid);
@@ -154,7 +159,7 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     writer->Write();
 
     // std::cout << ">>> Wrote VTK file: " << filename
-              // << " (step=" << step << ", time=" << time << ")" << '\r';
+    // << " (step=" << step << ", time=" << time << ")" << '\r';
 }
 
 void VTKWriter::Write2D(const DataLayer& layer, std::size_t step, double time) const {

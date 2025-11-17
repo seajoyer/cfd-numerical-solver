@@ -11,7 +11,7 @@ struct State {
     double a;
 };
 
-auto make_state(const Primitive& w, double gamma) -> State {
+auto MakeState(const Primitive& w, double gamma) -> State {
     State s;
     s.rho = w.rho;
     s.u = w.u;
@@ -22,26 +22,26 @@ auto make_state(const Primitive& w, double gamma) -> State {
 
 // ================= Phi_k(p) and derivatives (Toro) =================
 
-auto phi_rarefaction(double p, const State& s, double gamma) -> double {
+auto PhiRarefaction(double p, const State& s, double gamma) -> double {
     const double pr = p / s.p;
     const double exp = (gamma - 1.0) / (2.0 * gamma);
     return 2.0 * s.a / (gamma - 1.0) * (std::pow(pr, exp) - 1.0);
 }
 
-auto phi_rarefaction_derivative(double p, const State& s, double gamma) -> double {
+auto PhiRarefactionDerivative(double p, const State& s, double gamma) -> double {
     const double pr = p / s.p;
     const double exp = (gamma - 1.0) / (2.0 * gamma);
     const double coeff = (2.0 * s.a / (gamma - 1.0)) * (exp / s.p);
     return coeff * std::pow(pr, exp - 1.0);
 }
 
-auto phi_shock(double p, const State& s, double gamma) -> double {
+auto PhiShock(double p, const State& s, double gamma) -> double {
     const double a = 2.0 / ((gamma + 1.0) * s.rho);
     const double b = (gamma - 1.0) / (gamma + 1.0) * s.p;
     return (p - s.p) * std::sqrt(a / (p + b));
 }
 
-auto phi_shock_derivative(double p, const State& s, double gamma) -> double {
+auto PhiShockDerivative(double p, const State& s, double gamma) -> double {
     const double a = 2.0 / ((gamma + 1.0) * s.rho);
     const double b = (gamma - 1.0) / (gamma + 1.0) * s.p;
     const double sqrt_term = std::sqrt(a / (p + b));
@@ -49,25 +49,20 @@ auto phi_shock_derivative(double p, const State& s, double gamma) -> double {
     return sqrt_term * (1.0 - term);
 }
 
-auto side_phi(double p, const State& s, double gamma) -> double {
-    return p <= s.p ? phi_rarefaction(p, s, gamma) : phi_shock(p, s, gamma);
+auto SidePhi(double p, const State& s, double gamma) -> double {
+    return p <= s.p ? PhiRarefaction(p, s, gamma) : PhiShock(p, s, gamma);
 }
 
-auto side_phi_derivative(double p, const State& s, double gamma) -> double {
-    return p <= s.p
-               ? phi_rarefaction_derivative(p, s, gamma)
-               : phi_shock_derivative(p, s, gamma);
+auto SidePhiDerivative(double p, const State& s, double gamma) -> double {
+    return p <= s.p ? PhiRarefactionDerivative(p, s, gamma)
+                    : PhiShockDerivative(p, s, gamma);
 }
 
 // ================= Initial guess (PVRS / TRRS / TSRS) =================
 
-auto initial_guess(const State& l,
-                   const State& r,
-                   double Q_user,
-                   double gamma) -> double {
+auto InitialGuess(const State& l, const State& r, double Q_user, double gamma) -> double {
     const double p_pvrs =
-        0.5 * (l.p + r.p)
-        - 0.125 * (r.u - l.u) * (l.rho + r.rho) * (l.a + r.a);
+        0.5 * (l.p + r.p) - 0.125 * (r.u - l.u) * (l.rho + r.rho) * (l.a + r.a);
 
     const double p_min = std::min(l.p, r.p);
     const double p_max = std::max(l.p, r.p);
@@ -83,63 +78,57 @@ auto initial_guess(const State& l,
     // Two-rarefaction
     if (p_pvrs <= p_min) {
         const double z = (gamma - 1.0) / (2.0 * gamma);
-        const double num =
-            l.a + r.a - 0.5 * (gamma - 1.0) * (r.u - l.u);
-        const double den =
-            l.a / std::pow(l.p, z) +
-            r.a / std::pow(r.p, z);
+        const double num = l.a + r.a - 0.5 * (gamma - 1.0) * (r.u - l.u);
+        const double den = l.a / std::pow(l.p, z) + r.a / std::pow(r.p, z);
         p_star = std::pow(num / den, 1.0 / z);
         return std::max(p_star, 1e-16);
     }
 
     // Two-shock
-    const auto a = [gamma](const State& s) {
+    const auto a = [gamma](const State& s) -> double {
         return 2.0 / ((gamma + 1.0) * s.rho);
     };
-    const auto b = [gamma](const State& s) {
+    const auto b = [gamma](const State& s) -> double {
         return (gamma - 1.0) / (gamma + 1.0) * s.p;
     };
-    const auto g = [&](const State& s) {
+    const auto g = [&](const State& s) -> double {
         return std::sqrt(a(s) / (p_pvrs + b(s)));
     };
 
     const double g_l = g(l);
     const double g_r = g(r);
 
-    p_star =
-        (g_l * l.p + g_r * r.p - (r.u - l.u)) / (g_l + g_r);
+    p_star = (g_l * l.p + g_r * r.p - (r.u - l.u)) / (g_l + g_r);
 
     return std::max(p_star, 1e-16);
 }
 
 // ================= Solve p* (with correct vacuum check) =================
 
-auto solve_star_pressure(const State& l,
-                         const State& r,
-                         double gamma,
-                         double q_user) -> double {
+auto SolveStarPressure(const State& l, const State& r, double gamma, double q_user)
+    -> double {
     // Correct vacuum condition:
     // u_R - u_L >= 2 (a_L + a_R) / (gamma - 1)
     const double du = r.u - l.u;
     const double crit = 2.0 * (l.a + r.a) / (gamma - 1.0);
     if (du >= crit) {
-        return 0.0; // vacuum (double rarefaction)
+        return 0.0;  // vacuum (double rarefaction)
     }
 
-    double p = initial_guess(l, r, q_user, gamma);
+    double p = InitialGuess(l, r, q_user, gamma);
     const double p_min = 1e-16;
 
     for (int iter = 0; iter < 40; ++iter) {
-        const double f_l = side_phi(p, l, gamma);
-        const double f_r = side_phi(p, r, gamma);
+        const double f_l = SidePhi(p, l, gamma);
+        const double f_r = SidePhi(p, r, gamma);
         const double f = f_l + f_r + (r.u - l.u);
 
         if (std::fabs(f) < 1e-10) {
             break;
         }
 
-        const double d_l = side_phi_derivative(p, l, gamma);
-        const double d_r = side_phi_derivative(p, r, gamma);
+        const double d_l = SidePhiDerivative(p, l, gamma);
+        const double d_r = SidePhiDerivative(p, r, gamma);
         const double df = d_l + d_r;
 
         if (df == 0.0 || !std::isfinite(df)) {
@@ -161,7 +150,7 @@ auto solve_star_pressure(const State& l,
     }
 
     if (!std::isfinite(p) || p <= 0.0) {
-        return 0.0; // treat as vacuum/failure
+        return 0.0;  // treat as vacuum/failure
     }
 
     return p;
@@ -170,10 +159,7 @@ auto solve_star_pressure(const State& l,
 // ================= Sampling helpers =================
 
 // --- Vacuum / double rarefaction sampling
-auto sample_vacuum(double xi,
-                   const State& l,
-                   const State& r,
-                   double gamma) -> Primitive {
+auto SampleVacuum(double xi, const State& l, const State& r, double gamma) -> Primitive {
     const double a_l = l.a;
     const double a_r = r.a;
 
@@ -194,18 +180,16 @@ auto sample_vacuum(double xi,
     if (xi > shl && xi < svl) {
         const double u = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * l.u + xi);
         const double a = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * (l.u - xi));
-        const double rho =
-            l.rho * std::pow(a / a_l, 2.0 / (gamma - 1.0));
-        const double p =
-            l.p * std::pow(a / a_l, 2.0 * gamma / (gamma - 1.0));
+        const double rho = l.rho * std::pow(a / a_l, 2.0 / (gamma - 1.0));
+        const double p = l.p * std::pow(a / a_l, 2.0 * gamma / (gamma - 1.0));
         return Primitive{rho, u, p};
     }
 
     // Right fan (corrected)
     if (xi > svr && xi < shr) {
         const double u = 2.0 / (gamma + 1.0) * (-a_r + 0.5 * (gamma - 1.0) * r.u + xi);
-        const double a = 2.0 / (gamma + 1.0) * (a_r - 0.5 * (gamma - 1.0) * r.u
-                                                + 0.5 * (gamma - 1.0) * xi);
+        const double a = 2.0 / (gamma + 1.0) *
+                         (a_r - 0.5 * (gamma - 1.0) * r.u + 0.5 * (gamma - 1.0) * xi);
         const double rho = r.rho * std::pow(a / a_r, 2.0 / (gamma - 1.0));
         const double p = r.p * std::pow(a / a_r, 2.0 * gamma / (gamma - 1.0));
         return Primitive{rho, u, p};
@@ -216,27 +200,20 @@ auto sample_vacuum(double xi,
 }
 
 // --- Non-vacuum standard Riemann fan
-auto sample_non_vacuum(double xi,
-                       double p_star,
-                       double u_star,
-                       const State& l,
-                       const State& r,
-                       double gamma) -> Primitive {
+auto SampleNonVacuum(double xi, double p_star, double u_star, const State& l,
+                     const State& r, double gamma) -> Primitive {
     // LEFT of contact
     if (xi <= u_star) {
         if (p_star > l.p) {
             // Left shock
             const double q = p_star / l.p;
-            const double sl =
-                l.u - l.a * std::sqrt(
-                    0.5 * ((gamma + 1.0) / gamma * q +
-                           (gamma - 1.0) / gamma));
+            const double sl = l.u - l.a * std::sqrt(0.5 * ((gamma + 1.0) / gamma * q +
+                                                           (gamma - 1.0) / gamma));
             if (xi <= sl) {
                 return Primitive{l.rho, l.u, l.p};
             }
-            const double factor =
-                (q + (gamma - 1.0) / (gamma + 1.0)) /
-                ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+            const double factor = (q + (gamma - 1.0) / (gamma + 1.0)) /
+                                  ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
             const double rho_star_l = l.rho * factor;
             return Primitive{rho_star_l, u_star, p_star};
         }
@@ -255,8 +232,7 @@ auto sample_non_vacuum(double xi,
         }
 
         const double u = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * l.u + xi);
-        const double a = 2.0 / (gamma + 1.0) *
-                         (a_l + 0.5 * (gamma - 1.0) * (l.u - xi));
+        const double a = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * (l.u - xi));
         const double rho = l.rho * std::pow(a / a_l, 2.0 / (gamma - 1.0));
         const double p = l.p * std::pow(a / a_l, 2.0 * gamma / (gamma - 1.0));
         return Primitive{rho, u, p};
@@ -267,15 +243,13 @@ auto sample_non_vacuum(double xi,
         // Right shock
         const double q = p_star / r.p;
         const double sr =
-            r.u + r.a * std::sqrt(
-                0.5 * ((gamma + 1.0) / gamma * q +
-                       (gamma - 1.0) / gamma));
+            r.u +
+            r.a * std::sqrt(0.5 * ((gamma + 1.0) / gamma * q + (gamma - 1.0) / gamma));
         if (xi >= sr) {
             return Primitive{r.rho, r.u, r.p};
         }
-        const double factor =
-            (q + (gamma - 1.0) / (gamma + 1.0)) /
-            ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+        const double factor = (q + (gamma - 1.0) / (gamma + 1.0)) /
+                              ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
         const double rho_star_r = r.rho * factor;
         return Primitive{rho_star_r, u_star, p_star};
     }
@@ -284,10 +258,8 @@ auto sample_non_vacuum(double xi,
     const double a_r = r.a;
     const double shr = r.u + a_r;
 
-    const double rho_star_r =
-        r.rho * std::pow(p_star / r.p, 1.0 / gamma);
-    const double a_star_r =
-        std::sqrt(gamma * p_star / rho_star_r);
+    const double rho_star_r = r.rho * std::pow(p_star / r.p, 1.0 / gamma);
+    const double a_star_r = std::sqrt(gamma * p_star / rho_star_r);
     const double str = u_star + a_star_r;
 
     if (xi >= shr) {
@@ -301,51 +273,44 @@ auto sample_non_vacuum(double xi,
 
     // Self-similar right rarefaction fan between STR and SHR
     const double u = 2.0 / (gamma + 1.0) * (-a_r + 0.5 * (gamma - 1.0) * r.u + xi);
-    const double a = 2.0 / (gamma + 1.0) * (a_r - 0.5 * (gamma - 1.0) * r.u
-                                            + 0.5 * (gamma - 1.0) * xi);
+    const double a = 2.0 / (gamma + 1.0) *
+                     (a_r - 0.5 * (gamma - 1.0) * r.u + 0.5 * (gamma - 1.0) * xi);
     const double rho = r.rho * std::pow(a / a_r, 2.0 / (gamma - 1.0));
     const double p = r.p * std::pow(a / a_r, 2.0 * gamma / (gamma - 1.0));
     return Primitive{rho, u, p};
 }
-} // namespace
+}  // namespace
 
 // ================= Public methods =================
 
-ExactIdealGasRiemannSolver::ExactIdealGasRiemannSolver() : xi_(0.0) {
-}
+ExactIdealGasRiemannSolver::ExactIdealGasRiemannSolver() : xi_(0.0) {}
 
-void ExactIdealGasRiemannSolver::SetXi(double xi) {
-    xi_ = xi;
-}
+void ExactIdealGasRiemannSolver::SetXi(double xi) { xi_ = xi; }
 
-void ExactIdealGasRiemannSolver::SetQ(double Q) {
-    Q_user_ = Q;
-}
+void ExactIdealGasRiemannSolver::SetQ(double Q) { Q_user_ = Q; }
 
-auto ExactIdealGasRiemannSolver::Sample(const Primitive& left,
-                                        const Primitive& right,
-                                        double gamma,
-                                        double xi) const -> Primitive {
-    const State l = make_state(left, gamma);
-    const State r = make_state(right, gamma);
+auto ExactIdealGasRiemannSolver::Sample(const Primitive& left, const Primitive& right,
+                                        double gamma, double xi) const -> Primitive {
+    const State l = MakeState(left, gamma);
+    const State r = MakeState(right, gamma);
 
-    const double p_star = solve_star_pressure(l, r, gamma, Q_user_);
+    const double p_star = SolveStarPressure(l, r, gamma, Q_user_);
 
     // Vacuum / double rarefaction handled separately
     if (p_star <= 0.0) {
-        return sample_vacuum(xi, l, r, gamma);
+        return SampleVacuum(xi, l, r, gamma);
     }
 
-    const double f_l = side_phi(p_star, l, gamma);
-    const double f_r = side_phi(p_star, r, gamma);
+    const double f_l = SidePhi(p_star, l, gamma);
+    const double f_r = SidePhi(p_star, r, gamma);
     const double u_star = 0.5 * (l.u + r.u + f_r - f_l);
 
-    return sample_non_vacuum(xi, p_star, u_star, l, r, gamma);
+    return SampleNonVacuum(xi, p_star, u_star, l, r, gamma);
 }
 
 auto ExactIdealGasRiemannSolver::ComputeFlux(const Primitive& left,
-                                             const Primitive& right,
-                                             double gamma) const -> Flux {
+                                             const Primitive& right, double gamma) const
+    -> Flux {
     const Primitive sample = Sample(left, right, gamma, xi_);
 
     return EulerFlux(sample, gamma);

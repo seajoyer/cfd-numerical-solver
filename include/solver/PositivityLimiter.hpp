@@ -2,7 +2,6 @@
 #define POSITIVITYLIMITER_HPP
 
 #include "data/Variables.hpp"
-#include "EOS.hpp"
 
 /**
  * @class PositivityLimiter
@@ -13,7 +12,7 @@
  * equations. Intended as a safety net after numerical updates.
  */
 class PositivityLimiter {
-public:
+   public:
     /**
      * @brief Applies positivity corrections to a conservative state.
      *
@@ -26,10 +25,7 @@ public:
      * @param rhoMin Minimal allowed density.
      * @param pMin Minimal allowed pressure.
      */
-    static void Apply(Conservative &u,
-                      double gamma,
-                      double rhoMin,
-                      double pMin);
+    static void Apply(Conservative& u, double gamma, double rho_min, double p_min);
 };
 
 #endif  // POSITIVITYLIMITER_HPP

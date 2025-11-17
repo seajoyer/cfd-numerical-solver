@@ -1,8 +1,6 @@
 #ifndef VARIABLES_HPP
 #define VARIABLES_HPP
 
-#include <cstddef>
-
 /**
  * @class Primitive
  * @brief Primitive (physical) state for the 1D Euler equations.
@@ -15,9 +13,9 @@
  *  - P:   thermodynamic pressure
  */
 struct Primitive {
-    double rho; ///< Density
-    double u; ///< Velocity in x-direction
-    double P; ///< Thermodynamic pressure
+    double rho;  ///< Density
+    double u;    ///< Velocity in x-direction
+    double P;    ///< Thermodynamic pressure
 
     /**
      * @brief Constructs a zero-initialized primitive state.
@@ -45,9 +43,9 @@ struct Primitive {
  *  - E:    total energy density
  */
 struct Conservative {
-    double rho; ///< Mass density
-    double rhoU; ///< Momentum density in x-direction
-    double E; ///< Total energy density
+    double rho;   ///< Mass density
+    double rhoU;  ///< Momentum density in x-direction
+    double E;     ///< Total energy density
 
     /**
      * @brief Constructs a zero-initialized conservative state.
@@ -76,9 +74,9 @@ struct Conservative {
  *  - energy:   energy flux
  */
 struct Flux {
-    double mass; ///< Mass flux
-    double momentum; ///< Momentum flux
-    double energy; ///< Energy flux
+    double mass;      ///< Mass flux
+    double momentum;  ///< Momentum flux
+    double energy;    ///< Energy flux
 
     /**
      * @brief Constructs a zero-initialized flux.
@@ -94,7 +92,6 @@ struct Flux {
      */
     Flux(double m, double mu, double e);
 
-
     /**
      * @brief Component-wise difference of two fluxes.
      *
@@ -104,7 +101,7 @@ struct Flux {
      * @param Fminus Downwind / left flux.
      * @return Component-wise difference Fplus - Fminus.
      */
-    static Flux Diff(const Flux& Fplus, const Flux& Fminus);
+    static auto Diff(const Flux& Fplus, const Flux& Fminus) -> Flux;
 };
 
 /**
@@ -125,7 +122,7 @@ struct Flux {
  * @param gamma Ratio of specific heats.
  * @return Flux vector (mass, momentum, energy).
  */
-Flux EulerFlux(const Primitive& state, double gamma);
+auto EulerFlux(const Primitive& state, double gamma) -> Flux;
 
 /**
  * @brief Converts primitive variables to conservative variables.
@@ -138,7 +135,7 @@ Flux EulerFlux(const Primitive& state, double gamma);
  * @param gamma Ratio of specific heats.
  * @return Conservative state (rho, rhoU, E).
  */
-Conservative ToConservative(const Primitive& w, double gamma);
+auto ToConservative(const Primitive& w, double gamma) -> Conservative;
 
 /**
  * @brief Converts conservative variables to primitive variables.
@@ -155,40 +152,40 @@ Conservative ToConservative(const Primitive& w, double gamma);
  * @param gamma Ratio of specific heats.
  * @return Primitive state (rho, u, P).
  */
-Primitive ToPrimitive(const Conservative& U, double gamma);
+auto ToPrimitive(const Conservative& U, double gamma) -> Primitive;
 
 /// --- Small algebra helpers for Conservative ---
 
-Conservative& operator+=(Conservative& a, const Conservative& b);
-Conservative& operator-=(Conservative& a, const Conservative& b);
-Conservative operator+(Conservative a, const Conservative& b);
-Conservative operator-(Conservative a, const Conservative& b);
-Conservative& operator*=(Conservative& a, double s);
-Conservative operator*(Conservative a, double s);
-Conservative operator*(double s, Conservative a);
-Conservative& operator-=(Conservative& u, const Flux& f);
-Conservative operator-(Conservative u, const Flux& f);
+auto operator+=(Conservative& a, const Conservative& b) -> Conservative&;
+auto operator-=(Conservative& a, const Conservative& b) -> Conservative&;
+auto operator+(Conservative a, const Conservative& b) -> Conservative;
+auto operator-(Conservative a, const Conservative& b) -> Conservative;
+auto operator*=(Conservative& a, double s) -> Conservative&;
+auto operator*(Conservative a, double s) -> Conservative;
+auto operator*(double s, Conservative a) -> Conservative;
+auto operator-=(Conservative& u, const Flux& f) -> Conservative&;
+auto operator-(Conservative u, const Flux& f) -> Conservative;
 
 /// --- Small algebra helpers for Flux ---
 
-Flux& operator+=(Flux& a, const Flux& b);
-Flux& operator-=(Flux& a, const Flux& b);
-Flux operator+(Flux a, const Flux& b);
-Flux operator-(Flux a, const Flux& b);
-Flux& operator*=(Flux& a, double s);
-Flux operator*(Flux a, double s);
-Flux operator*(double s, Flux a);
-Flux& operator+=(Flux& f, const Conservative& u);
-Flux operator+(Flux f, const Conservative& u);
+auto operator+=(Flux& a, const Flux& b) -> Flux&;
+auto operator-=(Flux& a, const Flux& b) -> Flux&;
+auto operator+(Flux a, const Flux& b) -> Flux;
+auto operator-(Flux a, const Flux& b) -> Flux;
+auto operator*=(Flux& a, double s) -> Flux&;
+auto operator*(Flux a, double s) -> Flux;
+auto operator*(double s, Flux a) -> Flux;
+auto operator+=(Flux& f, const Conservative& u) -> Flux&;
+auto operator+(Flux f, const Conservative& u) -> Flux;
 
 /// --- Small algebra helpers for Primitive (useful in reconstruction) ---
 
-Primitive& operator+=(Primitive& a, const Primitive& b);
-Primitive& operator-=(Primitive& a, const Primitive& b);
-Primitive operator+(Primitive a, const Primitive& b);
-Primitive operator-(Primitive a, const Primitive& b);
-Primitive& operator*=(Primitive& a, double s);
-Primitive operator*(Primitive a, double s);
-Primitive operator*(double s, Primitive a);
+auto operator+=(Primitive& a, const Primitive& b) -> Primitive&;
+auto operator-=(Primitive& a, const Primitive& b) -> Primitive&;
+auto operator+(Primitive a, const Primitive& b) -> Primitive;
+auto operator-(Primitive a, const Primitive& b) -> Primitive;
+auto operator*=(Primitive& a, double s) -> Primitive&;
+auto operator*(Primitive a, double s) -> Primitive;
+auto operator*(double s, Primitive a) -> Primitive;
 
 #endif  // VARIABLES_HPP

@@ -14,7 +14,7 @@
  * without coupling the Simulation class to specific solver implementations.
  */
 class SolverFactory {
-public:
+   public:
     /**
      * @brief Creates a solver instance based on the solver type string.
      *
@@ -22,7 +22,7 @@ public:
      * @return Unique pointer to the created solver.
      * @throws std::runtime_error if solver type is not recognized.
      */
-    static auto Create(Settings &settings) -> std::unique_ptr<Solver>;
+    static auto Create(Settings& settings) -> std::unique_ptr<Solver>;
 };
 
 #endif  // SOLVERFACTORY_HPP

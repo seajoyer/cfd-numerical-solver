@@ -19,10 +19,10 @@ struct DataLayer;
  *       without depending on the underlying file format.
  */
 class StepWriter {
-public:
+   public:
     virtual ~StepWriter() = default;
 
-    virtual void Write(const DataLayer &layer, std::size_t step, double time) const = 0;
+    virtual void Write(const DataLayer& layer, std::size_t step, double time) const = 0;
 };
 
-#endif // STEPWRITER_HPP
+#endif  // STEPWRITER_HPP

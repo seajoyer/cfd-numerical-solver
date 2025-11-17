@@ -26,7 +26,7 @@
  * @see InletBoundary
  */
 class NonReflectiveBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies non-reflective boundary condition along the specified axis.
      *
@@ -42,7 +42,7 @@ public:
      *       Future extensions may compute characteristic wave propagation
      *       using local sound speed and flow direction.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // NONREFLECTINGBOUNDARY_HPP
+#endif  // NONREFLECTINGBOUNDARY_HPP

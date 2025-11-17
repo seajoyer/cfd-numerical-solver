@@ -22,7 +22,7 @@
  * @see OutletBoundary
  */
 class PeriodicBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies the periodic boundary condition along a specified axis.
      *
@@ -36,7 +36,7 @@ public:
      * @note Currently implemented for 1D grids. For higher dimensions, the same logic
      *       will be applied independently along each coordinate direction.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // PERIODICBOUNDARY_HPP
+#endif  // PERIODICBOUNDARY_HPP

@@ -14,7 +14,7 @@
  * All functions are stateless: the value of gamma is passed explicitly.
  */
 class EOS {
-public:
+   public:
     /**
      * @brief Converts primitive to conservative variables.
      *
@@ -22,7 +22,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Conservative variables (rho, rhoU, E).
      */
-    static auto PrimToCons(const Primitive &w, double gamma) -> Conservative;
+    static auto PrimToCons(const Primitive& w, double gamma) -> Conservative;
 
     /**
      * @brief Converts conservative to primitive variables.
@@ -31,7 +31,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Primitive variables (rho, u, P).
      */
-    static auto ConsToPrim(const Conservative &u, double gamma) -> Primitive;
+    static auto ConsToPrim(const Conservative& u, double gamma) -> Primitive;
 
     /**
      * @brief Computes thermodynamic pressure from conservative variables.
@@ -43,7 +43,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Pressure P.
      */
-    static auto Pressure(const Conservative &u, double gamma) -> double;
+    static auto Pressure(const Conservative& u, double gamma) -> double;
 
     /**
      * @brief Computes the speed of sound from primitive variables.
@@ -55,7 +55,7 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Speed of sound.
      */
-    static auto SoundSpeed(const Primitive &w, double gamma) -> double;
+    static auto SoundSpeed(const Primitive& w, double gamma) -> double;
 };
 
 #endif  // EOS_HPP

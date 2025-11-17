@@ -2,13 +2,10 @@
 
 #include "bc/BoundaryCondition.hpp"
 
-// TODO: implement support of multiple dimensions
-
 BoundaryManager::BoundaryManager(int dim) : axes_(static_cast<std::size_t>(dim)) {}
 
 void BoundaryManager::Set(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                           std::shared_ptr<BoundaryCondition> right_bc) {
-
     auto idx = static_cast<std::size_t>(axis);
 
     axes_.at(idx).left_bc = std::move(left_bc);

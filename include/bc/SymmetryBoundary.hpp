@@ -24,7 +24,7 @@
  * @see WallBoundary
  */
 class SymmetryBoundary : public BoundaryCondition {
-public:
+   public:
     /**
      * @brief Applies symmetry boundary condition along a specified axis.
      *
@@ -38,7 +38,7 @@ public:
      * @note For 1D cases, this operation is equivalent to a reflective boundary.
      *       For higher dimensions, the logic extends to the axis normal direction.
      */
-    void Apply(DataLayer &layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, int axis, Side side) const override;
 };
 
-#endif // SYMMETRYBOUNDARY_HPP
+#endif  // SYMMETRYBOUNDARY_HPP

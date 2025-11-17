@@ -1,12 +1,14 @@
 #include "solver/SolverFactory.hpp"
-#include "solver/GodunovKolganRodionovSolver.hpp"
-#include "solver/GodunovSolver.hpp"
-#include "solver/AnalyticalSolver.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
 
-auto SolverFactory::Create(Settings &settings) -> std::unique_ptr<Solver> {
+#include "solver/AnalyticalSolver.hpp"
+#include "solver/GodunovKolganRodionovSolver.hpp"
+#include "solver/GodunovSolver.hpp"
+
+auto SolverFactory::Create(Settings& settings) -> std::unique_ptr<Solver> {
     // Convert to lowercase for case-insensitive comparison
     std::string type_lower = settings.solver;
     std::transform(type_lower.begin(), type_lower.end(), type_lower.begin(),

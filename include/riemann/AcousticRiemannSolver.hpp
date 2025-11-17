@@ -1,10 +1,10 @@
 #ifndef ACOUSTICRIEMANNSOLVER_HPP
 #define ACOUSTICRIEMANNSOLVER_HPP
 
-#include "riemann/RiemannSolver.hpp"
-#include "data/Variables.hpp"
-
 #include <cmath>
+
+#include "data/Variables.hpp"
+#include "riemann/RiemannSolver.hpp"
 
 /**
  * @class AcousticRiemannSolver
@@ -29,12 +29,12 @@
  *     Z_L = \rho_L c_L, \qquad Z_R = \rho_R c_R .
  *   @f]
  *
- * Линеаризованный (акустический) Riemann-решатель для системы
+ * The linearized (acoustic) Riemann solver for the system
  * @f[
  *   p_t + Z_0 c_0 u_x = 0, \qquad
  *   u_t + \frac{1}{Z_0} p_x = 0
  * @f]
- * даёт значения в точке интерфейса @f$\xi = x/t = 0@f$
+ * yields values at the interface point @f$\xi = x/t = 0@f$
  *
  *   @f[
  *     u^* = \frac{Z_L u_L + Z_R u_R + (p_L - p_R)}{Z_L + Z_R},
@@ -45,33 +45,33 @@
  *                {Z_L + Z_R}.
  *   @f]
  *
- * Далее плотность на каждой стороне восстанавливается из линейной
- * связи @f$p' = c^2 \rho'@f$:
+ * Next, the density on each side is recovered from the linear
+ * relationship @f$p' = c^2 \rho'@f$:
  *
  *   @f[
  *     \rho_L^* = \rho_L + \frac{p^* - p_L}{c_L^2}, \qquad
  *     \rho_R^* = \rho_R + \frac{p^* - p_R}{c_R^2},
  *   @f]
  *
- * и интерфейсная плотность берётся как среднее
+ * and the interface density is taken as the average
  *
  *   @f[
  *     \rho^* = \tfrac12(\rho_L^* + \rho_R^*).
  *   @f]
  *
- * Наконец, численный поток вычисляется как обычный эйлеровский
- * поток в точке @f$(\rho^*, u^*, p^*)@f$:
+ * Finally, the numerical flux is computed as the usual Euler
+ * flux at the point @f$(\rho^*, u^*, p^*)@f$:
  *
  *   @f[
  *     F^* = F_{\text{Euler}}(\rho^*, u^*, p^*).
  *   @f]
  *
- * Этот подход корректен только для «слабых» возмущений и служит
- * учебным примером; для сильных разрывов (Sod) даёт грубую
- * аппроксимацию.
+ * This approach is only correct for "weak" perturbations and serves
+ * as an educational example; for strong discontinuities (Sod) it
+ * provides a rough approximation.
  */
 class AcousticRiemannSolver : public RiemannSolver {
-public:
+   public:
     /**
      * @brief Default constructor.
      *
@@ -83,18 +83,18 @@ public:
     /**
      * @brief Computes the numerical flux using an acoustic approximation.
      *
-     * Алгоритм:
-     *  1. Вычислить @f$c_L, c_R@f$ и импедансы @f$Z_L, Z_R@f$.
-     *  2. Найти интерфейсные значения @f$u^*, p^*@f$ по формулам выше.
-     *  3. Восстановить @f$\rho_L^*, \rho_R^*@f$ из линейной EOS
-     *     @f$p' = c^2\rho'@f$ и взять
+     * Algorithm:
+     *  1. Compute @f$c_L, c_R@f$ and impedances @f$Z_L, Z_R@f$.
+     *  2. Find interface values @f$u^*, p^*@f$ using the formulas above.
+     *  3. Recover @f$\rho_L^*, \rho_R^*@f$ from the linear EOS
+     *     @f$p' = c^2\rho'@f$ and take
      *        @f$\rho^* = 0.5(\rho_L^* + \rho_R^*)@f$.
-     *  4. Собрать примитивное состояние @f$W^* = (\rho^*, u^*, p^*)@f$.
-     *  5. Вернуть @f$F^* = \text{EulerFlux}(W^*, \gamma)@f$.
+     *  4. Assemble the primitive state @f$W^* = (\rho^*, u^*, p^*)@f$.
+     *  5. Return @f$F^* = \text{EulerFlux}(W^*, \gamma)@f$.
      *
-     * Если усреднённое состояние вырождено (неположительные плотность
-     * или давление, нулевые импедансы и т.п.), метод переходит на
-     * простой центральный поток
+     * If the averaged state is degenerate (non-positive density
+     * or pressure, zero impedances, etc.), the method falls back to
+     * a simple central flux
      *
      *   @f[
      *     F = \tfrac12 \bigl( F(W_L) + F(W_R) \bigr).
@@ -105,13 +105,12 @@ public:
      * @param gamma Ratio of specific heats.
      * @return Numerical flux vector through the interface.
      */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left,
-                                   const Primitive& right,
+    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
                                    double gamma) const -> Flux override;
 
-private:
-    double rho_min_; ///< Density floor used when computing sound speed.
-    double p_min_;   ///< Pressure floor used when computing sound speed.
+   private:
+    double rho_min_;  ///< Density floor used when computing sound speed.
+    double p_min_;    ///< Pressure floor used when computing sound speed.
 };
 
 #endif  // ACOUSTICRIEMANNSOLVER_HPP

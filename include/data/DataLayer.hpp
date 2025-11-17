@@ -3,11 +3,8 @@
 
 #include <xtensor/containers/xarray.hpp>
 #include <xtensor/io/xio.hpp>
-#include <stdexcept>
-#include <xtensor/containers/xarray.hpp>
 
 #include "data/Variables.hpp"
-
 
 /**
  * @struct DataLayer
@@ -142,7 +139,7 @@ struct DataLayer {
      * @param i Cell index in the 1D layout (including ghost cells).
      * @return Primitive state at cell i.
      */
-    [[nodiscard]] Primitive GetPrimitive(int i) const;
+    [[nodiscard]] auto GetPrimitive(int i) const -> Primitive;
 
     /**
      * @brief Sets primitive state (rho, u, P) in a given 1D cell.
@@ -154,7 +151,7 @@ struct DataLayer {
      * @param i Cell index in the 1D layout (including ghost cells).
      * @param w Primitive state to store.
      */
-    void SetPrimitive(int i, const Primitive &w);
+    void SetPrimitive(int i, const Primitive& w);
 
    private:
     int n_ = 0;              ///< Number of core cells

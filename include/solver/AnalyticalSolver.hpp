@@ -3,12 +3,10 @@
 
 #include <memory>
 
+#include "../data/Variables.hpp"
 #include "Solver.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-
-#include "../data/Variables.hpp"
-#include "solver/EOS.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
 
 /**
@@ -36,7 +34,7 @@
  *    and t_cur is incremented accordingly.
  */
 class AnalyticalSolver : public Solver {
-public:
+   public:
     /**
      * @brief Constructs an analytical Riemann solver from global settings.
      *
@@ -50,7 +48,7 @@ public:
      *
      * @param settings Global simulation settings (copied internally).
      */
-    explicit AnalyticalSolver(const Settings &settings);
+    explicit AnalyticalSolver(const Settings& settings);
 
     /**
      * @brief Advances (or jumps) the analytical solution in time.
@@ -70,7 +68,7 @@ public:
      * @param t_cur Current simulation time (incremented by dt on return).
      * @return Actual time step taken (dt), or 0.0 if nothing is done.
      */
-    double Step(DataLayer &layer, double &t_cur) override;
+    auto Step(DataLayer& layer, double& t_cur) -> double override;
 
     /**
      * @brief Sets an external time step.
@@ -91,11 +89,10 @@ public:
      *
      * Boundary conditions are not applied; the solution is defined analytically.
      */
-    void AddBoundary(int axis,
-                     std::shared_ptr<BoundaryCondition> left_bc,
+    void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                      std::shared_ptr<BoundaryCondition> right_bc) override;
 
-private:
+   private:
     Settings settings_;
     double gamma_;
     double x0_;
@@ -119,7 +116,7 @@ private:
      * Assumes the initial condition is a Riemann problem with piecewise
      * constant states separated at x0.
      */
-    void InitializeStatesFromLayer(const DataLayer &layer);
+    void InitializeStatesFromLayer(const DataLayer& layer);
 };
 
 #endif  // ANALYTICALSOLVER_HPP
