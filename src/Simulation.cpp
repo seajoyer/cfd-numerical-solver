@@ -10,81 +10,77 @@
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 
-Simulation::Simulation(Settings settings, const InitialConditions &initial_conditions,
-                       const bool log_progress)
-    : settings_(std::move(settings)),
-      initial_conditions_(initial_conditions),
-      log_progress_(log_progress) {
+Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions,
+                       const bool log_progress) :
+    settings_(std::move(settings)),
+    initial_conditions_(initial_conditions),
+    log_progress_(log_progress) {
 }
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
     return SolverFactory::Create(settings_);
 }
 
-auto Simulation::CreateBoundaryCondition(const std::string &boundary_type, double rho_inf,
+auto Simulation::CreateBoundaryCondition(const std::string& boundary_type, double rho_inf,
                                          double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
     return BoundaryFactory::Create(boundary_type, rho_inf, u_inf, p_inf);
 }
 
-auto Simulation::CreateWriter(const std::string &output_format,
-                              const std::string &output_dir)
+auto Simulation::CreateWriter(const std::string& output_format,
+                              const std::string& output_dir)
     -> std::unique_ptr<StepWriter> {
     return WriterFactory::Create(output_format, output_dir);
 }
 
-void Simulation::ApplyInitialConditions() {
-    if (!layer_) {
-        throw std::runtime_error(
-            "DataLayer must be initialized before applying initial conditions");
-    }
+void Simulation::ApplyInitialConditions(DataLayer& layer) {
+    const int n_ghost = layer.GetNGhostCells();
+    const int n = layer.GetN();
+    const int total = layer.GetTotalSize();
 
-    // Get grid parameters
-    const int n_ghost = layer_->GetNGhostCells();
-    const int n = layer_->GetN();
-    const int total_size = layer_->GetTotalSize();
-
-    // Calculate cell positions
     const double dx = settings_.L_x / static_cast<double>(n);
-    const double x_mid = settings_.L_x / 2.0;
+    const double x_mid = settings_.x0;
+    const double gamma = settings_.gamma;
 
-    // Initialize grid coordinates
-    for (int i = 0; i < total_size; ++i) {
+    // Coordinates
+    for (int i = 0; i < total; ++i) {
         const int cell_index = i - n_ghost;
-        layer_->xb(i) = cell_index * dx;
-        layer_->xc(i) = (cell_index + 0.5) * dx;
+        layer.xb(i) = cell_index * dx;
+        layer.xc(i) = (cell_index + 0.5) * dx;
     }
 
-    // Apply left and right states (Riemann problem setup)
-    const int core_start = layer_->GetCoreStart(0);
-    const int core_end = layer_->GetCoreEndExclusive(0);
+    const int core_start = layer.GetCoreStart(0);
+    const int core_end = layer.GetCoreEndExclusive(0);
 
     for (int i = core_start; i < core_end; ++i) {
-        const double x = layer_->xc(i);
+        const double x = layer.xc(i);
 
+        double rho, u, P;
         if (x < x_mid) {
-            // Left state
-            layer_->rho(i) = initial_conditions_.rho_L;
-            layer_->u(i) = initial_conditions_.u_L;
-            layer_->P(i) = initial_conditions_.P_L;
+            rho = initial_conditions_.rho_L;
+            u = initial_conditions_.u_L;
+            P = initial_conditions_.P_L;
         } else {
-            // Right state
-            layer_->rho(i) = initial_conditions_.rho_R;
-            layer_->u(i) = initial_conditions_.u_R;
-            layer_->P(i) = initial_conditions_.P_R;
+            rho = initial_conditions_.rho_R;
+            u = initial_conditions_.u_R;
+            P = initial_conditions_.P_R;
         }
 
-        // Calculate conservative variables and other derived quantities
-        const double rho = layer_->rho(i);
-        const double u = layer_->u(i);
-        const double P = layer_->P(i);
-        const double gamma = settings_.gamma;
+        layer.rho(i) = rho;
+        layer.u(i) = u;
+        layer.P(i) = P;
 
-        layer_->m(i) = rho * dx;                               // mass
-        layer_->e(i) = P / (gamma - 1.0) + 0.5 * rho * u * u;  // total energy
-        layer_->p(i) = rho * u;                                // momentum
-        layer_->U(i) = P / (gamma - 1.0) / rho;                // internal energy
-        layer_->V(i) = 1 / rho;                                // specific volume
+        layer.m(i) = rho * dx;
+        layer.p(i) = rho * u;
+        layer.V(i) = 1.0 / rho;
+
+        const double kinetic = 0.5 * rho * u * u;
+        const double Eint = P / (gamma - 1.0);
+        const double Etot = Eint + kinetic;
+        const double eint = Eint / rho;
+
+        layer.U(i) = eint; // specific internal
+        layer.e(i) = Etot; // total density
     }
 }
 
@@ -95,7 +91,7 @@ void Simulation::Initialize() {
     layer_ = std::make_unique<DataLayer>(settings_.N, settings_.padding, settings_.dim);
 
     // Apply initial conditions
-    ApplyInitialConditions();
+    ApplyInitialConditions(*layer_);
 
     // Initialize solver based on settings
     solver_ = CreateSolver();
@@ -110,8 +106,26 @@ void Simulation::Initialize() {
                                 initial_conditions_.u_R, initial_conditions_.P_R);
     solver_->AddBoundary(0, left_bc, right_bc);
 
-    // Initialize output writer
+    // Initialize output_rodionov writer
     writer_ = CreateWriter(settings_.output_format, settings_.output_dir);
+
+    if (settings_.analytical) {
+        Settings analytical_settings = settings_;
+        analytical_settings.solver = "analytical";
+        analytical_settings.output_dir += "_analytical";
+
+        analytical_layer_ = std::make_unique<DataLayer>(
+            analytical_settings.N,
+            analytical_settings.padding,
+            analytical_settings.dim);
+
+        ApplyInitialConditions(*analytical_layer_);
+
+        analytical_solver_ = SolverFactory::Create(analytical_settings);
+
+        analytical_writer_ = CreateWriter(analytical_settings.output_format,
+                                          analytical_settings.output_dir);
+    }
 
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
@@ -130,14 +144,14 @@ void Simulation::Initialize() {
     std::cout << ">>> Initial conditions:" << '\n';
     std::cout << std::fixed << std::setprecision(4);
     std::cout << ">>>     Left:  rho = " << std::setw(7) << initial_conditions_.rho_L
-              << ",    u = " << std::setw(7) << initial_conditions_.u_L
-              << ",    P = " << std::setw(7) << initial_conditions_.P_L << '\n';
+        << ",    u = " << std::setw(7) << initial_conditions_.u_L
+        << ",    P = " << std::setw(7) << initial_conditions_.P_L << '\n';
     std::cout << ">>>     Right: rho = " << std::setw(7) << initial_conditions_.rho_R
-              << ",    u = " << std::setw(7) << initial_conditions_.u_R
-              << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
+        << ",    u = " << std::setw(7) << initial_conditions_.u_R
+        << ",    P = " << std::setw(7) << initial_conditions_.P_R << "\n\n";
 }
 
-auto Simulation::GetDataLayer() -> DataLayer & {
+auto Simulation::GetDataLayer() -> DataLayer& {
     if (!layer_) {
         throw std::runtime_error("DataLayer is not initialized.");
     }
@@ -149,8 +163,9 @@ auto Simulation::GetCurrentStep() const -> std::size_t { return step_; }
 auto Simulation::GetCurrentTime() const -> double { return t_cur_; }
 
 auto Simulation::ShouldWrite(std::size_t step) const -> bool {
-    if (settings_.output_every_steps == 0) return false;
-    return (step % settings_.output_every_steps) == 0;
+    if (settings_.output_every_steps == 0)
+        return false;
+    return (step % settings_.output_every_steps == 0 or t_cur_ >= settings_.t_end);
 }
 
 void Simulation::WriteInitialState() const {
@@ -166,6 +181,13 @@ void Simulation::WriteStepState(std::size_t step, double t_cur) const {
     }
 }
 
+void Simulation::WriteAnalyticalStepState(std::size_t step, double t_cur) const {
+    if (analytical_writer_ && analytical_layer_ && ShouldWrite(step)) {
+        analytical_writer_->Write(*analytical_layer_, step, t_cur);
+    }
+}
+
+
 void Simulation::Run() {
     Initialize();
     WriteInitialState();
@@ -179,25 +201,39 @@ void Simulation::Run() {
         // Advance one time step and get the actual dt used
         double dt = solver_->Step(*layer_, t_cur_);
 
-        t_cur_ += dt;
+        if (settings_.solver == "analytical") {
+            t_cur_ += dt;
+        }
+
         ++step_;
 
-        // Write output if needed
+        // Write output_rodionov if needed
         WriteStepState(step_, t_cur_);
 
-        // Progress output
-        if (log_progress_ && 0 == step_ % settings_.output_every_steps) {
+        if (settings_.analytical) {
+            // Force this step size
+            if (auto* as = dynamic_cast<AnalyticalSolver*>(analytical_solver_.get())) {
+                as->SetDt(dt);
+            }
+            const double dt_a = analytical_solver_->Step(*analytical_layer_, t_cur_);
+            (void)dt_a;
+            WriteAnalyticalStepState(step_, t_cur_);
+        }
+
+        // Progress output_rodionov
+        if (log_progress_ && 0 == step_ % settings_.output_every_steps or settings_.t_end
+            <= t_cur_) {
             double progress = (t_cur_ / settings_.t_end) * 100.0;
             int percent = static_cast<int>(progress);
-            std::cout << ">>> [PROGRESS]: Step " << step_ << ", " << percent
-                      << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
+            std::cout << '\r' << ">>> [PROGRESS]: Step " << step_ << ", " << percent
+                << "% processed, time: " << t_cur_ << " of " << settings_.t_end <<
+                std::flush;
             // if (t_cur_ > 0.0) {
             //     double est_total_steps = step_ * (settings_.t_end / t_cur_);
             //     std::cout << ", total steps: " << est_total_steps;
             // } else {
             //     std::cout << ", total steps: unknown";
             // }
-            std::cout << '\n';
         }
     }
 

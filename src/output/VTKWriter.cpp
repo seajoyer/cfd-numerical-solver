@@ -28,7 +28,7 @@ public:
 
 VTKWriter::VTKWriter(const std::string& output_dir)
     : output_dir_(output_dir), pimpl_(std::make_unique<Impl>()) {
-    // Create output directory if it doesn't exist
+    // Create output_rodionov directory if it doesn't exist
     std::filesystem::create_directories(output_dir_);
 }
 
@@ -153,8 +153,8 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     writer->SetFileTypeToBinary();
     writer->Write();
 
-    std::cout << ">>> Wrote VTK file: " << filename 
-              << " (step=" << step << ", time=" << time << ")" << '\n';
+    // std::cout << ">>> Wrote VTK file: " << filename
+              // << " (step=" << step << ", time=" << time << ")" << '\r';
 }
 
 void VTKWriter::Write2D(const DataLayer& layer, std::size_t step, double time) const {

@@ -8,6 +8,7 @@
 #include "data/DataLayer.hpp"
 #include "output/StepWriter.hpp"
 #include "solver/Solver.hpp"
+#include "solver/AnalyticalSolver.hpp"
 
 /**
  * @class Simulation
@@ -79,7 +80,7 @@ class Simulation {
      * @brief Initializes all simulation components before the first time step.
      *
      * Allocates the DataLayer, creates the Solver, assigns boundary conditions,
-     * and prepares the StepWriter for output.
+     * and prepares the StepWriter for output_rodionov.
      *
      * @note Called automatically inside Run(), typically not used externally.
      */
@@ -108,12 +109,12 @@ class Simulation {
         -> std::shared_ptr<BoundaryCondition>;
 
     /**
-     * @brief Creates an output writer based on the configured format and directory.
+     * @brief Creates an output_rodionov writer based on the configured format and directory.
      *
      * Delegates to WriterFactory for instantiation.
      *
-     * @param output_format String identifier for the output format (e.g., "vtk").
-     * @param output_dir Directory path for output files.
+     * @param output_format String identifier for the output_rodionov format (e.g., "vtk").
+     * @param output_dir Directory path for output_rodionov files.
      * @return Unique pointer to the created StepWriter.
      * @throws std::runtime_error if format is unsupported (propagated from factory).
      */
@@ -121,12 +122,12 @@ class Simulation {
         -> std::unique_ptr<StepWriter>;
 
     /**
-     * @brief Applies initial conditions to the data layer.
+     * @brief Applies initial conditions to the layer.
      *
      * Sets up the initial state of the physical fields based on the
      * configured initial conditions (e.g., Sod shock tube problems).
      */
-    void ApplyInitialConditions();
+    void ApplyInitialConditions(DataLayer &layer);
 
     /**
      * @brief Determines whether the current time step should be written to disk.
@@ -139,7 +140,7 @@ class Simulation {
     /**
      * @brief Writes the initial state of the system before any time advancement.
      *
-     * The output is handled by the StepWriter component.
+     * The output_rodionov is handled by the StepWriter component.
      */
     void WriteInitialState() const;
 
@@ -149,16 +150,21 @@ class Simulation {
      * @param step Current time step index.
      * @param t_cur Physical time corresponding to this step.
      *
-     * @note The method checks output frequency using ShouldWrite() before writing.
+     * @note The method checks output_rodionov frequency using ShouldWrite() before writing.
      */
     void WriteStepState(std::size_t step, double t_cur) const;
+    void WriteAnalyticalStepState(std::size_t step, double t_cur) const;
 
     Settings settings_;
+    Settings analytical_settings_;
     InitialConditions initial_conditions_;
     bool log_progress_;
     std::unique_ptr<Solver> solver_;
+    std::unique_ptr<Solver> analytical_solver_;
     std::unique_ptr<StepWriter> writer_;
+    std::unique_ptr<StepWriter> analytical_writer_;
     std::unique_ptr<DataLayer> layer_;
+    std::unique_ptr<DataLayer> analytical_layer_;
 
     double t_cur_ = 0.0;
     std::size_t step_ = 0;
