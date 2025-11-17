@@ -48,14 +48,17 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.cfl = node["cfl"].as<double>();
     settings.t_end = node["t_end"].as<double>();
     settings.padding = node["padding"].as<int>();
-    settings.c = node["c"].as<double>();
     settings.gamma = node["gamma"].as<double>();
     settings.dim = node["dim"].as<int>();
     settings.L_x = node["L_x"].as<double>();
     settings.L_y = node["L_y"].as<double>();
     settings.L_z = node["L_z"].as<double>();
 
+    settings.Q = node["Q"].as<double>();
+
     settings.sod_test_num = node["sod_test_num"].as<int>();
+    settings.x0 = node["x0"].as<double>();
+    settings.analytical = node["analytical"].as<std::string>() == "true";
 
     settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
     settings.output_format = node["output_format"].as<std::string>();

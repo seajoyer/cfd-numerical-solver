@@ -17,12 +17,13 @@ config:
     cfl: 0.5
     t_end: 0.25 # 0.25 0.15 0.012 0.035 0.035
     padding: 2
-    c: 300
     gamma: 1.4
     dim: 1
     L_x: 1
     L_y: 1
     L_z: 1
+
+    Q: 2
 
     output_format: vtk
     output_dir: "../data/output" # run from `build/`, 
@@ -30,6 +31,8 @@ config:
     output_every_steps: 1
 
     sod_test_num: 1
+    x0: 0.5
+    analytical: true
 
   initial_conditions:
     sod1:

@@ -2,7 +2,6 @@
 #define SETTINGS_HPP
 
 #include <string>
-#include <vector>
 
 struct Settings {
     std::string solver = "godunov";
@@ -15,14 +14,17 @@ struct Settings {
     double cfl = 0.5;
     double t_end = 0.2;
     int padding = 2;
-    double c = 340;
     double gamma = 1.4;
     int dim = 1;
     double L_x = 10;
     double L_y = 10;
     double L_z = 10;
 
+    double Q = 2.;
+
     int sod_test_num = 1;
+    double x0 = 0.5;
+    bool analytical = false;
 
     std::size_t output_every_steps = 1;
     std::string output_format = "vtk";
