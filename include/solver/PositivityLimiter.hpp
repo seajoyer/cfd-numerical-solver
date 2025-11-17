@@ -1,7 +1,7 @@
 #ifndef POSITIVITYLIMITER_HPP
 #define POSITIVITYLIMITER_HPP
 
-#include "Variables.hpp"
+#include "data/Variables.hpp"
 #include "EOS.hpp"
 
 /**

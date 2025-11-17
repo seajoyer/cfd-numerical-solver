@@ -1,22 +1,28 @@
 #include "solver/TimeStepCalculator.hpp"
-#include <cmath>
 
-double TimeStepCalculator::ComputeDt(const std::vector<Primitive> &cellStates,
-                                     double dx,
-                                     double cfl,
-                                     double gamma) {
+
+double TimeStepCalculator::ComputeDt(const DataLayer &layer,
+                                     const double dx,
+                                     const double cfl,
+                                     const double gamma) {
+    const int coreStart = layer.GetCoreStart(0);
+    const int coreEnd   = layer.GetCoreEndExclusive(0);
+
     double maxSpeed = 0.0;
 
-    for (const Primitive &w: cellStates) {
-        if (w.rho <= 0.0 || w.P <= 0.0) {
+    for (int i = coreStart; i < coreEnd; ++i) {
+        const double rho = layer.rho(i);
+        const double u   = layer.u(i);
+        const double P   = layer.P(i);
+
+        if (rho <= 0.0 || P <= 0.0) {
             continue;
         }
 
-        const double a = EOS::SoundSpeed(w, gamma);
-        const double speed = std::fabs(w.u) + a;
-
-        if (speed > maxSpeed) {
-            maxSpeed = speed;
+        const double c  = std::sqrt(gamma * P / rho);
+        const double s  = std::abs(u) + c;
+        if (s > maxSpeed) {
+            maxSpeed = s;
         }
     }
 
