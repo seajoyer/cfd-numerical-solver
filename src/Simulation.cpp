@@ -111,19 +111,20 @@ void Simulation::Initialize() {
     writer_ = CreateWriter(settings_.output_format, settings_.output_dir);
 
     if (settings_.analytical) {
-        Settings analytical_settings = settings_;
-        analytical_settings.solver = "analytical";
-        analytical_settings.output_dir += "_analytical";
+        analytical_settings_ = settings_;
+        analytical_settings_.solver = "analytical";
+        analytical_settings_.output_dir += "_analytical";
 
         analytical_layer_ = std::make_unique<DataLayer>(
-            analytical_settings.N, analytical_settings.padding, analytical_settings.dim);
+            analytical_settings_.N, analytical_settings_.padding,
+            analytical_settings_.dim);
 
         ApplyInitialConditions(*analytical_layer_);
 
-        analytical_solver_ = SolverFactory::Create(analytical_settings);
+        analytical_solver_ = std::make_unique<AnalyticalSolver>(analytical_settings_);
 
-        analytical_writer_ = CreateWriter(analytical_settings.output_format,
-                                          analytical_settings.output_dir);
+        analytical_writer_ = CreateWriter(analytical_settings_.output_format,
+                                          analytical_settings_.output_dir);
     }
 
     std::cout << '\n';
@@ -166,14 +167,14 @@ auto Simulation::ShouldWrite() const -> bool {
         return false;
     }
 
-    const bool time_ok = settings_.output_every_time == 0.0 ||
-                         (std::floor((t_cur_ - dt_) / settings_.output_every_time) <
-                          std::floor(t_cur_ / settings_.output_every_time));
+    const bool time_ok = t_cur_ >= settings_.t_end || settings_.log_every_time == 0.0 ||
+                         std::floor((t_cur_ - dt_) / settings_.log_every_time) <
+                         std::floor(t_cur_ / settings_.log_every_time);
 
     const bool step_ok = settings_.output_every_steps == 0 ||
-                         (step_cur_ % settings_.output_every_steps == 0);
+                         step_cur_ % settings_.output_every_steps == 0;
 
-    return time_ok && step_ok;
+    return (time_ok && step_ok) || t_cur_ >= settings_.t_end;
 }
 
 auto Simulation::ShouldLog() const -> bool {
@@ -182,35 +183,41 @@ auto Simulation::ShouldLog() const -> bool {
     }
 
     const bool time_ok = settings_.log_every_time == 0.0 ||
-                         (std::floor((t_cur_ - dt_) / settings_.log_every_time) <
-                          std::floor(t_cur_ / settings_.log_every_time));
+                         std::floor((t_cur_ - dt_) / settings_.log_every_time) <
+                         std::floor(t_cur_ / settings_.log_every_time);
 
     const bool step_ok =
-        settings_.log_every_steps == 0 || (step_cur_ % settings_.log_every_steps == 0);
+        settings_.log_every_steps == 0 || step_cur_ % settings_.log_every_steps == 0;
 
-    return time_ok && step_ok;
+    return (time_ok && step_ok) || t_cur_ >= settings_.t_end;
 }
 
 auto Simulation::ShouldRun() const -> bool {
     if (settings_.t_end == 0.0 && settings_.step_end == 0) return false;
 
-    const bool time_ok = (settings_.t_end == 0.0) || (t_cur_ < settings_.t_end);
-    const bool step_ok = (settings_.step_end == 0) || (step_cur_ < settings_.step_end);
+    const bool time_ok = settings_.t_end == 0.0 || t_cur_ < settings_.t_end;
+    const bool step_ok = settings_.step_end == 0 || step_cur_ < settings_.step_end;
 
     return time_ok && step_ok;
 }
 
 void Simulation::WriteInitialState() const {
     std::cout << "\nWriting the initial state..." << '\n';
-    ;
+
     if (writer_) {
         writer_->Write(*layer_, 0, 0.0);
+    }
+    if (analytical_writer_ && settings_.analytical) {
+        analytical_writer_->Write(*layer_, 0, 0.0);
     }
 }
 
 void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
     if (writer_ && ShouldWrite()) {
         writer_->Write(*layer_, step_cur, t_cur);
+    }
+    if (analytical_writer_ && analytical_layer_ && ShouldWrite()) {
+        analytical_writer_->Write(*analytical_layer_, step_cur, t_cur);
     }
 }
 
@@ -220,14 +227,8 @@ void Simulation::PrintLog() const {
         int percent = static_cast<int>(progress);
         std::cout << '\r';
         std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
-                  << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
+            << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
         std::cout.flush();
-    }
-}
-
-void Simulation::WriteAnalyticalStepState(std::size_t step, double t_cur) const {
-    if (analytical_writer_ && analytical_layer_ && ShouldWrite()) {
-        analytical_writer_->Write(*analytical_layer_, step, t_cur);
     }
 }
 
@@ -249,17 +250,13 @@ void Simulation::Run() {
         }
         ++step_cur_;
 
-        WriteStepState(t_cur_, step_cur_);
-
         if (settings_.analytical) {
             // Force this step size
-            if (auto* as = dynamic_cast<AnalyticalSolver*>(analytical_solver_.get())) {
-                as->SetDt(dt_);
-            }
-            const double dt_a = analytical_solver_->Step(*analytical_layer_, t_cur_);
-            (void)dt_a;
-            WriteAnalyticalStepState(step_cur_, t_cur_);
+            analytical_solver_->SetDt(dt_);
+            analytical_solver_->Step(*analytical_layer_, t_cur_);
         }
+
+        WriteStepState(t_cur_, step_cur_);
 
         PrintLog();
     }

@@ -185,7 +185,7 @@ auto SampleVacuum(double xi, const State& l, const State& r, double gamma) -> Pr
         return Primitive{rho, u, p};
     }
 
-    // Right fan (corrected)
+    // Right fan
     if (xi > svr && xi < shr) {
         const double u = 2.0 / (gamma + 1.0) * (-a_r + 0.5 * (gamma - 1.0) * r.u + xi);
         const double a = 2.0 / (gamma + 1.0) *
@@ -254,7 +254,7 @@ auto SampleNonVacuum(double xi, double p_star, double u_star, const State& l,
         return Primitive{rho_star_r, u_star, p_star};
     }
 
-    // Right rarefaction (pStar <= p_R)  <<< THIS IS THE PART YOU ASKED FOR
+    // Right rarefaction (pStar <= p_R)
     const double a_r = r.a;
     const double shr = r.u + a_r;
 

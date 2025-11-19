@@ -9,6 +9,7 @@
 #include "data/DataLayer.hpp"
 #include "output/StepWriter.hpp"
 #include "solver/Solver.hpp"
+#include "solver/AnalyticalSolver.hpp"
 
 /**
  * @class Simulation
@@ -130,7 +131,6 @@ class Simulation {
     /**
      * @brief Determines whether the current time step should be written to disk.
      *
-     * @param step Current time step index.
      * @return true if the step should be written according to configuration.
      */
     [[nodiscard]] auto ShouldWrite() const -> bool;
@@ -145,9 +145,7 @@ class Simulation {
     /**
      * @brief Determines whether the simulation shoult calculate the next step.
      *
-     * @param t_end Maximum time of the simulation.
-     * @param step_end Maximum steps the simulation is allowed to calculate.
-     * @return true if the next step should calculated.
+     * @return true if the next step should be calculated.
      */
     [[nodiscard]] auto ShouldRun() const -> bool;
 
@@ -161,13 +159,12 @@ class Simulation {
     /**
      * @brief Writes simulation data for a specific time step.
      *
-     * @param step Current time step index.
+     * @param step_cur Current time step index.
      * @param t_cur Physical time corresponding to this step.
      *
      * @note The method checks output frequency using ShouldWrite() before writing.
      */
     void WriteStepState(double t_cur, std::size_t step_cur) const;
-    void WriteAnalyticalStepState(std::size_t step, double t_cur) const;
 
     /**
      * @brief Prints simulation log for a specific time step.
@@ -181,7 +178,7 @@ class Simulation {
     InitialConditions initial_conditions_;
     bool log_progress_;
     std::unique_ptr<Solver> solver_;
-    std::unique_ptr<Solver> analytical_solver_;
+    std::unique_ptr<AnalyticalSolver> analytical_solver_;
     std::unique_ptr<StepWriter> writer_;
     std::unique_ptr<StepWriter> analytical_writer_;
     std::unique_ptr<DataLayer> layer_;
