@@ -32,9 +32,9 @@ class InletBoundary : public BoundaryCondition {
      * velocity, and pressure that will be imposed on ghost cells whenever the
      * flow direction indicates inflow into the domain.
      *
-     * @param rhoIn  External density (ρ) at the inlet.
-     * @param uIn    External velocity (u) at the inlet.
-     * @param pIn    External pressure (P) at the inlet.
+     * @param rho_in  External density (ρ) at the inlet.
+     * @param u_in    External velocity (u) at the inlet.
+     * @param p_in    External pressure (P) at the inlet.
      */
     InletBoundary(double rho_in, double u_in, double p_in);
 

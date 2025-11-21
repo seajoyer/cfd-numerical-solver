@@ -188,7 +188,7 @@ class GodunovKolganRodionovSolver : public Solver {
      *
      * @param layer        Data layer with primitive fields.
      * @param i            Cell index.
-     * @param halfDtOverDx dt / (2 * dx) factor.
+     * @param half_dt_over_dx dt / (2 * dx) factor.
      * @param U_L_star_out Output: predicted left state U_i^{L,*}.
      * @param U_R_star_out Output: predicted right state U_i^{R,*}.
      */

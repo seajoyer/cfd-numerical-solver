@@ -39,7 +39,6 @@ class Simulation {
      * @param settings Configuration structure containing numerical parameters and file
      * paths.
      * @param initial_conditions Initial conditions for the simulation (optional).
-     * @param log_progress
      */
     explicit Simulation(Settings settings, const InitialConditions& initial_conditions);
 
@@ -159,8 +158,8 @@ class Simulation {
     /**
      * @brief Writes simulation data for a specific time step.
      *
-     * @param step_cur Current time step index.
      * @param t_cur Physical time corresponding to this step.
+     * @param step_cur Current time step index.
      *
      * @note The method checks output frequency using ShouldWrite() before writing.
      */

@@ -22,8 +22,8 @@ class PositivityLimiter {
      *
      * @param u Conservative variables to be adjusted in-place.
      * @param gamma Ratio of specific heats.
-     * @param rhoMin Minimal allowed density.
-     * @param pMin Minimal allowed pressure.
+     * @param rho_min Minimal allowed density.
+     * @param p_min Minimal allowed pressure.
      */
     static void Apply(Conservative& u, double gamma, double rho_min, double p_min);
 };

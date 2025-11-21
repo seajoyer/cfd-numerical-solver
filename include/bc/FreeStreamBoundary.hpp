@@ -35,9 +35,9 @@ class FreeStreamBoundary : public BoundaryCondition {
      * cells whenever the flow direction indicates inflow. When the flow leaves the
      * domain, these values are not enforced, maintaining natural outflow.
      *
-     * @param rhoInf External density (ρ∞) in the freestream.
-     * @param uInf   External velocity (u∞) in the freestream.
-     * @param pInf   External pressure (P∞) in the freestream.
+     * @param rho_inf External density (ρ∞) in the freestream.
+     * @param u_inf   External velocity (u∞) in the freestream.
+     * @param p_inf   External pressure (P∞) in the freestream.
      */
     FreeStreamBoundary(double rho_inf, double u_inf, double p_inf);
 

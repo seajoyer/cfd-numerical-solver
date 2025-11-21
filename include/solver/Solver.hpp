@@ -35,8 +35,8 @@ class Solver {
     /**
      * @brief Adds boundary conditions for a specific axis.
      * @param axis Spatial axis index (0=x, 1=y, 2=z)
-     * @param left Boundary condition for left/lower boundary
-     * @param right Boundary condition for right/upper boundary
+     * @param left_bc Boundary condition for left/lower boundary
+     * @param right_bc Boundary condition for right/upper boundary
      */
     virtual void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
                              std::shared_ptr<BoundaryCondition> right_bc) = 0;

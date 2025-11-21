@@ -56,7 +56,7 @@
  * and the interface density is taken as the average
  *
  *   @f[
- *     \rho^* = \tfrac12(\rho_L^* + \rho_R^*).
+ *     \rho^* = \frac12(\rho_L^* + \rho_R^*).
  *   @f]
  *
  * Finally, the numerical flux is computed as the usual Euler
@@ -97,7 +97,7 @@ class AcousticRiemannSolver : public RiemannSolver {
      * a simple central flux
      *
      *   @f[
-     *     F = \tfrac12 \bigl( F(W_L) + F(W_R) \bigr).
+     *     F = \frac12 \bigl( F(W_L) + F(W_R) \bigr).
      *   @f]
      *
      * @param left  Left primitive state at the interface.

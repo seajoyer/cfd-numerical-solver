@@ -37,7 +37,7 @@ class EOS {
      * @brief Computes thermodynamic pressure from conservative variables.
      *
      * Uses the ideal gas relation:
-     * \f$ P = (\gamma - 1)\left(E - \tfrac{1}{2}\rho u^2\right) \f$.
+     * \f$ P = (\gamma - 1)\left(E - \frac{1}{2}\rho u^2\right) \f$.
      *
      * @param u Conservative variables (rho, rhoU, E).
      * @param gamma Ratio of specific heats.

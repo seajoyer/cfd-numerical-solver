@@ -35,9 +35,9 @@ class Reconstruction {
      * approximations.
      *
      * @param layer          DataLayer containing current primitive fields.
-     * @param interfaceIndex Index of the interface (0 ≤ i < totalSize - 1).
-     * @param leftState      Output: left primitive state at the interface.
-     * @param rightState     Output: right primitive state at the interface.
+     * @param interface_index Index of the interface (0 ≤ i < totalSize - 1).
+     * @param left_state      Output: left primitive state at the interface.
+     * @param right_state     Output: right primitive state at the interface.
      */
     virtual void ComputeInterfaceStates(const DataLayer& layer, int interface_index,
                                         Primitive& left_state,

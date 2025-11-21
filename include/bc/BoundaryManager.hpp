@@ -39,8 +39,8 @@ class BoundaryManager {
      * @brief Assigns boundary conditions for a specific axis.
      *
      * @param axis Index of spatial axis (0 for X, 1 for Y, 2 for Z).
-     * @param left Pointer to boundary condition for the lower side (Side::kLeft).
-     * @param right Pointer to boundary condition for the upper side (Side::kRight).
+     * @param left_bc Pointer to boundary condition for the lower side (Side::kLeft).
+     * @param right_bc Pointer to boundary condition for the upper side (Side::kRight).
      *
      * @note Passing nullptr disables the corresponding boundary.
      */

@@ -18,7 +18,7 @@ class SolverFactory {
     /**
      * @brief Creates a solver instance based on the solver type string.
      *
-     * @param settings_ settings for solver construction.
+     * @param settings settings for solver construction.
      * @return Unique pointer to the created solver.
      * @throws std::runtime_error if solver type is not recognized.
      */
