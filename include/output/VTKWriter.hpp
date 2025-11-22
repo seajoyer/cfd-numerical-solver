@@ -28,10 +28,12 @@ class VTKWriter : public StepWriter {
     /**
      * @brief Writes the current state of DataLayer to a VTK file.
      * @param layer The data layer containing simulation state
+     * @param settings Solver settings for output file name construction
      * @param step Current simulation step number
      * @param time Current simulation time
      */
-    void Write(const DataLayer& layer, std::size_t step, double time) const override;
+    void Write(const DataLayer& layer, const Settings& settings, std::size_t step,
+               double time) const override;
 
    private:
     std::string output_dir_;
@@ -44,24 +46,29 @@ class VTKWriter : public StepWriter {
      * @brief Generates filename based on grid size and step number.
      * @param N Grid size
      * @param step Step number
+     * @param settings Solver settings for output file name construction
      * @return Full path to output file
      */
-    [[nodiscard]] auto GenerateFilename(int N, std::size_t step) const -> std::string;
+    [[nodiscard]] auto GenerateFilename(int N, std::size_t step,
+                                        const Settings& settings) const -> std::string;
 
     /**
      * @brief Writes 1D data to VTK format.
      */
-    void Write1D(const DataLayer& layer, std::size_t step, double time) const;
+    void Write1D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                 double time) const;
 
     /**
      * @brief Writes 2D data to VTK format (future implementation).
      */
-    void Write2D(const DataLayer& layer, std::size_t step, double time) const;
+    void Write2D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                 double time) const;
 
     /**
      * @brief Writes 3D data to VTK format (future implementation).
      */
-    void Write3D(const DataLayer& layer, std::size_t step, double time) const;
+    void Write3D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                 double time) const;
 };
 
 #endif  // VTKWRITER_HPP

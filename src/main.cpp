@@ -6,18 +6,26 @@
 
 auto main(int argc, char* argv[]) -> int {
     try {
-        std::string config_path = "../config.yaml";
-        std::cout << "Loading configuration from: " << config_path << "\n\n";
+        ConfigParser parser;
 
-        auto parser = ConfigParser();
-        parser.Parse(config_path);
+        auto result = parser.Parse("../config.yaml", argc, argv);
+
+        if (!result.has_value()) {
+            return 0;  // --help was requested, exit gracefully
+        }
+        if (!result.value()) {
+            return 1;  // Parsing error occurred 
+        }
+
         const Settings& settings = parser.GetSettings();
+        std::cout << "Configuration loaded from: " << parser.GetConfigPath() << "\n\n";
 
         int test_num = settings.sod_test_num;
-        InitialConditions initial_conditions = parser.GetSODTest(test_num);
-        std::cout << "Using initial conditions: sod" << test_num << "\n\n";
+        InitialConditions ic = parser.GetSODTest(test_num);
+        std::cout << "Using initial conditions: sod" << test_num << "\n";
+        std::cout << "Grid cells: " << settings.N << ", CFL: " << settings.cfl << "\n\n";
 
-        Simulation sim(settings, initial_conditions);
+        Simulation sim(settings, ic);
         sim.Run();
 
         return 0;

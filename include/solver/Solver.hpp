@@ -28,7 +28,7 @@ class Solver {
 
     /**
      * @brief Sets the CFL number for time step calculation.
-     * @param cfl CFL number (typically 0.4-0.9)
+     * @param cfl CFL number
      */
     virtual void SetCfl(double cfl) = 0;
 

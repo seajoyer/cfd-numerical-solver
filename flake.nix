@@ -30,12 +30,15 @@
             vtk
             yaml-cpp
             doxygen
+            cxxopts
           ];
 
           shellHook = ''
             echo "C++ development environment"
             echo "Compiler: $(gcc --version   | head -1)"
             echo "CMake:    $(cmake --version | head -1)"
+            
+            export PYTHONPATH=${pkgs.paraview}/lib/python3.13/site-packages:$PYTHONPATH
 
             # Generate .clangd config for IDE support (clangd from clang-tools)
             cat > .clangd << EOF

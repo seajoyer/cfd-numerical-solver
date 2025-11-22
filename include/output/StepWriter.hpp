@@ -2,6 +2,7 @@
 #define STEPWRITER_HPP
 
 #include <cstddef>
+#include "config/Settings.hpp"
 
 struct DataLayer;
 
@@ -22,7 +23,8 @@ class StepWriter {
    public:
     virtual ~StepWriter() = default;
 
-    virtual void Write(const DataLayer& layer, std::size_t step, double time) const = 0;
+    virtual void Write(const DataLayer& layer, const Settings& settings, std::size_t step,
+                       double time) const = 0;
 };
 
 #endif  // STEPWRITER_HPP

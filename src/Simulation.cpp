@@ -3,10 +3,12 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
 #include "bc/BoundaryFactory.hpp"
+#include "utils/StringUtils.hpp"
 #include "output/WriterFactory.hpp"
 #include "solver/AnalyticalSolver.hpp"
 #include "solver/SolverFactory.hpp"
@@ -108,12 +110,19 @@ void Simulation::Initialize() {
     solver_->AddBoundary(0, left_bc, right_bc);
 
     // Initialize output writer
-    writer_ = CreateWriter(settings_.output_format, settings_.output_dir);
+    // Construct detailed subdirectory for numerical solution
+    std::ostringstream subdir_oss;
+    subdir_oss << settings_.solver << "__N_" << settings_.N << "__CFL_"
+               << utils::DoubleWithoutDot(settings_.cfl);
+    std::string numerical_output_dir = settings_.output_dir + "/" + subdir_oss.str();
+    
+    writer_ = CreateWriter(settings_.output_format, numerical_output_dir);
 
     if (settings_.analytical) {
         analytical_settings_ = settings_;
         analytical_settings_.solver = "analytical";
-        analytical_settings_.output_dir += "_analytical";
+        // Analytical solution goes to output_dir/analytical
+        analytical_settings_.output_dir = settings_.output_dir + "/analytical";
 
         analytical_layer_ = std::make_unique<DataLayer>(
             analytical_settings_.N, analytical_settings_.padding,
@@ -205,19 +214,19 @@ void Simulation::WriteInitialState() const {
     std::cout << "\nWriting the initial state..." << '\n';
 
     if (writer_) {
-        writer_->Write(*layer_, 0, 0.0);
+        writer_->Write(*layer_, settings_, 0, 0.0);
     }
     if (analytical_writer_ && settings_.analytical) {
-        analytical_writer_->Write(*layer_, 0, 0.0);
+        analytical_writer_->Write(*layer_, settings_, 0, 0.0);
     }
 }
 
 void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
     if (writer_ && ShouldWrite()) {
-        writer_->Write(*layer_, step_cur, t_cur);
+        writer_->Write(*layer_, settings_, step_cur, t_cur);
     }
     if (analytical_writer_ && analytical_layer_ && ShouldWrite()) {
-        analytical_writer_->Write(*analytical_layer_, step_cur, t_cur);
+        analytical_writer_->Write(*analytical_layer_, settings_, step_cur, t_cur);
     }
 }
 

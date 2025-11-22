@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 #include "data/DataLayer.hpp"
+#include "utils/StringUtils.hpp"
 
 // PIMPL implementation
 class VTKWriter::Impl {
@@ -35,32 +36,44 @@ VTKWriter::VTKWriter(const std::string& output_dir)
 
 VTKWriter::~VTKWriter() = default;
 
-auto VTKWriter::GenerateFilename(int N, std::size_t step) const -> std::string {
+auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settings) const
+    -> std::string {
     std::ostringstream oss;
-    oss << output_dir_ << "/N_" << N << "__step_" << std::setw(4) << std::setfill('0')
-        << step << ".vtk";
+
+    std::string last_dir = output_dir_.substr(output_dir_.find_last_of("/\\") + 1);
+    if (last_dir == "analytical") {
+        oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step
+            << ".vtk";
+    } else {
+        oss << output_dir_ << "/" << settings.solver << "__N_" << N << "__CFL_"
+            << utils::DoubleWithoutDot(settings.cfl) << "__step_" << std::setw(4)
+            << std::setfill('0') << step << ".vtk";
+    }
+
     return oss.str();
 }
 
-void VTKWriter::Write(const DataLayer& layer, std::size_t step, double time) const {
+void VTKWriter::Write(const DataLayer& layer, const Settings& settings, std::size_t step,
+                      double time) const {
     const int dim = layer.GetDim();
 
     switch (dim) {
         case 1:
-            Write1D(layer, step, time);
+            Write1D(layer, settings, step, time);
             break;
         case 2:
-            Write2D(layer, step, time);
+            Write2D(layer, settings, step, time);
             break;
         case 3:
-            Write3D(layer, step, time);
+            Write3D(layer, settings, step, time);
             break;
         default:
             throw std::runtime_error("Unsupported dimension: " + std::to_string(dim));
     }
 }
 
-void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) const {
+void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
+                        std::size_t step, double time) const {
     const int N = layer.GetN();
     const int start = layer.GetCoreStart();
     const int end = layer.GetCoreEndExclusive();
@@ -73,7 +86,7 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     }
 
     // Generate filename
-    std::string filename = GenerateFilename(N, step);
+    std::string filename = GenerateFilename(N, step, settings);
 
     // Create fresh VTK objects for this write
     vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
@@ -140,8 +153,6 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     add_scalar_field(layer.U, "conserved_energy");
     add_scalar_field(layer.V, "volume");
     add_scalar_field(layer.m, "mass");
-    // add_scalar_field(layer.xb, "cell_boundary_coords");
-    // add_scalar_field(layer.xc, "cell_center_coords");
 
     // Add time as field data
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
@@ -162,13 +173,15 @@ void VTKWriter::Write1D(const DataLayer& layer, std::size_t step, double time) c
     // << " (step=" << step << ", time=" << time << ")" << '\r';
 }
 
-void VTKWriter::Write2D(const DataLayer& layer, std::size_t step, double time) const {
+void VTKWriter::Write2D(const DataLayer& layer, const Settings& settings,
+                        std::size_t step, double time) const {
     // Placeholder for 2D implementation
     // In the future, this will handle 2D grids with proper indexing
     throw std::runtime_error("2D VTK output not yet implemented");
 }
 
-void VTKWriter::Write3D(const DataLayer& layer, std::size_t step, double time) const {
+void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
+                        std::size_t step, double time) const {
     // Placeholder for 3D implementation
     // In the future, this will handle 3D grids with proper indexing
     throw std::runtime_error("3D VTK output not yet implemented");
