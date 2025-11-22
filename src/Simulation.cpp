@@ -138,6 +138,7 @@ void Simulation::Initialize() {
 
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
+    std::cout << ">>> Case:             " << settings_.simulation_case << '\n';
     std::cout << ">>> Solver:           " << settings_.solver << '\n';
     std::cout << ">>> Riemann Solver:   " << settings_.riemann_solver << '\n';
     std::cout << ">>> Reconstruction:   " << settings_.reconstruction << '\n';

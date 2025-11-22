@@ -22,7 +22,7 @@ struct Settings {
 
     double Q_user = 2.;
 
-    int sod_test_num = 1;
+    std::string simulation_case = "sod1";  // Changed from int sod_test_num
     double x0 = 0.5;
     bool analytical = false;
     double t_end = 0;

@@ -2,6 +2,7 @@
 
 #include <cxxopts.hpp>
 #include <iostream>
+#include <algorithm>
 
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
@@ -15,7 +16,7 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
         YAML::Node ic_node = config["config"]["initial_conditions"];
 
         LoadSettings(settings_node, settings_);
-        LoadInitialConditions(ic_node, sod_tests_);
+        LoadInitialConditions(ic_node, initial_conditions_);
         config_path_ = filename;
 
         return true;
@@ -36,11 +37,11 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         ;
 
         opts.add_options("Solver")
-            ("solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)", cxxopts::value<std::string>())
+            ("s,solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)", cxxopts::value<std::string>())
             ("riemann-solver", "Riemann solver (exact, hll, hllc, acoustic)", cxxopts::value<std::string>())
             ("reconstruction", "Reconstruction scheme (P0, P1)", cxxopts::value<std::string>())
-            ("left-boundary", "Left boundary condition", cxxopts::value<std::string>())
-            ("right-boundary", "Right boundary condition", cxxopts::value<std::string>())
+            ("l,left-boundary", "Left boundary condition", cxxopts::value<std::string>())
+            ("r,right-boundary", "Right boundary condition", cxxopts::value<std::string>())
         ;
 
         opts.add_options("Grid")
@@ -60,16 +61,16 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         ;
 
         opts.add_options("Initial Conditions")
-            ("sod-test", "SOD test number (1-5)", cxxopts::value<int>())
+            ("i,simulation-case", "Simulation case name from the config (e.g., 'sod1', 'blast_wave', or 'all')", cxxopts::value<std::string>())
             ("x0", "Discontinuity position", cxxopts::value<double>())
-            ("analytical", "Enable analytical solution", cxxopts::value<bool>())
+            ("a,analytical", "Enable analytical solution", cxxopts::value<bool>())
         ;
 
         opts.add_options("Output")
             ("output-steps", "Output every N steps", cxxopts::value<std::size_t>())
             ("output-time", "Output every N time units", cxxopts::value<double>())
-            ("output-format", "Output format (only VTK is supported for now)", cxxopts::value<std::string>())
-            ("output-dir", "Output directory", cxxopts::value<std::string>())
+            ("f,output-format", "Output format (only VTK is supported for now)", cxxopts::value<std::string>())
+            ("o,output-dir", "Output directory", cxxopts::value<std::string>())
         ;
         // clang-format on
 
@@ -113,8 +114,8 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         if (result.count("Q-user")) settings_.Q_user = result["Q-user"].as<double>();
 
         // Initial conditions
-        if (result.count("sod-test")) {
-            settings_.sod_test_num = result["sod-test"].as<int>();
+        if (result.count("simulation-case")) {
+            settings_.simulation_case = result["simulation-case"].as<std::string>();
         }
         if (result.count("x0")) settings_.x0 = result["x0"].as<double>();
         if (result.count("analytical")) {
@@ -167,15 +168,31 @@ auto ConfigParser::Parse(const std::string& default_config, int argc, char* argv
 
 auto ConfigParser::GetSettings() const -> const Settings& { return settings_; }
 
-auto ConfigParser::GetSODTests() const -> const std::array<InitialConditions, 5>& {
-    return sod_tests_;
+auto ConfigParser::GetInitialConditions() const -> const std::map<std::string, InitialConditions>& {
+    return initial_conditions_;
 }
 
-auto ConfigParser::GetSODTest(int test_num) const -> const InitialConditions& {
-    if (test_num < 1 || test_num > 5) {
-        throw std::out_of_range("SOD test index must be between 1 and 5");
+auto ConfigParser::GetInitialCondition(const std::string& case_name) const -> const InitialConditions& {
+    auto it = initial_conditions_.find(case_name);
+    if (it == initial_conditions_.end()) {
+        throw std::out_of_range("Initial condition '" + case_name + "' not found in configuration");
     }
-    return sod_tests_[test_num - 1];
+    return it->second;
+}
+
+auto ConfigParser::GetAllCaseNames() const -> std::vector<std::string> {
+    std::vector<std::string> names;
+    names.reserve(initial_conditions_.size());
+    for (const auto& [name, _] : initial_conditions_) {
+        names.push_back(name);
+    }
+    // Sort for consistent ordering
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+auto ConfigParser::HasInitialCondition(const std::string& case_name) const -> bool {
+    return initial_conditions_.find(case_name) != initial_conditions_.end();
 }
 
 auto ConfigParser::GetConfigPath() const -> const std::string& { return config_path_; }
@@ -199,7 +216,7 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
 
     settings.Q_user = node["Q_user"].as<double>();
 
-    settings.sod_test_num = node["sod_test_num"].as<int>();
+    settings.simulation_case = node["simulation_case"].as<std::string>();
     settings.x0 = node["x0"].as<double>();
     settings.analytical = node["analytical"].as<std::string>() == "true";
 
@@ -210,14 +227,20 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
 }
 
 void ConfigParser::LoadInitialConditions(const YAML::Node& node,
-                                         std::array<InitialConditions, 5>& sod_tests) {
-    for (int i = 1; i <= 5; ++i) {
-        std::string key = "sod" + std::to_string(i);
-        sod_tests[i - 1].rho_L = node[key]["rho_L"].as<double>();
-        sod_tests[i - 1].u_L = node[key]["u_L"].as<double>();
-        sod_tests[i - 1].P_L = node[key]["P_L"].as<double>();
-        sod_tests[i - 1].rho_R = node[key]["rho_R"].as<double>();
-        sod_tests[i - 1].u_R = node[key]["u_R"].as<double>();
-        sod_tests[i - 1].P_R = node[key]["P_R"].as<double>();
+                                         std::map<std::string, InitialConditions>& initial_conditions) {
+    // Iterate through all entries in the initial_conditions section
+    for (const auto& entry : node) {
+        std::string case_name = entry.first.as<std::string>();
+        const YAML::Node& ic_data = entry.second;
+        
+        InitialConditions ic;
+        ic.rho_L = ic_data["rho_L"].as<double>();
+        ic.u_L = ic_data["u_L"].as<double>();
+        ic.P_L = ic_data["P_L"].as<double>();
+        ic.rho_R = ic_data["rho_R"].as<double>();
+        ic.u_R = ic_data["u_R"].as<double>();
+        ic.P_R = ic_data["P_R"].as<double>();
+        
+        initial_conditions[case_name] = ic;
     }
 }
