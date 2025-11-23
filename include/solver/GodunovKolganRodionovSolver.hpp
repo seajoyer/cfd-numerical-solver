@@ -166,35 +166,6 @@ class GodunovKolganRodionovSolver : public Solver {
      */
     void StoreConservativeCell(const Conservative& uc, int i, double dx,
                                DataLayer& layer) const;
-
-    /**
-     * @brief Computes MUSCL–Hancock predicted states in a given cell using P1
-     * reconstruction.
-     *
-     * For cell index i, this function:
-     *  - calls P1-based reconstruction at interfaces i-1/2 and i+1/2
-     *    through Reconstruction::ComputeInterfaceStates,
-     *  - extracts the left and right primitive states inside the cell from
-     *    the corresponding interface states,
-     *  - converts them to conservative form,
-     *  - computes Euler fluxes for these left/right states,
-     *  - performs a half-step MUSCL–Hancock predictor:
-     *
-     *       U_i^{L,*} = U_i^L - (dt/(2 dx)) [F(U_i^R) - F(U_i^L)]
-     *       U_i^{R,*} = U_i^R - (dt/(2 dx)) [F(U_i^R) - F(U_i^L)].
-     *
-     * Interface indices are clamped to the valid range to safely work
-     * near the domain boundaries using ghost cells.
-     *
-     * @param layer        Data layer with primitive fields.
-     * @param i            Cell index.
-     * @param half_dt_over_dx dt / (2 * dx) factor.
-     * @param U_L_star_out Output: predicted left state U_i^{L,*}.
-     * @param U_R_star_out Output: predicted right state U_i^{R,*}.
-     */
-    void ComputePredictedStatesAtCell(const DataLayer& layer, int i,
-                                      double half_dt_over_dx, Conservative& U_L_star_out,
-                                      Conservative& U_R_star_out) const;
 };
 
 #endif  // GODUNOVKOLGANRODIONOVSOLVER_HPP

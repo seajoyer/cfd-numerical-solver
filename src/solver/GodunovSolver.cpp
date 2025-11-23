@@ -48,13 +48,17 @@ auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
     const double dt_over_dx = dt / dx;
 
     const int n_interfaces = total_size - 1;
+
+    xt::xarray<Primitive> left_states;
+    xt::xarray<Primitive> right_states;
+    reconstruction_->ReconstructStates(layer, left_states, right_states);
+
     xt::xarray<Flux> fluxes =
         xt::xarray<Flux>::from_shape({static_cast<std::size_t>(n_interfaces)});
 
     for (int i = 0; i < n_interfaces; ++i) {
-        Primitive WL, WR;
-        reconstruction_->ComputeInterfaceStates(layer, i, WL, WR);
-        fluxes(i) = riemann_solver_->ComputeFlux(WL, WR, settings_.gamma);
+        fluxes(i) = riemann_solver_->ComputeFlux(left_states(i), right_states(i),
+                                                 settings_.gamma);
     }
 
     for (int j = core_start; j < core_end; ++j) {
@@ -62,7 +66,7 @@ auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
         const Flux& Fplus = fluxes(j);       // F_{j+1/2}
 
         Primitive w = layer.GetPrimitive(j);
-        Conservative U = ToConservative(w, settings_.gamma);
+        Conservative U = EOS::PrimToCons(w, settings_.gamma);
 
         U -= dt_over_dx * Flux::Diff(Fplus, Fminus);
 
