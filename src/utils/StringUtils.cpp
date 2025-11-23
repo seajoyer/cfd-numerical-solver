@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <limits>
 #include <sstream>
+#include <algorithm>
 
 namespace utils {
-
 auto DoubleWithoutDot(double value) -> std::string {
     std::ostringstream oss;
 
@@ -47,4 +47,10 @@ auto DoubleWithoutDot(double value) -> std::string {
     return oss.str();
 }
 
-}  // namespace utils
+auto ToLower(std::string& str) -> std::string {
+    std::string lower(str.size(), '\0');
+    std::transform(str.begin(), str.end(), lower.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return lower;
+}
+} // namespace utils

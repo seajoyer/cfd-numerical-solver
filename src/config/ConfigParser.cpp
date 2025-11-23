@@ -6,6 +6,7 @@
 
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
+#include "utils/StringUtils.hpp"
 
 ConfigParser::ConfigParser() = default;
 
@@ -208,8 +209,11 @@ auto ConfigParser::GetConfigPath() const -> const std::string& { return config_p
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     settings.solver = node["solver"].as<std::string>();
+    settings.solver = utils::ToLower(settings.solver);
     settings.riemann_solver = node["riemann_solver"].as<std::string>();
+    settings.riemann_solver = utils::ToLower(settings.riemann_solver);
     settings.reconstruction = node["reconstruction"].as<std::string>();
+    settings.reconstruction = utils::ToLower(settings.reconstruction);
     settings.left_boundary = node["left_boundary"].as<std::string>();
     settings.right_boundary = node["right_boundary"].as<std::string>();
 
