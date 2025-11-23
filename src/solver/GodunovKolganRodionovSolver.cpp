@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "reconstruction/ENOReconstruction.hpp"
+#include "reconstruction/WENOReconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
 #include "riemann/HLLCRiemannSolver.hpp"
@@ -27,6 +29,43 @@ void GodunovKolganRodionovSolver::AddBoundary(
 }
 
 void GodunovKolganRodionovSolver::InitializeReconstruction() {
+    std::string name = settings_.reconstruction;
+    if (name.find("p0") != std::string::npos) {
+        std::cout <<
+            "Godunov-Kolgan-Rodionov method requires at least P1 reconstruction.\n" <<
+            "Setting reconstruction P1." << std::endl;
+        name = "p1";
+    }
+    if (name.find("p1") != std::string::npos) {
+        reconstruction_ = std::make_shared<P1Reconstruction>();
+        return;
+    }
+    if (name.starts_with("eno")) {
+        int order = 3;
+        try {
+            order = std::stoi(name.substr(3, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of ENO don't found. Set order to 3" << std::endl;
+        }
+        reconstruction_ = std::make_shared<ENOReconstruction>(order);
+        return;
+    }
+    if (name.starts_with("weno")) {
+        int order = 5;
+        try {
+            order = std::stoi(name.substr(4, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of WENO don't found. Set order to 5" << std::endl;
+        }
+        if (order != 3 and order != 5) {
+            std::cout << "WENO supports only orders 3 or 5 for now. Set order to 5" <<
+                std::endl;
+        }
+        reconstruction_ = std::make_shared<WENOReconstruction>(order);
+        return;
+    }
+    std::cout << "Reconstruction type is unknown.\n" << "Setting reconstruction P1." <<
+        std::endl;
     reconstruction_ = std::make_shared<P1Reconstruction>();
 }
 

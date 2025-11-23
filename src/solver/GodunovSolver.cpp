@@ -1,5 +1,7 @@
 #include "solver/GodunovSolver.hpp"
 
+#include "reconstruction/ENOReconstruction.hpp"
+#include "reconstruction/WENOReconstruction.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
 #include "riemann/AcousticRiemannSolver.hpp"
@@ -87,14 +89,30 @@ void GodunovSolver::AddBoundary(int axis, std::shared_ptr<BoundaryCondition> lef
 
 void GodunovSolver::InitializeReconstruction() {
     std::string name = settings_.reconstruction;
-    std::string lower(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (lower.find("p1") != std::string::npos) {
+    if (name.find("p1") != std::string::npos) {
         reconstruction_ = std::make_shared<P1Reconstruction>();
-    } else if (lower.find("p0") != std::string::npos) {
+    } else if (name.find("p0") != std::string::npos) {
         reconstruction_ = std::make_shared<P0Reconstruction>();
+    } else if (name.starts_with("eno")) {
+        int order = 3;
+        try {
+            order = std::stoi(name.substr(3, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of ENO don't found. Set order to 3" << std::endl;
+        }
+        reconstruction_ = std::make_shared<ENOReconstruction>(order);
+    } else if (name.starts_with("weno")) {
+        int order = 5;
+        try {
+            order = std::stoi(name.substr(4, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of WENO don't found. Set order to 5" << std::endl;
+        }
+        if (order != 3 and order != 5) {
+            std::cout << "WENO supports only orders 3 or 5 for now. Set order to 5" <<
+                std::endl;
+        }
+        reconstruction_ = std::make_shared<WENOReconstruction>(order);
     } else {
         reconstruction_ = std::make_shared<P0Reconstruction>();
     }
