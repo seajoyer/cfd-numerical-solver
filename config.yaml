@@ -1,83 +1,111 @@
 config:
-  settings:
-    solver: godunov
-    riemann_solver: exact
-    reconstruction: P0
-    left_boundary:  free_stream
-    right_boundary: free_stream
-                  # inlet
-                  # outlet
-                  # reflective
-                  # non_reflective
-                  # periodic
-                  # symmetry
-                  # wall
+    settings:
+        solver: godunov
+        riemann_solver: exact
+        reconstruction: P0
+        left_boundary: free_stream
+        right_boundary: free_stream
+                        # inlet
+                        # outlet
+                        # reflective
+                        # non_reflective
+                        # periodic
+                        # symmetry
+                        # wall
 
-    N: 1000
-    cfl: 0.5
-    padding: 2
-    gamma: 1.4
-    dim: 1
-    L_x: 1
-    L_y: 1
-    L_z: 1
+        N: 1000
+        cfl: 0.5
+        padding: 2
+        gamma: 1.4
+        dim: 1
+        L_x: 1
+        L_y: 1
+        L_z: 1
 
-    Q_user: 2
+        Q_user: 2
 
-    # set any to zero to disable the endpoint.
-    # set both to zeros to write only the initial state
-    t_end:  0.25  # 0.25 0.15 0.012 0.035 0.035
-    step_end: 0
+        # set any to zero to disable the endpoint.
+        # set both to zeros to write only the initial state
+        t_end: 0.25 # 0.25 0.15 0.012 0.035 0.035
+        step_end: 0
 
-    # set any to zero to disable the corresponding logs.
-    log_every_steps: 50
-    log_every_time:  0.0
+        # set any to zero to disable the corresponding logs.
+        log_every_steps: 50
+        log_every_time: 0.0
 
-    # set any to zero to disable the corresponding output.
-    output_every_steps: 50
-    output_every_time:  0.0
+        # set any to zero to disable the corresponding output.
+        output_every_steps: 50
+        output_every_time: 0.0
 
-    output_format: vtk
-    output_dir: "../data/output" # run from `build/`, 
-                                 # so `../` is needed
+        output_format: vtk
+        output_dir: "../data" # run from `build/`,
+                              # so `../` is needed
 
-    sod_test_num: 1
-    x0: 0.5
-    analytical: true
+        # use "all" to run all available initial conditions
+        simulation_case: all
+        x0: 0.5
+        analytical: true
 
-  initial_conditions:
-    sod1:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 1.0
-      rho_R: 0.125
-      u_R: 0.0
-      P_R: 0.1
-    sod2:
-      rho_L: 1.0
-      u_L: -2.0
-      P_L: 0.4
-      rho_R: 1.0
-      u_R: 2.0
-      P_R: 0.4
-    sod3:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 1000.0
-      rho_R: 1.0
-      u_R: 0.0
-      P_R: 0.01
-    sod4:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 0.01
-      rho_R: 1.0
-      u_R: 0.0
-      P_R: 100.0
-    sod5:
-      rho_L: 5.99924
-      u_L: 19.5975
-      P_L: 460.894
-      rho_R: 5.99242
-      u_R: -6.19633
-      P_R: 46.0950
+    # Define initial conditions with any custom names
+    # Each entry defines left and right states for a Riemann problem
+    initial_conditions:
+        sod1:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 1.0
+            rho_R: 0.125
+            u_R: 0.0
+            P_R: 0.1
+        sod2:
+            rho_L: 1.0
+            u_L: -2.0
+            P_L: 0.4
+            rho_R: 1.0
+            u_R: 2.0
+            P_R: 0.4
+        sod3:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 1000.0
+            rho_R: 1.0
+            u_R: 0.0
+            P_R: 0.01
+        sod4:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 0.01
+            rho_R: 1.0
+            u_R: 0.0
+            P_R: 100.0
+        sod5:
+            rho_L: 5.99924
+            u_L: 19.5975
+            P_L: 460.894
+            rho_R: 5.99242
+            u_R: -6.19633
+            P_R: 46.0950
+
+        # Example custom initial conditions
+        # blast_wave:
+        #   rho_L: 1.0
+        #   u_L: 0.0
+        #   P_L: 1000.0
+        #   rho_R: 1.0
+        #   u_R: 0.0
+        #   P_R: 0.01
+
+        # shock_collision:
+        #   rho_L: 1.0
+        #   u_L: 10.0
+        #   P_L: 100.0
+        #   rho_R: 1.0
+        #   u_R: -10.0
+        #   P_R: 100.0
+
+        # custom_test:
+        #   rho_L: 2.0
+        #   u_L: 1.0
+        #   P_L: 5.0
+        #   rho_R: 0.5
+        #   u_R: -0.5
+        #   P_R: 2.0
