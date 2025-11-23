@@ -56,6 +56,8 @@ config:
             rho_R: 0.125
             u_R: 0.0
             P_R: 0.1
+            x0: 0.5
+            t_end: 0.25
         sod2:
             rho_L: 1.0
             u_L: -2.0
@@ -63,6 +65,8 @@ config:
             rho_R: 1.0
             u_R: 2.0
             P_R: 0.4
+            x0: 0.5
+            t_end: 0.15
         sod3:
             rho_L: 1.0
             u_L: 0.0
@@ -70,6 +74,8 @@ config:
             rho_R: 1.0
             u_R: 0.0
             P_R: 0.01
+            x0: 0.5
+            t_end: 0.012
         sod4:
             rho_L: 1.0
             u_L: 0.0
@@ -77,6 +83,8 @@ config:
             rho_R: 1.0
             u_R: 0.0
             P_R: 100.0
+            x0: 0.5
+            t_end: 0.035
         sod5:
             rho_L: 5.99924
             u_L: 19.5975
@@ -84,6 +92,8 @@ config:
             rho_R: 5.99242
             u_R: -6.19633
             P_R: 46.0950
+            x0: 0.5
+            t_end: 0.035
 
         # Example custom initial conditions
         # blast_wave:

@@ -17,6 +17,7 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
 
         LoadSettings(settings_node, settings_);
         LoadInitialConditions(ic_node, initial_conditions_);
+        LoadEndTimes(ic_node, end_times_);
         config_path_ = filename;
 
         return true;
@@ -180,6 +181,14 @@ auto ConfigParser::GetInitialCondition(const std::string& case_name) const -> co
     return it->second;
 }
 
+auto ConfigParser::GetCaseEndTime(const std::string& case_name) const -> const double {
+    auto it = end_times_.find(case_name);
+    if (it == end_times_.end()) {
+        throw std::out_of_range("'" + case_name + "' not found in configuration");
+    }
+    return it->second;
+}
+
 auto ConfigParser::GetAllCaseNames() const -> std::vector<std::string> {
     std::vector<std::string> names;
     names.reserve(initial_conditions_.size());
@@ -232,7 +241,7 @@ void ConfigParser::LoadInitialConditions(const YAML::Node& node,
     for (const auto& entry : node) {
         std::string case_name = entry.first.as<std::string>();
         const YAML::Node& ic_data = entry.second;
-        
+
         InitialConditions ic;
         ic.rho_L = ic_data["rho_L"].as<double>();
         ic.u_L = ic_data["u_L"].as<double>();
@@ -240,7 +249,19 @@ void ConfigParser::LoadInitialConditions(const YAML::Node& node,
         ic.rho_R = ic_data["rho_R"].as<double>();
         ic.u_R = ic_data["u_R"].as<double>();
         ic.P_R = ic_data["P_R"].as<double>();
-        
+        ic.x0 = ic_data["x0"].as<double>();
+
         initial_conditions[case_name] = ic;
+    }
+}
+
+void ConfigParser::LoadEndTimes(const YAML::Node& node,
+                                std::map<std::string, double>& end_times) {
+    // Iterate through all entries in the end_times section
+    for (const auto& entry : node) {
+        std::string case_name = entry.first.as<std::string>();
+        const YAML::Node& et_data = entry.second;
+
+        end_times[case_name] = et_data["t_end"].as<double>();
     }
 }

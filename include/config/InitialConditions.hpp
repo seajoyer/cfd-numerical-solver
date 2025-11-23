@@ -8,6 +8,7 @@ struct InitialConditions {
     double rho_R;
     double u_R;
     double P_R;
+    double x0;
 };
 
 #endif  // INITIALCONDITIONS_HPP

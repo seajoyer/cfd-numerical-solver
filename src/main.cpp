@@ -47,8 +47,10 @@ auto main(int argc, char* argv[]) -> int {
                 Settings case_settings = settings;
                 case_settings.simulation_case = name;
                 case_settings.output_dir = settings.output_dir + "/" + name;
-                
+                case_settings.t_end = parser.GetCaseEndTime(name);
+
                 InitialConditions ic = parser.GetInitialCondition(name);
+                case_settings.x0 = ic.x0;
                 
                 Simulation sim(case_settings, ic);
                 sim.Run();

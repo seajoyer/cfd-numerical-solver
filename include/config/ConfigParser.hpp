@@ -22,10 +22,11 @@ class ConfigParser {
     auto Parse(const std::string& default_config, int argc, char* argv[]) -> std::optional<bool>;
 
     [[nodiscard]] auto GetSettings() const -> const Settings&;
-    
+
     // New interface for general-purpose initial conditions
     [[nodiscard]] auto GetInitialConditions() const -> const std::map<std::string, InitialConditions>&;
     [[nodiscard]] auto GetInitialCondition(const std::string& case_name) const -> const InitialConditions&;
+    [[nodiscard]] auto GetCaseEndTime(const std::string& case_name) const -> const double;
     [[nodiscard]] auto GetAllCaseNames() const -> std::vector<std::string>;
     [[nodiscard]] auto HasInitialCondition(const std::string& case_name) const -> bool;
 
@@ -34,11 +35,14 @@ class ConfigParser {
    private:
     Settings settings_;
     std::map<std::string, InitialConditions> initial_conditions_;
+    std::map<std::string, double> end_times_;
     std::string config_path_;
 
     static void LoadSettings(const YAML::Node& node, Settings& settings);
     static void LoadInitialConditions(const YAML::Node& node,
                                       std::map<std::string, InitialConditions>& initial_conditions);
+    static void LoadEndTimes(const YAML::Node& node,
+                             std::map<std::string, double>& end_times);
 };
 
 #endif  // CONFIGPARSER_HPP
