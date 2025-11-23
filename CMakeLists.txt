@@ -115,6 +115,8 @@ add_executable(${NAME}
 
     src/reconstruction/P0Reconstruction.cpp
     src/reconstruction/P1Reconstruction.cpp
+    src/reconstruction/ENOReconstruction.cpp
+    src/reconstruction/WENOReconstruction.cpp
     include/reconstruction/Reconstruction.hpp
 
     src/riemann/HLLRiemannSolver.cpp
