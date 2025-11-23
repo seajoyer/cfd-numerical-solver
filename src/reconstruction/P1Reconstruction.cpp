@@ -47,44 +47,42 @@ auto P1Reconstruction::ApplyLimiter(const double a, const double b) const -> dou
     }
 }
 
-void P1Reconstruction::ComputeInterfaceStates(const DataLayer& layer,
-                                              const int interface_index,
-                                              Primitive& left_state,
-                                              Primitive& right_state) const {
+void P1Reconstruction::ReconstructStates(const DataLayer& layer,
+                                         xt::xarray<Primitive>& left_states,
+                                         xt::xarray<Primitive>& right_states) const {
     const int total_size = layer.GetTotalSize();
-    const int i = interface_index;
-    const int j = interface_index + 1;
+    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
 
-    if (i < 0 || j >= total_size) {
-        left_state = layer.GetPrimitive(i);
-        right_state = layer.GetPrimitive(j);
+    left_states = xt::xarray<Primitive>::from_shape(
+        {static_cast<std::size_t>(n_interfaces)});
+    right_states = xt::xarray<Primitive>::from_shape(
+        {static_cast<std::size_t>(n_interfaces)});
+
+    if (total_size <= 1) {
         return;
     }
 
-    const int i_l = std::max(0, i - 1);
-    const int i_r = std::min(total_size - 1, i + 1);
+    xt::xarray<Primitive> slopes =
+        xt::xarray<Primitive>::from_shape({static_cast<std::size_t>(total_size)});
 
-    const int j_l = std::max(0, j - 1);
-    const int j_r = std::min(total_size - 1, j + 1);
+    for (int k = 0; k < total_size; ++k) {
+        const int k_l = std::max(0, k - 1);
+        const int k_r = std::min(total_size - 1, k + 1);
 
-    const Primitive w_i_l = layer.GetPrimitive(i_l);
-    const Primitive w_i = layer.GetPrimitive(i);
-    const Primitive w_i_r = layer.GetPrimitive(i_r);
+        const Primitive w_l = layer.GetPrimitive(k_l);
+        const Primitive w_c = layer.GetPrimitive(k);
+        const Primitive w_r = layer.GetPrimitive(k_r);
 
-    const Primitive w_j_l = layer.GetPrimitive(j_l);
-    const Primitive w_j = layer.GetPrimitive(j);
-    const Primitive w_j_r = layer.GetPrimitive(j_r);
+        slopes(k).rho = ApplyLimiter(w_c.rho - w_l.rho, w_r.rho - w_c.rho);
+        slopes(k).u = ApplyLimiter(w_c.u - w_l.u, w_r.u - w_c.u);
+        slopes(k).P = ApplyLimiter(w_c.P - w_l.P, w_r.P - w_c.P);
+    }
 
-    Primitive slope_i, slope_j;
+    for (int i = 0; i < n_interfaces; ++i) {
+        const Primitive w_i = layer.GetPrimitive(i);
+        const Primitive w_ip1 = layer.GetPrimitive(i + 1);
 
-    slope_i.rho = ApplyLimiter(w_i.rho - w_i_l.rho, w_i_r.rho - w_i.rho);
-    slope_i.u = ApplyLimiter(w_i.u - w_i_l.u, w_i_r.u - w_i.u);
-    slope_i.P = ApplyLimiter(w_i.P - w_i_l.P, w_i_r.P - w_i.P);
-
-    slope_j.rho = ApplyLimiter(w_j.rho - w_j_l.rho, w_j_r.rho - w_j.rho);
-    slope_j.u = ApplyLimiter(w_j.u - w_j_l.u, w_j_r.u - w_j.u);
-    slope_j.P = ApplyLimiter(w_j.P - w_j_l.P, w_j_r.P - w_j.P);
-
-    left_state = w_i + 0.5 * slope_i;
-    right_state = w_j - 0.5 * slope_j;
+        left_states(i) = w_i + 0.5 * slopes(i);
+        right_states(i) = w_ip1 - 0.5 * slopes(i + 1);
+    }
 }
