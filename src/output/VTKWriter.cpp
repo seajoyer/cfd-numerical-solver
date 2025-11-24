@@ -45,9 +45,9 @@ auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settin
         oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step
             << ".vtk";
     } else {
-        oss << output_dir_ << "/" << settings.solver << "__N_" << N << "__CFL_"
-            << utils::DoubleWithoutDot(settings.cfl) << "__step_" << std::setw(4)
-            << std::setfill('0') << step << ".vtk";
+        oss << output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
+            << "__N_" << N << "__CFL_" << utils::DoubleWithoutDot(settings.cfl) <<
+            "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
 
     return oss.str();
