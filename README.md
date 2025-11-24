@@ -89,6 +89,7 @@ Key options:
 
  <details>
  <summary>The <code>config.yaml</code> file defines simulation parameters and initial conditions:</summary>
+
 ```yaml
 config:
   settings:
