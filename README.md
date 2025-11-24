@@ -11,67 +11,84 @@
 
 <br>
 
-This project is designed for educational purposes, with `.yaml` configuration and `.vtk` output for visualization (e.g., in ParaView).
+A modular CFD solver for 1D compressible flow using finite volume methods. Features flexible configuration via YAML and VTK output for visualization in ParaView. The project is designed for educational purposes.
 
 ## Features
 
-- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov (more coming soon)
-- **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC.
-- **Reconstruction**: Piecewise constant (P0), Piecewise-linear (P1).
-- **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall.
+- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov, Analytical
+- **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC
+- **Reconstruction**: P0 (piecewise constant), P1 (piecewise linear), ENO, WENO
+- **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall
 - **Equation of State**: Ideal gas
-- **Initial Conditions**: Predefined Sod shock tube tests (1-5).
-- **Dimensions**: Currently 1D (2D/3D upcoming).
-- **Output**: VTK files; configurable logging and output intervals.
+- **Initial Conditions**: Configurable Riemann problems (5 predefined Sod tests + custom cases)
+- **Dimensions**: Currently 1D (2D/3D planned)
+- **Output**: VTK files with organized directory structure
 
 ## Dependencies
 
-- C++17 compiler (e.g., GCC, Clang).
-- CMake 3.25+.
-- xtensor (for arrays; fetched if not found).
-- yaml-cpp (for config parsing; fetched if not found).
-- VTK (for output; required, install via package manager).
-- Doxygen (optional, for docs).
+- C++17 compiler (GCC, Clang)
+- CMake 3.25+
+- xtensor (auto-fetched if not found)
+- yaml-cpp (auto-fetched if not found)
+- cxxopts (auto-fetched if not found)
+- VTK (required, install via package manager)
+- Doxygen (optional, for documentation)
 
 ## Building from Source
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/seajoyer/cfd-numerical-solver
    cd cfd-numerical-solver
    ```
 
 2. Create build directory:
-   ```
+   ```bash
    mkdir build && cd build
    ```
 
 3. Configure and build:
-   ```
+   ```bash
    cmake ..
    cmake --build .
    ```
-   The executable `cfd-numerical-solver` will be in the `build` directory.
 
-4. (Optional) Generate Doxygen docs:
-   ```
+4. (Optional) Generate documentation:
+   ```bash
    cmake --build . --target docs
    ```
-   Access at `build/docs/html/index.html`.
+   Documentation available at `build/docs/html/index.html`
 
 ## Usage
 
-Run the executable:
-```
+Run with default configuration:
+```bash
 ./cfd-numerical-solver
 ```
 
-It loads `../config.yaml` (relative to executable), applies settings and initial conditions (e.g., Sod test), and runs the simulation. Outputs to specified directory (default: `../data/output`).
+The solver reads `../config.yaml` by default and outputs to `../data/`.
+
+### Command Line Options
+
+Override configuration parameters:
+```bash
+./cfd-numerical-solver -i sod3 --N-cells 2000 --cfl 0.4
+```
+
+Key options:
+- `-i, --simulation-case`: Select simulation case (e.g., `sod3`, `custom_case`, or `all`)
+- `-N, --N-cells`: Number of grid cells
+- `--cfl`: CFL number
+- `-s, --solver`: Solver type
+- `--riemann-solver`: Riemann solver type
+- `--reconstruction`: Reconstruction scheme
+- `-o, --output-dir`: Output directory
+- `-h, --help`: Show all options
 
 ## Configuration
 
-<details>
-<summary>Sample `config.yaml`:</summary>
+ <details>
+ <summary>The <code>config.yaml</code> file defines simulation parameters and initial conditions:
 
 ```yaml
 config:
@@ -79,45 +96,34 @@ config:
     solver: godunov
     riemann_solver: exact
     reconstruction: P0
-    left_boundary:  free_stream
+    left_boundary: free_stream
     right_boundary: free_stream
-                  # inlet
-                  # outlet
-                  # reflective
-                  # non_reflective
-                  # periodic
-                  # symmetry
-                  # wall
-    Q_user: 2.0
 
     N: 1000
     cfl: 0.5
     padding: 2
-    c: 300
     gamma: 1.4
     dim: 1
     L_x: 1
-    L_y: 1
-    L_z: 1
 
-    # set any to zero to disable the endpoint.
-    # set both to zeros to write only the initial state
-    t_end:  0.25  # 0.25 0.15 0.012 0.035 0.035
+    Q_user: 2
+
+    t_end: 0.25
     step_end: 0
 
-    # set any to zero to disable the corresponding logs.
     log_every_steps: 50
-    log_every_time:  0.0
-                                 
-    # set any to zero to disable the corresponding output.
+    log_every_time: 0.0
+
     output_every_steps: 50
-    output_every_time:  0.0
+    output_every_time: 0.0
 
     output_format: vtk
-    output_dir: "../data/output" # run from `build/`, 
-                                 # so `../` is needed
+    output_dir: "../data"
 
-    sod_test_num: 5
+    # Use "all" to run all available cases
+    simulation_case: sod1
+    x0: 0.5
+    analytical: true
 
   initial_conditions:
     sod1:
@@ -127,6 +133,9 @@ config:
       rho_R: 0.125
       u_R: 0.0
       P_R: 0.1
+      x0: 0.5
+      t_end: 0.25
+    
     sod2:
       rho_L: 1.0
       u_L: -2.0
@@ -134,31 +143,48 @@ config:
       rho_R: 1.0
       u_R: 2.0
       P_R: 0.4
-    sod3:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 1000.0
-      rho_R: 1.0
-      u_R: 0.0
-      P_R: 0.01
-    sod4:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 0.01
-      rho_R: 1.0
-      u_R: 0.0
-      P_R: 100.0
-    sod5:
-      rho_L: 5.99924
-      u_L: 19.5975
-      P_L: 460.894
-      rho_R: 5.99242
-      u_R: -6.19633
-      P_R: 46.0950
+      x0: 0.5
+      t_end: 0.15
+    
+    # Add custom cases here
+    # custom_case:
+    #   rho_L: 2.0
+    #   u_L: 1.0
+    #   P_L: 5.0
+    #   rho_R: 0.5
+    #   u_R: -0.5
+    #   P_R: 2.0
+    #   x0: 0.3
+    #   t_end: 0.1
 ```
 
 </details>
 
+### Output Structure
+
+Results are organized hierarchically:
+
+```
+data/
+├── sod1/  # сase names are added only if `simulation-case` is `all`.
+│   ├── godunov__R_p0__N_1000__CFL_5e-1/
+│   │   └── *.vtk
+│   └── analytical/
+│       └── *.vtk
+├── sod3/
+│   └── ...
+```
+
+Each numerical simulation creates a directory with solver parameters in the name, while analytical solutions go to `analytical/` subdirectories.
+
+### Running Multiple Cases
+
+Set `simulation_case: all` to run all defined initial conditions in sequence:
+
+```bash
+./cfd-numerical-solver -i all
+```
+
 ## License
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
+Licensed under the Apache License, Version 2.0. See http://www.apache.org/licenses/LICENSE-2.0 for details.

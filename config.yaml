@@ -94,28 +94,3 @@ config:
             P_R: 46.0950
             x0: 0.5
             t_end: 0.035
-
-        # Example custom initial conditions
-        # blast_wave:
-        #   rho_L: 1.0
-        #   u_L: 0.0
-        #   P_L: 1000.0
-        #   rho_R: 1.0
-        #   u_R: 0.0
-        #   P_R: 0.01
-
-        # shock_collision:
-        #   rho_L: 1.0
-        #   u_L: 10.0
-        #   P_L: 100.0
-        #   rho_R: 1.0
-        #   u_R: -10.0
-        #   P_R: 100.0
-
-        # custom_test:
-        #   rho_L: 2.0
-        #   u_L: 1.0
-        #   P_L: 5.0
-        #   rho_R: 0.5
-        #   u_R: -0.5
-        #   P_R: 2.0
