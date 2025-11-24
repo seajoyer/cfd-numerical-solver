@@ -29,6 +29,8 @@ namespace utils {
  */
 auto DoubleWithoutDot(double value) -> std::string;
 
+auto ToLower(std::string& str) -> std::string;
+
 }  // namespace utils
 
 #endif  // STRINGUTILS_HPP

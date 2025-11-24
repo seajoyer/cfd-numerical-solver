@@ -1,5 +1,7 @@
 #include "solver/GodunovSolver.hpp"
 
+#include "reconstruction/ENOReconstruction.hpp"
+#include "reconstruction/WENOReconstruction.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
 #include "riemann/AcousticRiemannSolver.hpp"
@@ -48,13 +50,17 @@ auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
     const double dt_over_dx = dt / dx;
 
     const int n_interfaces = total_size - 1;
+
+    xt::xarray<Primitive> left_states;
+    xt::xarray<Primitive> right_states;
+    reconstruction_->ReconstructStates(layer, left_states, right_states);
+
     xt::xarray<Flux> fluxes =
         xt::xarray<Flux>::from_shape({static_cast<std::size_t>(n_interfaces)});
 
     for (int i = 0; i < n_interfaces; ++i) {
-        Primitive WL, WR;
-        reconstruction_->ComputeInterfaceStates(layer, i, WL, WR);
-        fluxes(i) = riemann_solver_->ComputeFlux(WL, WR, settings_.gamma);
+        fluxes(i) = riemann_solver_->ComputeFlux(left_states(i), right_states(i),
+                                                 settings_.gamma);
     }
 
     for (int j = core_start; j < core_end; ++j) {
@@ -62,7 +68,7 @@ auto GodunovSolver::Step(DataLayer& layer, double& t_cur) -> double {
         const Flux& Fplus = fluxes(j);       // F_{j+1/2}
 
         Primitive w = layer.GetPrimitive(j);
-        Conservative U = ToConservative(w, settings_.gamma);
+        Conservative U = EOS::PrimToCons(w, settings_.gamma);
 
         U -= dt_over_dx * Flux::Diff(Fplus, Fminus);
 
@@ -83,14 +89,30 @@ void GodunovSolver::AddBoundary(int axis, std::shared_ptr<BoundaryCondition> lef
 
 void GodunovSolver::InitializeReconstruction() {
     std::string name = settings_.reconstruction;
-    std::string lower(name.size(), '\0');
-    std::transform(name.begin(), name.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (lower.find("p1") != std::string::npos) {
+    if (name.find("p1") != std::string::npos) {
         reconstruction_ = std::make_shared<P1Reconstruction>();
-    } else if (lower.find("p0") != std::string::npos) {
+    } else if (name.find("p0") != std::string::npos) {
         reconstruction_ = std::make_shared<P0Reconstruction>();
+    } else if (name.starts_with("eno")) {
+        int order = 3;
+        try {
+            order = std::stoi(name.substr(3, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of ENO don't found. Set order to 3" << std::endl;
+        }
+        reconstruction_ = std::make_shared<ENOReconstruction>(order);
+    } else if (name.starts_with("weno")) {
+        int order = 5;
+        try {
+            order = std::stoi(name.substr(4, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of WENO don't found. Set order to 5" << std::endl;
+        }
+        if (order != 3 and order != 5) {
+            std::cout << "WENO supports only orders 3 or 5 for now. Set order to 5" <<
+                std::endl;
+        }
+        reconstruction_ = std::make_shared<WENOReconstruction>(order);
     } else {
         reconstruction_ = std::make_shared<P0Reconstruction>();
     }

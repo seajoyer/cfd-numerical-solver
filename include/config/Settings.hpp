@@ -26,7 +26,7 @@ struct Settings {
     double x0 = 0.5;
     bool analytical = false;
     double t_end = 0;
-    std::size_t step_end = 10000;
+    std::size_t step_end = INT32_MAX;
 
     std::size_t log_every_steps = 1;
     double      log_every_time = 0.0;

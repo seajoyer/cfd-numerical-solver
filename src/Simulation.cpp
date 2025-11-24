@@ -112,8 +112,8 @@ void Simulation::Initialize() {
     // Initialize output writer
     // Construct detailed subdirectory for numerical solution
     std::ostringstream subdir_oss;
-    subdir_oss << settings_.solver << "__N_" << settings_.N << "__CFL_"
-               << utils::DoubleWithoutDot(settings_.cfl);
+    subdir_oss << settings_.solver << "__R_" << settings_.reconstruction << "__N_" <<
+        settings_.N << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
     std::string numerical_output_dir = settings_.output_dir + "/" + subdir_oss.str();
     
     writer_ = CreateWriter(settings_.output_format, numerical_output_dir);

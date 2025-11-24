@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "reconstruction/ENOReconstruction.hpp"
+#include "reconstruction/WENOReconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
 #include "riemann/HLLCRiemannSolver.hpp"
@@ -27,6 +29,43 @@ void GodunovKolganRodionovSolver::AddBoundary(
 }
 
 void GodunovKolganRodionovSolver::InitializeReconstruction() {
+    std::string name = settings_.reconstruction;
+    if (name.find("p0") != std::string::npos) {
+        std::cout <<
+            "Godunov-Kolgan-Rodionov method requires at least P1 reconstruction.\n" <<
+            "Setting reconstruction P1." << std::endl;
+        name = "p1";
+    }
+    if (name.find("p1") != std::string::npos) {
+        reconstruction_ = std::make_shared<P1Reconstruction>();
+        return;
+    }
+    if (name.starts_with("eno")) {
+        int order = 3;
+        try {
+            order = std::stoi(name.substr(3, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of ENO don't found. Set order to 3" << std::endl;
+        }
+        reconstruction_ = std::make_shared<ENOReconstruction>(order);
+        return;
+    }
+    if (name.starts_with("weno")) {
+        int order = 5;
+        try {
+            order = std::stoi(name.substr(4, std::string::npos));
+        } catch (...) {
+            std::cout << "Order of WENO don't found. Set order to 5" << std::endl;
+        }
+        if (order != 3 and order != 5) {
+            std::cout << "WENO supports only orders 3 or 5 for now. Set order to 5" <<
+                std::endl;
+        }
+        reconstruction_ = std::make_shared<WENOReconstruction>(order);
+        return;
+    }
+    std::cout << "Reconstruction type is unknown.\n" << "Setting reconstruction P1." <<
+        std::endl;
     reconstruction_ = std::make_shared<P1Reconstruction>();
 }
 
@@ -66,7 +105,6 @@ auto GodunovKolganRodionovSolver::ComputeDx(const DataLayer& layer) const -> dou
 }
 
 auto GodunovKolganRodionovSolver::Step(DataLayer& layer, double& t_cur) -> double {
-    // 1. Apply boundary conditions (update ghost cells).
     boundary_manager_.ApplyAll(layer);
 
     const double dx = ComputeDx(layer);
@@ -79,13 +117,11 @@ auto GodunovKolganRodionovSolver::Step(DataLayer& layer, double& t_cur) -> doubl
         return 0.0;
     }
 
-    // 2. Compute dt from CFL condition using primitive fields in DataLayer.
     double dt = TimeStepCalculator::ComputeDt(layer, dx, cfl_, settings_.gamma);
     if (dt <= 0.0) {
         return 0.0;
     }
 
-    // Clamp dt to not exceed t_end.
     if (t_cur + dt > settings_.t_end) {
         dt = settings_.t_end - t_cur;
         if (dt <= 0.0) {
@@ -93,62 +129,88 @@ auto GodunovKolganRodionovSolver::Step(DataLayer& layer, double& t_cur) -> doubl
         }
     }
 
-    const double half_dt_over_dx = 0.5 * dt / dx;
     const double dt_over_dx = dt / dx;
+    const double half_dt_over_dx = 0.5 * dt_over_dx;
+    const double gamma = settings_.gamma;
+    const int n_interfaces = total_size - 1;
 
-    // 3. Allocate buffer for updated conservative states (core cells).
-    xt::xarray<Conservative> updated =
+    xt::xarray<Primitive> WL_interface;
+    xt::xarray<Primitive> WR_interface;
+    reconstruction_->ReconstructStates(layer, WL_interface, WR_interface);
+
+    xt::xarray<Primitive> W_L_cell =
+        xt::xarray<Primitive>::from_shape({static_cast<std::size_t>(total_size)});
+    xt::xarray<Primitive> W_R_cell =
+        xt::xarray<Primitive>::from_shape({static_cast<std::size_t>(total_size)});
+
+    xt::xarray<Conservative> U_L =
+        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
+    xt::xarray<Conservative> U_R =
+        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
+    xt::xarray<Conservative> U_L_star =
+        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
+    xt::xarray<Conservative> U_R_star =
         xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
 
-    // 4. Main loop: update physical cells using MUSCL–Hancock + Riemann solver.
+    xt::xarray<Flux> F_L =
+        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(total_size)});
+    xt::xarray<Flux> F_R =
+        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(total_size)});
+
+    xt::xarray<Flux> fluxes =
+        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(n_interfaces)});
+
+    auto clamp_interface = [n_interfaces](int idx) {
+        if (idx < 0) {
+            return 0;
+        }
+        if (idx >= n_interfaces) {
+            return n_interfaces - 1;
+        }
+        return idx;
+    };
+
+    for (int j = 0; j < total_size; ++j) {
+        const int left_interface_index = clamp_interface(j - 1);
+        const int right_interface_index = clamp_interface(j);
+
+        W_L_cell(j) = WR_interface(left_interface_index);
+        W_R_cell(j) = WL_interface(right_interface_index);
+
+        U_L(j) = EOS::PrimToCons(W_L_cell(j), gamma);
+        U_R(j) = EOS::PrimToCons(W_R_cell(j), gamma);
+
+        F_L(j) = EulerFlux(W_L_cell(j), gamma);
+        F_R(j) = EulerFlux(W_R_cell(j), gamma);
+    }
+
+    for (int j = 0; j < total_size; ++j) {
+        const Flux dF = Flux::Diff(F_R(j), F_L(j));
+        U_L_star(j) = U_L(j);
+        U_R_star(j) = U_R(j);
+        U_L_star(j) -= half_dt_over_dx * dF;
+        U_R_star(j) -= half_dt_over_dx * dF;
+    }
+
+    for (int i = 0; i < n_interfaces; ++i) {
+        const Primitive WL_star = EOS::ConsToPrim(U_R_star(i), gamma);
+        const Primitive WR_star = EOS::ConsToPrim(U_L_star(i + 1), gamma);
+        fluxes(i) = riemann_solver_->ComputeFlux(WL_star, WR_star, gamma);
+    }
+
     for (int j = core_start; j < core_end; ++j) {
-        // Conservative state in cell j at time n.
-        Primitive w_j = layer.GetPrimitive(j);
-        Conservative Uj = ToConservative(w_j, settings_.gamma);
+        const Flux& Fminus = fluxes(j - 1);
+        const Flux& Fplus = fluxes(j);
 
-        // Predicted states for j-1, j, j+1.
-        Conservative UL_star_left, UR_star_left;
-        Conservative UL_star_center, UR_star_center;
-        Conservative UL_star_right, UR_star_right;
+        Primitive w = layer.GetPrimitive(j);
+        Conservative Uj = EOS::PrimToCons(w, gamma);
 
-        const int iL = j - 1;
-        const int iC = j;
-        const int iR = j + 1;
-
-        ComputePredictedStatesAtCell(layer, iL, half_dt_over_dx, UL_star_left,
-                                     UR_star_left);
-        ComputePredictedStatesAtCell(layer, iC, half_dt_over_dx, UL_star_center,
-                                     UR_star_center);
-        ComputePredictedStatesAtCell(layer, iR, half_dt_over_dx, UL_star_right,
-                                     UR_star_right);
-
-        // Interface j-1/2: right from cell (j-1), left from cell j.
-        Primitive WL_minus = ToPrimitive(UR_star_left, settings_.gamma);
-        Primitive WR_minus = ToPrimitive(UL_star_center, settings_.gamma);
-        Flux Fminus = riemann_solver_->ComputeFlux(WL_minus, WR_minus, settings_.gamma);
-
-        // Interface j+1/2: right from cell j, left from cell (j+1).
-        Primitive WL_plus = ToPrimitive(UR_star_center, settings_.gamma);
-        Primitive WR_plus = ToPrimitive(UL_star_right, settings_.gamma);
-        Flux Fplus = riemann_solver_->ComputeFlux(WL_plus, WR_plus, settings_.gamma);
-
-        // Finite-volume update for cell j.
         Uj -= dt_over_dx * Flux::Diff(Fplus, Fminus);
 
-        // Positivity limiter on updated state.
-        PositivityLimiter::Apply(Uj, settings_.gamma, rho_min_, p_min_);
-
-        // Store into buffer; DataLayer is not modified yet.
-        updated(j) = Uj;
+        PositivityLimiter::Apply(Uj, gamma, rho_min_, p_min_);
+        StoreConservativeCell(Uj, j, dx, layer);
     }
 
-    // 5. Write updated conservative states back to DataLayer (core cells).
-    for (int j = core_start; j < core_end; ++j) {
-        const Conservative& Uj_new = updated(j);
-        StoreConservativeCell(Uj_new, j, dx, layer);
-    }
-
-    // 6. Advance time.
     t_cur += dt;
     return dt;
 }
@@ -177,53 +239,4 @@ void GodunovKolganRodionovSolver::StoreConservativeCell(const Conservative& uc,
     layer.U(i) = eint;
     layer.e(i) = Etot;
     layer.m(i) = rho * dx;
-}
-
-void GodunovKolganRodionovSolver::ComputePredictedStatesAtCell(
-    const DataLayer& layer, const int i, const double half_dt_over_dx,
-    Conservative& U_L_star_out, Conservative& U_R_star_out) const {
-    const int total_size = layer.GetTotalSize();
-    const int n_interfaces = total_size - 1;
-
-    auto clamp_interface = [n_interfaces](int idx) {
-        if (idx < 0) {
-            return 0;
-        }
-        if (idx >= n_interfaces) {
-            return n_interfaces - 1;
-        }
-        return idx;
-    };
-
-    const int left_interface = clamp_interface(i - 1);  // i-1/2
-    const int right_interface = clamp_interface(i);     // i+1/2
-
-    Primitive WL_left, WR_left;
-    Primitive WL_right, WR_right;
-
-    // States at interface i-1/2: (WL_left, WR_left)
-    reconstruction_->ComputeInterfaceStates(layer, left_interface, WL_left, WR_left);
-    // States at interface i+1/2: (WL_right, WR_right)
-    reconstruction_->ComputeInterfaceStates(layer, right_interface, WL_right, WR_right);
-
-    // Cell-internal states at time n:
-    //  - left state in cell i:  right state from interface i-1/2
-    //  - right state in cell i: left state  from interface i+1/2
-    Primitive W_L_cell = WR_left;
-    Primitive W_R_cell = WL_right;
-
-    // Convert to conservative form.
-    Conservative U_L = ToConservative(W_L_cell, settings_.gamma);
-    Conservative U_R = ToConservative(W_R_cell, settings_.gamma);
-
-    // Euler fluxes from these states.
-    Flux F_L = EulerFlux(W_L_cell, settings_.gamma);
-    Flux F_R = EulerFlux(W_R_cell, settings_.gamma);
-
-    // MUSCL–Hancock predictor to half time.
-    U_L_star_out = U_L;
-    U_R_star_out = U_R;
-
-    U_L_star_out -= half_dt_over_dx * Flux::Diff(F_R, F_L);
-    U_R_star_out -= half_dt_over_dx * Flux::Diff(F_R, F_L);
 }

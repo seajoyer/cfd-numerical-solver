@@ -36,7 +36,7 @@ endmacro()
 safe_fetch_content(xtl https://github.com/xtensor-stack/xtl.git 0.8.1)
 safe_fetch_content(xtensor https://github.com/xtensor-stack/xtensor.git 0.27.1)
 safe_fetch_content(yaml-cpp https://github.com/jbeder/yaml-cpp.git 0.8.0)
-safe_fetch_content(cxxopts https://github.com/jarro2783/cxxopts.git 3.3.1)
+safe_fetch_content(cxxopts https://github.com/jarro2783/cxxopts.git v3.3.1)
 
 find_package(Doxygen REQUIRED)
 
@@ -115,6 +115,8 @@ add_executable(${NAME}
 
     src/reconstruction/P0Reconstruction.cpp
     src/reconstruction/P1Reconstruction.cpp
+    src/reconstruction/ENOReconstruction.cpp
+    src/reconstruction/WENOReconstruction.cpp
     include/reconstruction/Reconstruction.hpp
 
     src/riemann/HLLRiemannSolver.cpp

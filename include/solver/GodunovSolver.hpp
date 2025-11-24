@@ -131,9 +131,11 @@ class GodunovSolver : public Solver {
      * @brief Selects and constructs the reconstruction scheme.
      *
      * Based on the string in `settings_.reconstruction` (case-insensitive):
-     *  - contains "p1" → P1Reconstruction
-     *  - contains "p0" → P0Reconstruction
-     *  - otherwise     → defaults to P0Reconstruction
+     *  - contains "p1"   → P1Reconstruction
+     *  - contains "p0"   → P0Reconstruction
+     *  - contains "eno"  → ENOReconstruction
+     *  - contains "weno" → WENOReconstruction
+     *  - otherwise       → defaults to P0Reconstruction
      */
     void InitializeReconstruction();
 
