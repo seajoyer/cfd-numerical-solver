@@ -90,7 +90,7 @@ def get_color(solver, reconstruction, color_index):
 
     return colors[color_index % len(colors)]
 
-base_dir = "/absolute/path/to/cfd-numerical-solver/data"
+base_dir = "data"
 
 # Основной цикл по тестам
 for test_num, test_name in enumerate(sod_test_n):
