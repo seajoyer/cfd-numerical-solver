@@ -1,7 +1,6 @@
 #include "solver/AnalyticalSolver.hpp"
 
 #include <algorithm>
-#include <cmath>
 
 AnalyticalSolver::AnalyticalSolver(const Settings& settings)
     : settings_(settings),

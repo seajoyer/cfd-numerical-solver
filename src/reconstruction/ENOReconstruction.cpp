@@ -5,8 +5,8 @@
 #include <vector>
 
 namespace {
-double DividedDifference(const xt::xarray<double>& f,
-                         const std::vector<int>& idx) {
+auto DividedDifference(const xt::xarray<double>& f,
+                         const std::vector<int>& idx) -> double {
     const std::size_t m = idx.size();
     if (m == 0) {
         return 0.0;
@@ -105,9 +105,9 @@ void BuildENOStencil(const xt::xarray<double>& f,
     }
 }
 
-double LagrangeInterpolate(const xt::xarray<double>& f,
+auto LagrangeInterpolate(const xt::xarray<double>& f,
                            const std::vector<int>& stencil,
-                           double x_eval) {
+                           double x_eval) -> double {
     const std::size_t m = stencil.size();
     if (m == 0) {
         return 0.0;
@@ -135,20 +135,20 @@ double LagrangeInterpolate(const xt::xarray<double>& f,
     return result;
 }
 
-double ENOReconstructScalar(const xt::xarray<double>& f,
+auto ENOReconstructScalar(const xt::xarray<double>& f,
                             int base_index,
                             double x_eval,
                             int order,
-                            int N) {
+                            int N) -> double {
     std::vector<int> stencil;
     BuildENOStencil(f, base_index, order, N, stencil);
     return LagrangeInterpolate(f, stencil, x_eval);
 }
 
-Primitive ENOReconstructPrimitive(const DataLayer& layer,
+auto ENOReconstructPrimitive(const DataLayer& layer,
                                   int base_index,
                                   double x_eval,
-                                  int order) {
+                                  int order) -> Primitive {
     const int N = layer.GetTotalSize();
 
     Primitive w;
@@ -171,7 +171,7 @@ void ENOReconstruction::ReconstructStates(const DataLayer& layer,
                                           xt::xarray<Primitive>& right_states) const {
     const int total_size = layer.GetTotalSize();
     const int n_interfaces = std::max(0, total_size - 1);
-    const std::size_t n_int = static_cast<std::size_t>(n_interfaces);
+    const auto n_int = static_cast<std::size_t>(n_interfaces);
 
     left_states = xt::xarray<Primitive>::from_shape({n_int});
     right_states = xt::xarray<Primitive>::from_shape({n_int});

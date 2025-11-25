@@ -1,7 +1,5 @@
 #include "solver/GodunovKolganRodionovSolver.hpp"
 
-#include <cmath>
-
 #include "reconstruction/ENOReconstruction.hpp"
 #include "reconstruction/WENOReconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
@@ -33,7 +31,7 @@ void GodunovKolganRodionovSolver::InitializeReconstruction() {
     if (name.find("p0") != std::string::npos) {
         std::cout <<
             "Godunov-Kolgan-Rodionov method requires at least P1 reconstruction.\n" <<
-            "Setting reconstruction P1." << std::endl;
+            "Setting reconstruction P1." << '\n';
         name = "p1";
     }
     if (name.find("p1") != std::string::npos) {
@@ -45,7 +43,7 @@ void GodunovKolganRodionovSolver::InitializeReconstruction() {
         try {
             order = std::stoi(name.substr(3, std::string::npos));
         } catch (...) {
-            std::cout << "Order of ENO don't found. Set order to 3" << std::endl;
+            std::cout << "Order of ENO don't found. Set order to 3" << '\n';
         }
         reconstruction_ = std::make_shared<ENOReconstruction>(order);
         return;
@@ -55,17 +53,17 @@ void GodunovKolganRodionovSolver::InitializeReconstruction() {
         try {
             order = std::stoi(name.substr(4, std::string::npos));
         } catch (...) {
-            std::cout << "Order of WENO don't found. Set order to 5" << std::endl;
+            std::cout << "Order of WENO don't found. Set order to 5" << '\n';
         }
         if (order != 3 and order != 5) {
             std::cout << "WENO supports only orders 3 or 5 for now. Set order to 5" <<
-                std::endl;
+                '\n';
         }
         reconstruction_ = std::make_shared<WENOReconstruction>(order);
         return;
     }
     std::cout << "Reconstruction type is unknown.\n" << "Setting reconstruction P1." <<
-        std::endl;
+        '\n';
     reconstruction_ = std::make_shared<P1Reconstruction>();
 }
 
