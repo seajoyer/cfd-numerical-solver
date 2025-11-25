@@ -14,7 +14,7 @@ macro(fetch_package target_name repo tag)
 
             # special handling for VTK
             if(${target_name} STREQUAL "VTK")
-                message(STATUS "[fetch_package] Configuring minimal VTK build (CommonCore + CommonDataModel + IOCore + IOLegacy only)...")
+                message(STATUS "[fetch_package] Configuring minimal VTK build (CommonCore + CommonDataModel + IOLegacy only)...")
 
                 # Disable extras
                 set(VTK_BUILD_TESTING OFF CACHE BOOL "")
