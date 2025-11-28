@@ -2,12 +2,60 @@
 #define SETTINGS_HPP
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 /**
  * @file Settings.hpp
  * @brief Global configuration parameters for CFD simulation
  */
+
+/**
+ * @struct CaseSettings
+ * @brief Optional overrides for case-specific settings
+ * 
+ * Each field is optional. When set, it overrides the corresponding
+ * global setting for that specific simulation case.
+ */
+struct CaseSettings {
+    // Solver Configuration
+    std::optional<std::string> solver;
+    std::optional<std::string> riemann_solver;
+    std::optional<std::string> reconstruction;
+    std::optional<std::string> left_boundary;
+    std::optional<std::string> right_boundary;
+    
+    // Grid Configuration
+    std::optional<int> N;
+    std::optional<double> cfl;
+    std::optional<int> padding;
+    std::optional<double> gamma;
+    std::optional<int> dim;
+    std::optional<double> L_x;
+    std::optional<double> L_y;
+    std::optional<double> L_z;
+    
+    // Physical Parameters
+    std::optional<double> Q_user;
+    
+    // Initial Conditions
+    std::optional<double> x0;
+    std::optional<bool> analytical;
+    
+    // Time Control
+    std::optional<double> t_end;
+    std::optional<std::size_t> step_end;
+    
+    // Logging Configuration
+    std::optional<std::size_t> log_every_steps;
+    std::optional<double> log_every_time;
+    
+    // Output Configuration
+    std::optional<std::size_t> output_every_steps;
+    std::optional<double> output_every_time;
+    std::optional<std::string> output_format;
+    std::optional<std::string> output_dir;
+};
 
 /**
  * @struct Settings
@@ -102,8 +150,8 @@ struct Settings {
      */
     int padding = 2;
     
-    /** @brief Ratio of specific heats (γ)
-     * @note For ideal gas EOS: γ = cp/cv
+    /** @brief Ratio of specific heats (Î³)
+     * @note For ideal gas EOS: Î³ = cp/cv
      * @note Common values: 1.4 (air), 1.67 (monatomic), 1.33 (polyatomic)
      */
     double gamma = 1.4;
@@ -211,5 +259,60 @@ struct Settings {
      */
     std::string output_dir = "data/output";
 };
+
+/**
+ * @brief Merges case-specific overrides into global settings
+ * 
+ * Creates a new Settings object by applying case-specific overrides
+ * to the global settings. Only non-empty optional fields in case_overrides
+ * will override the corresponding global values.
+ * 
+ * @param global Global settings
+ * @param case_overrides Case-specific overrides
+ * @return Merged settings with case-specific values taking precedence
+ */
+inline auto MergeSettings(const Settings& global, const CaseSettings& case_overrides) -> Settings {
+    Settings merged = global;
+    
+    // Solver Configuration
+    if (case_overrides.solver) merged.solver = *case_overrides.solver;
+    if (case_overrides.riemann_solver) merged.riemann_solver = *case_overrides.riemann_solver;
+    if (case_overrides.reconstruction) merged.reconstruction = *case_overrides.reconstruction;
+    if (case_overrides.left_boundary) merged.left_boundary = *case_overrides.left_boundary;
+    if (case_overrides.right_boundary) merged.right_boundary = *case_overrides.right_boundary;
+    
+    // Grid Configuration
+    if (case_overrides.N) merged.N = *case_overrides.N;
+    if (case_overrides.cfl) merged.cfl = *case_overrides.cfl;
+    if (case_overrides.padding) merged.padding = *case_overrides.padding;
+    if (case_overrides.gamma) merged.gamma = *case_overrides.gamma;
+    if (case_overrides.dim) merged.dim = *case_overrides.dim;
+    if (case_overrides.L_x) merged.L_x = *case_overrides.L_x;
+    if (case_overrides.L_y) merged.L_y = *case_overrides.L_y;
+    if (case_overrides.L_z) merged.L_z = *case_overrides.L_z;
+    
+    // Physical Parameters
+    if (case_overrides.Q_user) merged.Q_user = *case_overrides.Q_user;
+    
+    // Initial Conditions
+    if (case_overrides.x0) merged.x0 = *case_overrides.x0;
+    if (case_overrides.analytical) merged.analytical = *case_overrides.analytical;
+    
+    // Time Control
+    if (case_overrides.t_end) merged.t_end = *case_overrides.t_end;
+    if (case_overrides.step_end) merged.step_end = *case_overrides.step_end;
+    
+    // Logging Configuration
+    if (case_overrides.log_every_steps) merged.log_every_steps = *case_overrides.log_every_steps;
+    if (case_overrides.log_every_time) merged.log_every_time = *case_overrides.log_every_time;
+    
+    // Output Configuration
+    if (case_overrides.output_every_steps) merged.output_every_steps = *case_overrides.output_every_steps;
+    if (case_overrides.output_every_time) merged.output_every_time = *case_overrides.output_every_time;
+    if (case_overrides.output_format) merged.output_format = *case_overrides.output_format;
+    if (case_overrides.output_dir) merged.output_dir = *case_overrides.output_dir;
+    
+    return merged;
+}
 
 #endif  // SETTINGS_HPP

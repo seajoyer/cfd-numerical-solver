@@ -17,68 +17,97 @@ auto main(int argc, char* argv[]) -> int {
             return 1;  // Parsing error occurred 
         }
 
-        const Settings& settings = parser.GetSettings();
+        const Settings& global_settings = parser.GetSettings();
+        const std::vector<std::string>& run_cases = parser.GetRunCases();
+        
         std::cout << "Configuration loaded from: " << parser.GetConfigPath() << "\n\n";
 
-        // Check if user wants to run all cases
-        const std::string& case_name = settings.simulation_case;
+        // Determine which cases to run
+        std::vector<std::string> cases_to_run;
         
-        if (case_name == "all") {
+        bool run_all = false;
+        for (const auto& case_name : run_cases) {
+            if (case_name == "all") {
+                run_all = true;
+                break;
+            }
+        }
+        
+        if (run_all) {
             // Run all available initial conditions
-            auto case_names = parser.GetAllCaseNames();
+            cases_to_run = parser.GetAllCaseNames();
             
-            if (case_names.empty()) {
-                std::cerr << "Error: No initial conditions defined in configuration file\n";
+            if (cases_to_run.empty()) {
+                std::cerr << "Error: No cases defined in configuration file\n";
                 return 1;
             }
             
-            std::cout << "Running all " << case_names.size() << " simulation cases:\n";
-            for (const auto& name : case_names) {
+            std::cout << "Running all " << cases_to_run.size() << " simulation cases:\n";
+            for (const auto& name : cases_to_run) {
                 std::cout << "  - " << name << "\n";
             }
             std::cout << "\n";
+        } else {
+            // Run only specified cases
+            cases_to_run = run_cases;
             
-            for (const auto& name : case_names) {
-                std::cout << "========================================\n";
-                std::cout << "Starting simulation case: " << name << "\n";
-                std::cout << "========================================\n\n";
-                
-                // Create modified settings with case-specific output directory
-                Settings case_settings = settings;
-                case_settings.simulation_case = name;
-                case_settings.output_dir = settings.output_dir + "/" + name;
-                case_settings.t_end = parser.GetCaseEndTime(name);
-
-                InitialConditions ic = parser.GetInitialCondition(name);
-                case_settings.x0 = ic.x0;
-                
-                Simulation sim(case_settings, ic);
-                sim.Run();
-                
-                std::cout << "\n";
+            // Validate that all requested cases exist
+            for (const auto& case_name : cases_to_run) {
+                if (!parser.HasInitialCondition(case_name)) {
+                    std::cerr << "Error: Case '" << case_name << "' not found\n";
+                    std::cerr << "Available cases:\n";
+                    for (const auto& name : parser.GetAllCaseNames()) {
+                        std::cerr << "  - " << name << "\n";
+                    }
+                    return 1;
+                }
             }
             
+            std::cout << "Running " << cases_to_run.size() << " simulation case(s):\n";
+            for (const auto& name : cases_to_run) {
+                std::cout << "  - " << name << "\n";
+            }
+            std::cout << "\n";
+        }
+        
+        // Run each case
+        for (const auto& case_name : cases_to_run) {
+            std::cout << "========================================\n";
+            std::cout << "Starting simulation case: " << case_name << "\n";
+            std::cout << "========================================\n\n";
+            
+            // Get merged settings (global + case-specific overrides)
+            Settings case_settings = parser.GetCaseSettings(case_name);
+            
+            // Set the case name for output directory
+            case_settings.simulation_case = case_name;
+            case_settings.output_dir = global_settings.output_dir + "/" + case_name;
+            
+            // Get initial conditions
+            InitialConditions ic = parser.GetInitialCondition(case_name);
+            
+            // Print configuration summary
+            std::cout << "Case-specific settings:\n";
+            std::cout << ">>> Solver:           " << case_settings.solver << "\n";
+            std::cout << ">>> Riemann Solver:   " << case_settings.riemann_solver << "\n";
+            std::cout << ">>> Reconstruction:   " << case_settings.reconstruction << "\n";
+            std::cout << ">>> Grid cells (N):   " << case_settings.N << "\n";
+            std::cout << ">>> CFL:              " << case_settings.cfl << "\n";
+            std::cout << ">>> End time:         " << case_settings.t_end << "\n";
+            std::cout << ">>> x0:               " << case_settings.x0 << "\n";
+            std::cout << ">>> Analytical:       " << (case_settings.analytical ? "enabled" : "disabled") << "\n";
+            std::cout << "\n";
+            
+            Simulation sim(case_settings, ic);
+            sim.Run();
+            
+            std::cout << "\n";
+        }
+        
+        if (cases_to_run.size() > 1) {
             std::cout << "========================================\n";
             std::cout << "All simulations completed successfully!\n";
             std::cout << "========================================\n";
-            
-        } else {
-            // Run single case
-            if (!parser.HasInitialCondition(case_name)) {
-                std::cerr << "Error: Initial condition '" << case_name << "' not found\n";
-                std::cerr << "Available cases:\n";
-                for (const auto& name : parser.GetAllCaseNames()) {
-                    std::cerr << "  - " << name << "\n";
-                }
-                return 1;
-            }
-            
-            InitialConditions ic = parser.GetInitialCondition(case_name);
-            std::cout << "Using initial condition: " << case_name << "\n";
-            std::cout << "Grid cells: " << settings.N << ", CFL: " << settings.cfl << "\n\n";
-
-            Simulation sim(settings, ic);
-            sim.Run();
         }
 
         return 0;

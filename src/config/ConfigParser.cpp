@@ -13,14 +13,34 @@ ConfigParser::ConfigParser() = default;
 auto ConfigParser::ParseFile(const std::string& filename) -> bool {
     try {
         YAML::Node config = YAML::LoadFile(filename);
-        YAML::Node settings_node = config["config"]["settings"];
-        YAML::Node ic_node = config["config"]["initial_conditions"];
-
-        LoadSettings(settings_node, settings_);
-        LoadInitialConditions(ic_node, initial_conditions_);
-        LoadEndTimes(ic_node, end_times_);
+        
+        // Load global settings from config/global
+        if (config["config"]["global"]) {
+            YAML::Node global_node = config["config"]["global"];
+            LoadSettings(global_node, settings_);
+        } else {
+            std::cerr << "Warning: No 'global' section found in config. Using defaults.\n";
+        }
+        
+        // Load cases from config/cases
+        if (config["config"]["cases"]) {
+            YAML::Node cases_node = config["config"]["cases"];
+            LoadCases(cases_node, initial_conditions_);
+        } else {
+            std::cerr << "Error: No 'cases' section found in config.\n";
+            return false;
+        }
+        
+        // Load run_cases from config/run_cases
+        if (config["config"]["run_cases"]) {
+            YAML::Node run_cases_node = config["config"]["run_cases"];
+            LoadRunCases(run_cases_node, run_cases_);
+        } else {
+            // Default: run all cases
+            run_cases_ = {"all"};
+        }
+        
         config_path_ = filename;
-
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error parsing YAML: " << e.what() << '\n';
@@ -41,7 +61,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         opts.add_options("Solver")
             ("s,solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)", cxxopts::value<std::string>())
             ("riemann-solver", "Riemann solver (exact, hll, hllc, acoustic)", cxxopts::value<std::string>())
-            ("reconstruction", "Reconstruction scheme (P0, P1)", cxxopts::value<std::string>())
+            ("reconstruction", "Reconstruction scheme (P0, P1, ENO3, WENO5, etc.)", cxxopts::value<std::string>())
             ("l,left-boundary", "Left boundary condition", cxxopts::value<std::string>())
             ("r,right-boundary", "Right boundary condition", cxxopts::value<std::string>())
         ;
@@ -63,7 +83,6 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         ;
 
         opts.add_options("Initial Conditions")
-            ("i,simulation-case", "Simulation case name from the config (e.g., 'sod1', 'blast_wave', or 'all')", cxxopts::value<std::string>())
             ("x0", "Discontinuity position", cxxopts::value<double>())
             ("a,analytical", "Enable analytical solution", cxxopts::value<bool>())
         ;
@@ -83,7 +102,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
             return std::nullopt;  // Signal that help was shown
         }
 
-        // Override settings with CLI arguments
+        // Override settings with CLI arguments (only affects global settings)
         if (result.count("config")) config_path_ = result["config"].as<std::string>();
 
         // Solver options
@@ -116,9 +135,6 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         if (result.count("Q-user")) settings_.Q_user = result["Q-user"].as<double>();
 
         // Initial conditions
-        if (result.count("simulation-case")) {
-            settings_.simulation_case = result["simulation-case"].as<std::string>();
-        }
         if (result.count("x0")) settings_.x0 = result["x0"].as<double>();
         if (result.count("analytical")) {
             settings_.analytical = result["analytical"].as<bool>();
@@ -170,6 +186,10 @@ auto ConfigParser::Parse(const std::string& default_config, int argc, char* argv
 
 auto ConfigParser::GetSettings() const -> const Settings& { return settings_; }
 
+auto ConfigParser::GetRunCases() const -> const std::vector<std::string>& {
+    return run_cases_;
+}
+
 auto ConfigParser::GetInitialConditions() const -> const std::map<std::string, InitialConditions>& {
     return initial_conditions_;
 }
@@ -182,12 +202,9 @@ auto ConfigParser::GetInitialCondition(const std::string& case_name) const -> co
     return it->second;
 }
 
-auto ConfigParser::GetCaseEndTime(const std::string& case_name) const -> const double {
-    auto it = end_times_.find(case_name);
-    if (it == end_times_.end()) {
-        throw std::out_of_range("'" + case_name + "' not found in configuration");
-    }
-    return it->second;
+auto ConfigParser::GetCaseSettings(const std::string& case_name) const -> Settings {
+    const InitialConditions& ic = GetInitialCondition(case_name);
+    return MergeSettings(settings_, ic.overrides);
 }
 
 auto ConfigParser::GetAllCaseNames() const -> std::vector<std::string> {
@@ -208,64 +225,136 @@ auto ConfigParser::HasInitialCondition(const std::string& case_name) const -> bo
 auto ConfigParser::GetConfigPath() const -> const std::string& { return config_path_; }
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
-    settings.solver = node["solver"].as<std::string>();
-    settings.solver = utils::ToLower(settings.solver);
-    settings.riemann_solver = node["riemann_solver"].as<std::string>();
-    settings.riemann_solver = utils::ToLower(settings.riemann_solver);
-    settings.reconstruction = node["reconstruction"].as<std::string>();
-    settings.reconstruction = utils::ToLower(settings.reconstruction);
-    settings.left_boundary = node["left_boundary"].as<std::string>();
-    settings.right_boundary = node["right_boundary"].as<std::string>();
+    if (node["solver"]) settings.solver = node["solver"].as<std::string>();
+    if (node["solver"]) settings.solver = utils::ToLower(settings.solver);
+    
+    if (node["riemann_solver"]) settings.riemann_solver = node["riemann_solver"].as<std::string>();
+    if (node["riemann_solver"]) settings.riemann_solver = utils::ToLower(settings.riemann_solver);
+    
+    if (node["reconstruction"]) settings.reconstruction = node["reconstruction"].as<std::string>();
+    if (node["reconstruction"]) settings.reconstruction = utils::ToLower(settings.reconstruction);
+    
+    if (node["left_boundary"]) settings.left_boundary = node["left_boundary"].as<std::string>();
+    if (node["right_boundary"]) settings.right_boundary = node["right_boundary"].as<std::string>();
 
-    settings.N = node["N"].as<int>();
-    settings.cfl = node["cfl"].as<double>();
-    settings.t_end = node["t_end"].as<double>();
-    settings.padding = node["padding"].as<int>();
-    settings.gamma = node["gamma"].as<double>();
-    settings.dim = node["dim"].as<int>();
-    settings.L_x = node["L_x"].as<double>();
-    settings.L_y = node["L_y"].as<double>();
-    settings.L_z = node["L_z"].as<double>();
+    if (node["N"]) settings.N = node["N"].as<int>();
+    if (node["cfl"]) settings.cfl = node["cfl"].as<double>();
+    if (node["t_end"]) settings.t_end = node["t_end"].as<double>();
+    if (node["step_end"]) settings.step_end = node["step_end"].as<std::size_t>();
+    if (node["padding"]) settings.padding = node["padding"].as<int>();
+    if (node["gamma"]) settings.gamma = node["gamma"].as<double>();
+    if (node["dim"]) settings.dim = node["dim"].as<int>();
+    if (node["L_x"]) settings.L_x = node["L_x"].as<double>();
+    if (node["L_y"]) settings.L_y = node["L_y"].as<double>();
+    if (node["L_z"]) settings.L_z = node["L_z"].as<double>();
 
-    settings.Q_user = node["Q_user"].as<double>();
+    if (node["Q_user"]) settings.Q_user = node["Q_user"].as<double>();
 
-    settings.simulation_case = node["simulation_case"].as<std::string>();
-    settings.x0 = node["x0"].as<double>();
-    settings.analytical = node["analytical"].as<std::string>() == "true";
+    if (node["x0"]) settings.x0 = node["x0"].as<double>();
+    if (node["analytical"]) {
+        auto analytical_str = node["analytical"].as<std::string>();
+        settings.analytical = (analytical_str == "true" || analytical_str == "True" || analytical_str == "TRUE");
+    }
 
-    settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
-    settings.output_every_time = node["output_every_time"].as<double>();
-    settings.output_format = node["output_format"].as<std::string>();
-    settings.output_dir = node["output_dir"].as<std::string>();
+    if (node["log_every_steps"]) settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
+    if (node["log_every_time"]) settings.log_every_time = node["log_every_time"].as<double>();
+    
+    if (node["output_every_steps"]) settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    if (node["output_every_time"]) settings.output_every_time = node["output_every_time"].as<double>();
+    if (node["output_format"]) settings.output_format = node["output_format"].as<std::string>();
+    if (node["output_dir"]) settings.output_dir = node["output_dir"].as<std::string>();
 }
 
-void ConfigParser::LoadInitialConditions(const YAML::Node& node,
-                                         std::map<std::string, InitialConditions>& initial_conditions) {
-    // Iterate through all entries in the initial_conditions section
+void ConfigParser::LoadCases(const YAML::Node& node,
+                              std::map<std::string, InitialConditions>& initial_conditions) {
+    // Iterate through all entries in the cases section
     for (const auto& entry : node) {
-        std::string case_name = entry.first.as<std::string>();
-        const YAML::Node& ic_data = entry.second;
+        auto case_name = entry.first.as<std::string>();
+        const YAML::Node& case_data = entry.second;
         
         InitialConditions ic;
-        ic.rho_L = ic_data["rho_L"].as<double>();
-        ic.u_L = ic_data["u_L"].as<double>();
-        ic.P_L = ic_data["P_L"].as<double>();
-        ic.rho_R = ic_data["rho_R"].as<double>();
-        ic.u_R = ic_data["u_R"].as<double>();
-        ic.P_R = ic_data["P_R"].as<double>();
-        ic.x0 = ic_data["x0"].as<double>();
+        ic.rho_L = case_data["rho_L"].as<double>();
+        ic.u_L = case_data["u_L"].as<double>();
+        ic.P_L = case_data["P_L"].as<double>();
+        ic.rho_R = case_data["rho_R"].as<double>();
+        ic.u_R = case_data["u_R"].as<double>();
+        ic.P_R = case_data["P_R"].as<double>();
+        
+        // Load case-specific overrides
+        LoadCaseOverrides(case_data, ic.overrides);
 
         initial_conditions[case_name] = ic;
     }
 }
 
-void ConfigParser::LoadEndTimes(const YAML::Node& node,
-                                std::map<std::string, double>& end_times) {
-    // Iterate through all entries in the end_times section
-    for (const auto& entry : node) {
-        std::string case_name = entry.first.as<std::string>();
-        const YAML::Node& et_data = entry.second;
+void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overrides) {
+    // Solver Configuration
+    if (node["solver"]) {
+        auto solver = node["solver"].as<std::string>();
+        overrides.solver = utils::ToLower(solver);
+    }
+    if (node["riemann_solver"]) {
+        auto riemann = node["riemann_solver"].as<std::string>();
+        overrides.riemann_solver = utils::ToLower(riemann);
+    }
+    if (node["reconstruction"]) {
+        auto recon = node["reconstruction"].as<std::string>();
+        overrides.reconstruction = utils::ToLower(recon);
+    }
+    if (node["left_boundary"]) {
+        overrides.left_boundary = node["left_boundary"].as<std::string>();
+    }
+    if (node["right_boundary"]) {
+        overrides.right_boundary = node["right_boundary"].as<std::string>();
+    }
+    
+    // Grid Configuration
+    if (node["N"]) overrides.N = node["N"].as<int>();
+    if (node["cfl"]) overrides.cfl = node["cfl"].as<double>();
+    if (node["padding"]) overrides.padding = node["padding"].as<int>();
+    if (node["gamma"]) overrides.gamma = node["gamma"].as<double>();
+    if (node["dim"]) overrides.dim = node["dim"].as<int>();
+    if (node["L_x"]) overrides.L_x = node["L_x"].as<double>();
+    if (node["L_y"]) overrides.L_y = node["L_y"].as<double>();
+    if (node["L_z"]) overrides.L_z = node["L_z"].as<double>();
+    
+    // Physical Parameters
+    if (node["Q_user"]) overrides.Q_user = node["Q_user"].as<double>();
+    
+    // Initial Conditions
+    if (node["x0"]) overrides.x0 = node["x0"].as<double>();
+    if (node["analytical"]) {
+        auto analytical_str = node["analytical"].as<std::string>();
+        overrides.analytical = (analytical_str == "true" || analytical_str == "True" || analytical_str == "TRUE");
+    }
+    
+    // Time Control
+    if (node["t_end"]) overrides.t_end = node["t_end"].as<double>();
+    if (node["step_end"]) overrides.step_end = node["step_end"].as<std::size_t>();
+    
+    // Logging Configuration
+    if (node["log_every_steps"]) overrides.log_every_steps = node["log_every_steps"].as<std::size_t>();
+    if (node["log_every_time"]) overrides.log_every_time = node["log_every_time"].as<double>();
+    
+    // Output Configuration
+    if (node["output_every_steps"]) overrides.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    if (node["output_every_time"]) overrides.output_every_time = node["output_every_time"].as<double>();
+    if (node["output_format"]) overrides.output_format = node["output_format"].as<std::string>();
+    if (node["output_dir"]) overrides.output_dir = node["output_dir"].as<std::string>();
+}
 
-        end_times[case_name] = et_data["t_end"].as<double>();
+void ConfigParser::LoadRunCases(const YAML::Node& node, std::vector<std::string>& run_cases) {
+    run_cases.clear();
+    
+    if (node.IsSequence()) {
+        for (const auto& case_node : node) {
+            run_cases.push_back(case_node.as<std::string>());
+        }
+    } else if (node.IsScalar()) {
+        // Single case or "all"
+        run_cases.push_back(node.as<std::string>());
+    } else {
+        std::cerr << "Warning: run_cases should be a list or scalar. Defaulting to 'all'.\n";
+        run_cases.emplace_back("all");
     }
 }

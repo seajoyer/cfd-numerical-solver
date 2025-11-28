@@ -136,9 +136,16 @@ public:
     [[nodiscard]] auto GetSettings() const -> const Settings&;
     
     /**
+     * @brief Get list of cases to run
+     * @return Vector of case names to execute
+     * @note Can be specific case names or ["all"] for all cases
+     */
+    [[nodiscard]] auto GetRunCases() const -> const std::vector<std::string>&;
+    
+    /**
      * @brief Get all initial condition definitions
      * @return Map from case name to InitialConditions
-     * @note Keys match the simulation_case names in YAML
+     * @note Keys match the case names in YAML
      */
     [[nodiscard]] auto GetInitialConditions() const 
         -> const std::map<std::string, InitialConditions>&;
@@ -153,18 +160,18 @@ public:
         -> const InitialConditions&;
     
     /**
-     * @brief Get end time for a specific case
+     * @brief Get merged settings for a specific case
      * 
-     * Each initial condition can specify its own t_end value in the
-     * YAML configuration, which overrides the global settings.t_end
-     * for that specific case.
+     * Applies case-specific overrides to global settings and returns
+     * the merged result. This is the settings object that should be
+     * used when running the simulation for this specific case.
      * 
      * @param case_name Name of the simulation case
-     * @return End time for the specified case
+     * @return Merged settings (global + case-specific overrides)
      * @throw std::out_of_range if case_name not found
      */
-    [[nodiscard]] auto GetCaseEndTime(const std::string& case_name) const 
-        -> const double;
+    [[nodiscard]] auto GetCaseSettings(const std::string& case_name) const 
+        -> Settings;
     
     /**
      * @brief Get list of all available case names
@@ -188,14 +195,14 @@ public:
     [[nodiscard]] auto GetConfigPath() const -> const std::string&;
 
 private:
-    /** @brief Parsed settings structure */
+    /** @brief Parsed global settings structure */
     Settings settings_;
+    
+    /** @brief List of cases to run (can include "all") */
+    std::vector<std::string> run_cases_;
     
     /** @brief Map of initial condition definitions */
     std::map<std::string, InitialConditions> initial_conditions_;
-    
-    /** @brief Map of case-specific end times */
-    std::map<std::string, double> end_times_;
     
     /** @brief Path to the loaded configuration file */
     std::string config_path_;
@@ -208,22 +215,27 @@ private:
     static void LoadSettings(const YAML::Node& node, Settings& settings);
     
     /**
-     * @brief Load initial conditions from YAML node
-     * @param node YAML node containing initial_conditions
+     * @brief Load initial conditions and case settings from YAML node
+     * @param node YAML node containing cases
      * @param initial_conditions Output map of initial conditions
      */
-    static void LoadInitialConditions(
+    static void LoadCases(
         const YAML::Node& node,
         std::map<std::string, InitialConditions>& initial_conditions);
     
     /**
-     * @brief Load case-specific end times from YAML node
-     * @param node YAML node containing initial_conditions with t_end
-     * @param end_times Output map of end times
+     * @brief Load case-specific setting overrides from YAML node
+     * @param node YAML node for a single case
+     * @param overrides Output CaseSettings structure
      */
-    static void LoadEndTimes(
-        const YAML::Node& node,
-        std::map<std::string, double>& end_times);
+    static void LoadCaseOverrides(const YAML::Node& node, CaseSettings& overrides);
+    
+    /**
+     * @brief Load run_cases list from YAML node
+     * @param node YAML node containing run_cases
+     * @param run_cases Output vector of case names
+     */
+    static void LoadRunCases(const YAML::Node& node, std::vector<std::string>& run_cases);
 };
 
 #endif  // CONFIGPARSER_HPP

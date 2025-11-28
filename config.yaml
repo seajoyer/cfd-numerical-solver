@@ -1,5 +1,7 @@
 config:
-    settings:
+    run_cases: all
+    
+    global:
         solver: godunov
         riemann_solver: exact
         reconstruction: P0
@@ -24,31 +26,23 @@ config:
 
         Q_user: 2
 
-        # set any to zero to disable the endpoint.
-        # set both to zeros to write only the initial state
-        t_end: 0.25 # 0.25 0.15 0.012 0.035 0.035
-        step_end: 0
-
-        # set any to zero to disable the corresponding logs.
-        log_every_steps: 50
-        log_every_time: 0.0
-
-        # set any to zero to disable the corresponding output.
-        output_every_steps: 50
-        output_every_time: 0.0
-
-        output_format: vtk
-        output_dir: "../data" # run from `build/`,
-                              # so `../` is needed
-
-        # use "all" to run all available initial conditions
-        simulation_case: all
         x0: 0.5
         analytical: true
 
-    # Define initial conditions with any custom names
-    # Each entry defines left and right states for a Riemann problem
-    initial_conditions:
+        t_end: 0.25
+        step_end: 0
+
+        log_every_steps: 50
+        log_every_time: 0.0
+
+        output_every_steps: 50
+        output_every_time: 0.0
+        output_format: vtk
+        output_dir: "../data"
+
+    # Define individual simulation cases
+    # Each case can override any global setting
+    cases:
         sod1:
             rho_L: 1.0
             u_L: 0.0
@@ -56,8 +50,10 @@ config:
             rho_R: 0.125
             u_R: 0.0
             P_R: 0.1
+
             x0: 0.5
             t_end: 0.25
+        
         sod2:
             rho_L: 1.0
             u_L: -2.0
@@ -65,8 +61,10 @@ config:
             rho_R: 1.0
             u_R: 2.0
             P_R: 0.4
+
             x0: 0.5
             t_end: 0.15
+        
         sod3:
             rho_L: 1.0
             u_L: 0.0
@@ -74,8 +72,10 @@ config:
             rho_R: 1.0
             u_R: 0.0
             P_R: 0.01
+
             x0: 0.5
             t_end: 0.012
+        
         sod4:
             rho_L: 1.0
             u_L: 0.0
@@ -83,8 +83,10 @@ config:
             rho_R: 1.0
             u_R: 0.0
             P_R: 100.0
+
             x0: 0.5
             t_end: 0.035
+        
         sod5:
             rho_L: 5.99924
             u_L: 19.5975
@@ -92,5 +94,6 @@ config:
             rho_R: 5.99242
             u_R: -6.19633
             P_R: 46.0950
+
             x0: 0.5
             t_end: 0.035

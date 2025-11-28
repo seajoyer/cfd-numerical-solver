@@ -1,6 +1,8 @@
 #ifndef INITIALCONDITIONS_HPP
 #define INITIALCONDITIONS_HPP
 
+#include "config/Settings.hpp"
+
 /**
  * @file InitialConditions.hpp
  * @brief Data structure for Riemann problem initial conditions
@@ -8,11 +10,11 @@
 
 /**
  * @struct InitialConditions
- * @brief Defines left and right states for a 1D Riemann problem
+ * @brief Defines left and right states for a 1D Riemann problem with optional overrides
  * 
  * This structure contains the primitive variables (density, velocity, pressure)
- * for both the left and right states of a Riemann problem, along with the
- * position of the discontinuity.
+ * for both the left and right states of a Riemann problem, along with
+ * optional case-specific setting overrides.
  * 
  * The Riemann problem consists of two constant states separated by a
  * discontinuity at position x0:
@@ -28,11 +30,11 @@
  * - Rarefaction waves
  * 
  * @note All quantities are in SI units or dimensionless
- * @see Settings, ConfigParser
+ * @see Settings, CaseSettings, ConfigParser
  * 
  * Example YAML configuration:
  * @code{.yaml}
- * initial_conditions:
+ * cases:
  *   sod1:
  *     rho_L: 1.0
  *     u_L: 0.0
@@ -40,8 +42,10 @@
  *     rho_R: 0.125
  *     u_R: 0.0
  *     P_R: 0.1
+ *     # Case-specific overrides:
  *     x0: 0.5
  *     t_end: 0.25
+ *     reconstruction: ENO3
  * @endcode
  */
 struct InitialConditions {
@@ -71,11 +75,10 @@ struct InitialConditions {
      */
     double P_R;
     
-    /** @brief Position of the discontinuity
-     * @note Typically in range [0, L_x]
-     * @note Default value: 0.5 for centered discontinuity in unit domain
+    /** @brief Case-specific setting overrides
+     * @note These override global settings for this specific case
      */
-    double x0;
+    CaseSettings overrides;
 };
 
 #endif  // INITIALCONDITIONS_HPP
