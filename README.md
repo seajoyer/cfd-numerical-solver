@@ -66,7 +66,7 @@ Run with default configuration:
 ./cfd-numerical-solver
 ```
 
-The solver reads `../config.yaml` by default and outputs to `../data/`.
+The solver reads `../config.yaml` by default and outputs to `../result/`.
 
 ### Command Line Options
 
@@ -118,7 +118,7 @@ config:
     output_every_time: 0.0
 
     output_format: vtk
-    output_dir: "../data"
+    output_dir: "../result"
 
     # Use "all" to run all available cases
     simulation_case: sod1
@@ -165,7 +165,7 @@ config:
 Results are organized hierarchically:
 
 ```
-data/
+result/
 ├── sod1/  # сase names are added only if `simulation-case` is `all`.
 │   ├── godunov__R_p0__N_1000__CFL_5e-1/
 │   │   └── *.vtk

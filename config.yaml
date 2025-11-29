@@ -1,5 +1,5 @@
 config:
-    run_cases: all
+    run_cases: [sod1, sod5]
     
     global:
         solver: godunov
@@ -7,13 +7,6 @@ config:
         reconstruction: P0
         left_boundary: free_stream
         right_boundary: free_stream
-                        # inlet
-                        # outlet
-                        # reflective
-                        # non_reflective
-                        # periodic
-                        # symmetry
-                        # wall
 
         N: 1000
         cfl: 0.5
@@ -38,7 +31,7 @@ config:
         output_every_steps: 50
         output_every_time: 0.0
         output_format: vtk
-        output_dir: "../data"
+        output_dir: "../result"
 
     # Define individual simulation cases
     # Each case can override any global setting

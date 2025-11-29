@@ -162,12 +162,15 @@ public:
     /**
      * @brief Get merged settings for a specific case
      * 
-     * Applies case-specific overrides to global settings and returns
-     * the merged result. This is the settings object that should be
-     * used when running the simulation for this specific case.
+     * Applies overrides in priority order:
+     * 1. Global settings (base)
+     * 2. Case-specific overrides from YAML
+     * 3. CLI overrides (highest priority)
+     * 
+     * This ensures CLI arguments always override config file values.
      * 
      * @param case_name Name of the simulation case
-     * @return Merged settings (global + case-specific overrides)
+     * @return Merged settings (global + case + CLI overrides)
      * @throw std::out_of_range if case_name not found
      */
     [[nodiscard]] auto GetCaseSettings(const std::string& case_name) const 
@@ -194,6 +197,40 @@ public:
      */
     [[nodiscard]] auto GetConfigPath() const -> const std::string&;
 
+    /**
+     * @brief Print list of supported solvers and their reconstructions
+     * 
+     * Displays formatted information about all available solver types
+     * and which reconstruction schemes each solver supports.
+     */
+    void PrintSolversList() const;
+
+    /**
+     * @brief Print list of supported Riemann solvers
+     * 
+     * Displays formatted information about all available Riemann solver
+     * implementations with brief descriptions.
+     */
+    void PrintRiemannSolversList() const;
+
+    /**
+     * @brief Print list of supported boundary conditions
+     * 
+     * Displays formatted information about all available boundary condition
+     * types with brief descriptions.
+     */
+    void PrintBoundaryConditionsList() const;
+
+    /**
+     * @brief Print list of all available simulation cases
+     * 
+     * Displays formatted information about all cases defined in the
+     * configuration file, including initial conditions and overrides.
+     * 
+     * @note Requires configuration file to be loaded first
+     */
+    void PrintCasesList() const;
+
 private:
     /** @brief Parsed global settings structure */
     Settings settings_;
@@ -204,8 +241,28 @@ private:
     /** @brief Map of initial condition definitions */
     std::map<std::string, InitialConditions> initial_conditions_;
     
+    /** @brief CLI overrides (highest priority) */
+    CaseSettings cli_overrides_;
+    
     /** @brief Path to the loaded configuration file */
     std::string config_path_;
+
+    /**
+     * @brief Parse command line for --config and --help only
+     * 
+     * This is a preliminary parsing pass that:
+     * 1. Checks for --help flag and displays help if present
+     * 2. Extracts --config flag to override default config path
+     * 3. Ignores all other flags (for later parsing)
+     * 
+     * This allows us to load the config file before processing list flags.
+     * 
+     * @param argc Argument count from main()
+     * @param argv Argument vector from main()
+     * @return Optional bool indicating success/failure/help
+     */
+    auto ParseCommandLineForConfigAndHelp(int argc, char* argv[]) 
+        -> std::optional<bool>;
 
     /**
      * @brief Load settings from YAML node

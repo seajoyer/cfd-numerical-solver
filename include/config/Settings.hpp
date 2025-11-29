@@ -150,8 +150,8 @@ struct Settings {
      */
     int padding = 2;
     
-    /** @brief Ratio of specific heats (Î³)
-     * @note For ideal gas EOS: Î³ = cp/cv
+    /** @brief Ratio of specific heat
+     * @note For ideal gas EOS: ÃƒÅ½Ã‚Â³ = cp/cv
      * @note Common values: 1.4 (air), 1.67 (monatomic), 1.33 (polyatomic)
      */
     double gamma = 1.4;
@@ -215,9 +215,8 @@ struct Settings {
     
     /** @brief Maximum number of time steps
      * @note Set to 0 to disable step-based stopping criterion
-     * @note Default value allows effectively unlimited steps
      */
-    std::size_t step_end = INT32_MAX;
+    std::size_t step_end = 0;
 
     // ==================== Logging Configuration ====================
     
@@ -261,19 +260,26 @@ struct Settings {
 };
 
 /**
- * @brief Merges case-specific overrides into global settings
+ * @brief Merges case-specific and CLI overrides into global settings
  * 
- * Creates a new Settings object by applying case-specific overrides
- * to the global settings. Only non-empty optional fields in case_overrides
- * will override the corresponding global values.
+ * Creates a new Settings object by applying overrides in priority order:
+ * 1. Start with global settings
+ * 2. Apply case-specific overrides (from YAML)
+ * 3. Apply CLI overrides (highest priority - always win)
+ * 
+ * This ensures CLI arguments always take precedence over config file values.
  * 
  * @param global Global settings
- * @param case_overrides Case-specific overrides
- * @return Merged settings with case-specific values taking precedence
+ * @param case_overrides Case-specific overrides from YAML
+ * @param cli_overrides CLI overrides (highest priority)
+ * @return Merged settings with proper precedence
  */
-inline auto MergeSettings(const Settings& global, const CaseSettings& case_overrides) -> Settings {
+inline auto MergeSettings(const Settings& global, 
+                          const CaseSettings& case_overrides,
+                          const CaseSettings& cli_overrides) -> Settings {
     Settings merged = global;
     
+    // Apply case-specific overrides first (lower priority)
     // Solver Configuration
     if (case_overrides.solver) merged.solver = *case_overrides.solver;
     if (case_overrides.riemann_solver) merged.riemann_solver = *case_overrides.riemann_solver;
@@ -311,6 +317,45 @@ inline auto MergeSettings(const Settings& global, const CaseSettings& case_overr
     if (case_overrides.output_every_time) merged.output_every_time = *case_overrides.output_every_time;
     if (case_overrides.output_format) merged.output_format = *case_overrides.output_format;
     if (case_overrides.output_dir) merged.output_dir = *case_overrides.output_dir;
+    
+    // Apply CLI overrides last (highest priority - always win)
+    // Solver Configuration
+    if (cli_overrides.solver) merged.solver = *cli_overrides.solver;
+    if (cli_overrides.riemann_solver) merged.riemann_solver = *cli_overrides.riemann_solver;
+    if (cli_overrides.reconstruction) merged.reconstruction = *cli_overrides.reconstruction;
+    if (cli_overrides.left_boundary) merged.left_boundary = *cli_overrides.left_boundary;
+    if (cli_overrides.right_boundary) merged.right_boundary = *cli_overrides.right_boundary;
+    
+    // Grid Configuration
+    if (cli_overrides.N) merged.N = *cli_overrides.N;
+    if (cli_overrides.cfl) merged.cfl = *cli_overrides.cfl;
+    if (cli_overrides.padding) merged.padding = *cli_overrides.padding;
+    if (cli_overrides.gamma) merged.gamma = *cli_overrides.gamma;
+    if (cli_overrides.dim) merged.dim = *cli_overrides.dim;
+    if (cli_overrides.L_x) merged.L_x = *cli_overrides.L_x;
+    if (cli_overrides.L_y) merged.L_y = *cli_overrides.L_y;
+    if (cli_overrides.L_z) merged.L_z = *cli_overrides.L_z;
+    
+    // Physical Parameters
+    if (cli_overrides.Q_user) merged.Q_user = *cli_overrides.Q_user;
+    
+    // Initial Conditions
+    if (cli_overrides.x0) merged.x0 = *cli_overrides.x0;
+    if (cli_overrides.analytical) merged.analytical = *cli_overrides.analytical;
+    
+    // Time Control
+    if (cli_overrides.t_end) merged.t_end = *cli_overrides.t_end;
+    if (cli_overrides.step_end) merged.step_end = *cli_overrides.step_end;
+    
+    // Logging Configuration
+    if (cli_overrides.log_every_steps) merged.log_every_steps = *cli_overrides.log_every_steps;
+    if (cli_overrides.log_every_time) merged.log_every_time = *cli_overrides.log_every_time;
+    
+    // Output Configuration
+    if (cli_overrides.output_every_steps) merged.output_every_steps = *cli_overrides.output_every_steps;
+    if (cli_overrides.output_every_time) merged.output_every_time = *cli_overrides.output_every_time;
+    if (cli_overrides.output_format) merged.output_format = *cli_overrides.output_format;
+    if (cli_overrides.output_dir) merged.output_dir = *cli_overrides.output_dir;
     
     return merged;
 }

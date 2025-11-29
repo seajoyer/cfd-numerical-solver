@@ -138,19 +138,27 @@ void Simulation::Initialize() {
 
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
-    std::cout << ">>> Case:             " << settings_.simulation_case << '\n';
-    std::cout << ">>> Solver:           " << settings_.solver << '\n';
-    std::cout << ">>> Riemann Solver:   " << settings_.riemann_solver << '\n';
-    std::cout << ">>> Reconstruction:   " << settings_.reconstruction << '\n';
-    std::cout << ">>> Boundary left:    " << settings_.left_boundary << '\n';
-    std::cout << ">>> Boundary right:   " << settings_.right_boundary << '\n';
-    std::cout << ">>> Grid size (N):    " << settings_.N << '\n';
-    std::cout << ">>> Dimension:        " << settings_.dim << '\n';
-    std::cout << ">>> Domain length:    " << settings_.L_x << '\n';
-    std::cout << ">>> CFL:              " << settings_.cfl << '\n';
-    std::cout << ">>> Gamma:            " << settings_.gamma << '\n';
-    std::cout << ">>> End time:         " << settings_.t_end << '\n';
-    std::cout << ">>> Output directory: " << settings_.output_dir << '\n';
+    std::cout << ">>> Case:                " << settings_.simulation_case << '\n';
+    std::cout << ">>> Solver:              " << settings_.solver << '\n';
+    std::cout << ">>> Riemann Solver:      " << settings_.riemann_solver << '\n';
+    std::cout << ">>> Reconstruction:      " << settings_.reconstruction << '\n';
+    std::cout << ">>> Boundary left:       " << settings_.left_boundary << '\n';
+    std::cout << ">>> Boundary right:      " << settings_.right_boundary << '\n';
+    std::cout << ">>> Analytical:          " << (settings_.analytical ? "enabled" : "disabled") << "\n";
+    std::cout << ">>> Domain length (L_x): " << settings_.L_x << '\n';
+    std::cout << ">>> Grid size (N):       " << settings_.N << '\n';
+    std::cout << ">>> Ghost cells:         " << settings_.padding << '\n';
+    std::cout << ">>> Dimension:           " << settings_.dim << '\n';
+    std::cout << ">>> x0:                  " << settings_.x0 << "\n";
+    std::cout << ">>> CFL:                 " << settings_.cfl << '\n';
+    std::cout << ">>> Q_user:              " << settings_.Q_user << '\n';
+    std::cout << ">>> Gamma:               " << settings_.gamma << '\n';
+    std::cout << ">>> Max steps:           " << settings_.step_end << '\n';
+    std::cout << ">>> Max time:            " << settings_.t_end << '\n';
+    std::cout << ">>> Output every steps:  " << settings_.output_every_steps << '\n';
+    std::cout << ">>> Output every time:   " << settings_.output_every_time << '\n';
+    std::cout << ">>> Output format:       " << settings_.output_format << '\n';
+    std::cout << ">>> Output directory:    " << settings_.output_dir << '\n';
     std::cout << ">>> Initial conditions:" << '\n';
     std::cout << std::fixed << std::setprecision(4);
     std::cout << ">>>     Left:  rho = " << std::setw(7) << initial_conditions_.rho_L
@@ -203,16 +211,26 @@ auto Simulation::ShouldLog() const -> bool {
 }
 
 auto Simulation::ShouldRun() const -> bool {
-    if (settings_.t_end == 0.0 && settings_.step_end == 0) return false;
+    // If both stopping criteria are disabled (both set to 0), don't run
+    if (settings_.t_end == 0.0 && settings_.step_end == 0) {
+        return false;
+    }
 
-    const bool time_ok = settings_.t_end == 0.0 || t_cur_ < settings_.t_end;
-    const bool step_ok = settings_.step_end == 0 || step_cur_ < settings_.step_end;
+    // Check time-based stopping criterion (if enabled)
+    const bool time_not_exceeded = 
+        (settings_.t_end == 0.0) || (t_cur_ < settings_.t_end);
+    
+    // Check step-based stopping criterion (if enabled)
+    const bool steps_not_exceeded = 
+        (settings_.step_end == 0) || (step_cur_ < settings_.step_end);
 
-    return time_ok && step_ok;
+    // Continue running if BOTH enabled criteria are satisfied
+    // (if a criterion is disabled, it's automatically satisfied)
+    return time_not_exceeded && steps_not_exceeded;
 }
 
 void Simulation::WriteInitialState() const {
-    std::cout << "\nWriting the initial state..." << '\n';
+    std::cout << "Writing the initial state..." << '\n';
 
     if (writer_) {
         writer_->Write(*layer_, settings_, 0, 0.0);

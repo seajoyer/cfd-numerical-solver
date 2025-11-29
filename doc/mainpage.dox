@@ -122,7 +122,7 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
  ./cfd-numerical-solver
  @endcode
 
- It loads <code>../config.yaml</code> by default and outputs to <code>../data/</code>).
+ It loads <code>../config.yaml</code> by default and outputs to <code>../result/</code>).
 
  @section cli Command Line Options
 
@@ -176,7 +176,7 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
         output_every_time: 0.0
 
         output_format: vtk
-        output_dir: "../data"
+        output_dir: "../result"
 
         # Use "all" to run all available cases
         simulation_case: sod1
@@ -232,7 +232,7 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
  Results are organized hierarchically:
 
  @code
- data/
+ result/
  ├── sod1/  # сase names are added only if `simulation-case` is `all`.
  │   ├── godunov__R_p0__N_1000__CFL_5e-1/
  │   │   └── *.vtk

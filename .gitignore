@@ -10,4 +10,5 @@ flake.lock
 doc/drawing.svg
 .envrc
 result/
+results/
 .clangd

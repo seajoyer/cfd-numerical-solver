@@ -1,7 +1,9 @@
 #include "utils/StringUtils.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <iomanip>
 #include <limits>
 #include <sstream>
 #include <algorithm>
@@ -53,4 +55,29 @@ auto ToLower(std::string& str) -> std::string {
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return lower;
 }
-} // namespace utils
+
+auto GetTimestamp() -> std::string {
+    using namespace std::chrono;
+    
+    // Get current time
+    auto now = system_clock::now();
+    auto now_time_t = system_clock::to_time_t(now);
+    auto now_ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+    
+    // Convert to local time
+    std::tm local_tm = *std::localtime(&now_time_t);
+    
+    // Format: DD-MM-YYYY_HH:MM:SS:mmm
+    std::ostringstream oss;
+    oss << std::setfill('0')
+        << std::setw(2) << local_tm.tm_mday << '-'
+        << std::setw(2) << (local_tm.tm_mon + 1) << '-'
+        << (local_tm.tm_year + 1900) << '_'
+        << std::setw(2) << local_tm.tm_hour << ':'
+        << std::setw(2) << local_tm.tm_min << ':'
+        << std::setw(2) << local_tm.tm_sec << ':'
+        << std::setw(3) << now_ms.count();
+    
+    return oss.str();
+}
+}  // namespace utils

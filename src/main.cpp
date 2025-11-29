@@ -3,6 +3,7 @@
 
 #include "Simulation.hpp"
 #include "config/ConfigParser.hpp"
+#include "utils/StringUtils.hpp"
 
 auto main(int argc, char* argv[]) -> int {
     try {
@@ -21,6 +22,12 @@ auto main(int argc, char* argv[]) -> int {
         const std::vector<std::string>& run_cases = parser.GetRunCases();
         
         std::cout << "Configuration loaded from: " << parser.GetConfigPath() << "\n\n";
+
+        // Generate timestamp for this run
+        std::string timestamp = utils::GetTimestamp();
+        std::string run_dir = global_settings.output_dir + "/run_" + timestamp;
+        
+        std::cout << "Run directory: " << run_dir << "\n\n";
 
         // Determine which cases to run
         std::vector<std::string> cases_to_run;
@@ -81,22 +88,11 @@ auto main(int argc, char* argv[]) -> int {
             
             // Set the case name for output directory
             case_settings.simulation_case = case_name;
-            case_settings.output_dir = global_settings.output_dir + "/" + case_name;
+            // Use timestamped run directory structure
+            case_settings.output_dir = run_dir + "/" + case_name;
             
             // Get initial conditions
             InitialConditions ic = parser.GetInitialCondition(case_name);
-            
-            // Print configuration summary
-            std::cout << "Case-specific settings:\n";
-            std::cout << ">>> Solver:           " << case_settings.solver << "\n";
-            std::cout << ">>> Riemann Solver:   " << case_settings.riemann_solver << "\n";
-            std::cout << ">>> Reconstruction:   " << case_settings.reconstruction << "\n";
-            std::cout << ">>> Grid cells (N):   " << case_settings.N << "\n";
-            std::cout << ">>> CFL:              " << case_settings.cfl << "\n";
-            std::cout << ">>> End time:         " << case_settings.t_end << "\n";
-            std::cout << ">>> x0:               " << case_settings.x0 << "\n";
-            std::cout << ">>> Analytical:       " << (case_settings.analytical ? "enabled" : "disabled") << "\n";
-            std::cout << "\n";
             
             Simulation sim(case_settings, ic);
             sim.Run();
@@ -109,6 +105,8 @@ auto main(int argc, char* argv[]) -> int {
             std::cout << "All simulations completed successfully!\n";
             std::cout << "========================================\n";
         }
+        
+        std::cout << "\nResults saved to: " << run_dir << "\n";
 
         return 0;
 
