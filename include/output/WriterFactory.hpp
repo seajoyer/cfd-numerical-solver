@@ -18,7 +18,10 @@
  *
  * Supported formats:
  * - "vtk": VTK structured grid format
- * - "png": PNG image with 4 subplot panels
+ * - "png" or "png<width>x<height>": PNG image with 4 subplot panels
+ *   - Default: png (1200x900)
+ *   - Custom: png1920x1080, png800x600, png3840x2160, etc.
+ *   - Fonts and line widths scale automatically with resolution
  */
 class WriterFactory {
    public:

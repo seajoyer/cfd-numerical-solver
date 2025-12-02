@@ -20,6 +20,7 @@
 #include <vtkTextProperty.h>
 #include <vtkWindowToImageFilter.h>
 
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <iomanip>
@@ -68,6 +69,28 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
         throw std::runtime_error("Invalid core range for PNG output");
     }
 
+    // Calculate scale factor relative to baseline 1200x900
+    // Use geometric mean of width and height ratios for balanced scaling
+    const float baseline_width = 1200.0f;
+    const float baseline_height = 900.0f;
+    const float width_ratio = static_cast<float>(width_) / baseline_width;
+    const float height_ratio = static_cast<float>(height_) / baseline_height;
+    const float scale_factor = std::sqrt(width_ratio * height_ratio);
+    
+    // Baseline values optimized for 1200x900
+    const float base_title_font_size = 18.0f;
+    const float base_axis_title_font_size = 18.0f;
+    const float base_label_font_size = 14.0f;
+    const float base_line_width = 2.5f;
+    const float base_margin = 10.0f;
+    
+    // Apply scaling to all visual elements
+    const int title_font_size = static_cast<int>(base_title_font_size * scale_factor + 0.5f);
+    const int axis_title_font_size = static_cast<int>(base_axis_title_font_size * scale_factor + 0.5f);
+    const int label_font_size = static_cast<int>(base_label_font_size * scale_factor + 0.5f);
+    const float line_width = base_line_width * scale_factor;
+    const float margin = base_margin * scale_factor;
+
     // Create a single context view - this is the correct approach for VTK charting
     vtkNew<vtkContextView> view;
 
@@ -97,9 +120,6 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
     const float h = static_cast<float>(height_);
     const float chart_w = w / 2.0f;
     const float chart_h = h / 2.0f;
-
-    // Margins within each chart area
-    const float margin = 10.0f;
 
     // Position charts in 2x2 grid using SetPoint (bottom-left corner) and SetSize
     // VTK scene coordinates: (0,0) is bottom-left
@@ -159,26 +179,26 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
     auto table_P = createTable(layer, "Pressure", P_accessor);
     auto table_U = createTable(layer, "Energy", U_accessor);
 
-    // Helper lambda to configure chart appearance
-    auto configureChart = [](vtkChartXY* chart, const std::string& title,
+    // Helper lambda to configure chart appearance with scaled fonts
+    auto configureChart = [&](vtkChartXY* chart, const std::string& title,
                              const std::string& y_label) {
         chart->SetTitle(title);
-        chart->GetTitleProperties()->SetFontSize(18);
+        chart->GetTitleProperties()->SetFontSize(title_font_size);
         chart->GetTitleProperties()->SetBold(true);
         chart->GetTitleProperties()->SetColor(0.0, 0.0, 0.0);
 
         chart->GetAxis(vtkAxis::BOTTOM)->SetTitle("x");
-        chart->GetAxis(vtkAxis::BOTTOM)->GetTitleProperties()->SetFontSize(18);
+        chart->GetAxis(vtkAxis::BOTTOM)->GetTitleProperties()->SetFontSize(axis_title_font_size);
         chart->GetAxis(vtkAxis::BOTTOM)->GetTitleProperties()->SetColor(0.0, 0.0, 0.0);
-        chart->GetAxis(vtkAxis::BOTTOM)->GetLabelProperties()->SetFontSize(14);
+        chart->GetAxis(vtkAxis::BOTTOM)->GetLabelProperties()->SetFontSize(label_font_size);
         chart->GetAxis(vtkAxis::BOTTOM)->GetLabelProperties()->SetColor(0.0, 0.0, 0.0);
         chart->GetAxis(vtkAxis::BOTTOM)->GetPen()->SetColor(0, 0, 0);
         chart->GetAxis(vtkAxis::BOTTOM)->GetGridPen()->SetColor(200, 200, 200);
 
         chart->GetAxis(vtkAxis::LEFT)->SetTitle(y_label);
-        chart->GetAxis(vtkAxis::LEFT)->GetTitleProperties()->SetFontSize(18);
+        chart->GetAxis(vtkAxis::LEFT)->GetTitleProperties()->SetFontSize(axis_title_font_size);
         chart->GetAxis(vtkAxis::LEFT)->GetTitleProperties()->SetColor(0.0, 0.0, 0.0);
-        chart->GetAxis(vtkAxis::LEFT)->GetLabelProperties()->SetFontSize(14);
+        chart->GetAxis(vtkAxis::LEFT)->GetLabelProperties()->SetFontSize(label_font_size);
         chart->GetAxis(vtkAxis::LEFT)->GetLabelProperties()->SetColor(0.0, 0.0, 0.0);
         chart->GetAxis(vtkAxis::LEFT)->GetPen()->SetColor(0, 0, 0);
         chart->GetAxis(vtkAxis::LEFT)->GetGridPen()->SetColor(200, 200, 200);
@@ -187,12 +207,13 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
         // Use integer constants for alignment (2 = RIGHT, 1 = TOP in VTK)
         chart->GetLegend()->SetHorizontalAlignment(2);  // RIGHT
         chart->GetLegend()->SetVerticalAlignment(1);    // TOP
+        chart->GetLegend()->GetLabelProperties()->SetFontSize(label_font_size);
     };
 
-    // Helper lambda to add plot to chart
-    auto addPlot = [](vtkChartXY* chart, vtkTable* table, const std::string& y_column,
+    // Helper lambda to add plot to chart with scaled line width
+    auto addPlot = [&](vtkChartXY* chart, vtkTable* table, const std::string& y_column,
                       unsigned char r, unsigned char g, unsigned char b,
-                      const std::string& label, float line_width = 3.0f) -> void {
+                      const std::string& label) -> void {
         vtkPlot* plot = chart->AddPlot(vtkChart::LINE);
         plot->SetInputData(table, "x", y_column);
 
@@ -229,17 +250,17 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
         auto table_P_a = createTable(*analytical_layer, "Pressure", P_accessor);
         auto table_U_a = createTable(*analytical_layer, "Energy", U_accessor);
 
-        addPlot(chart_density, table_rho_a, "Density", 0, 0, 0, "Analytical", 3.0f);
-        addPlot(chart_velocity, table_u_a, "Velocity", 0, 0, 0, "Analytical", 3.0f);
-        addPlot(chart_pressure, table_P_a, "Pressure", 0, 0, 0, "Analytical", 3.0f);
-        addPlot(chart_energy, table_U_a, "Energy", 0, 0, 0, "Analytical", 3.0f);
+        addPlot(chart_density, table_rho_a, "Density", 0, 0, 0, "Analytical");
+        addPlot(chart_velocity, table_u_a, "Velocity", 0, 0, 0, "Analytical");
+        addPlot(chart_pressure, table_P_a, "Pressure", 0, 0, 0, "Analytical");
+        addPlot(chart_energy, table_U_a, "Energy", 0, 0, 0, "Analytical");
     }
 
     // Add numerical solution (red line)
-    addPlot(chart_density, table_rho, "Density", 255, 0, 0, "Numerical", 3.0f);
-    addPlot(chart_velocity, table_u, "Velocity", 255, 0, 0, "Numerical", 3.0f);
-    addPlot(chart_pressure, table_P, "Pressure", 255, 0, 0, "Numerical", 3.0f);
-    addPlot(chart_energy, table_U, "Energy", 255, 0, 0, "Numerical", 3.0f);
+    addPlot(chart_density, table_rho, "Density", 255, 0, 0, "Numerical");
+    addPlot(chart_velocity, table_u, "Velocity", 255, 0, 0, "Numerical");
+    addPlot(chart_pressure, table_P, "Pressure", 255, 0, 0, "Numerical");
+    addPlot(chart_energy, table_U, "Energy", 255, 0, 0, "Numerical");
 
     // Ensure the render window is properly initialized for off-screen rendering
     renderWindow->SetMultiSamples(0);  // Disable multisampling for off-screen

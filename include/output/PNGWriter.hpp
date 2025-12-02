@@ -19,6 +19,11 @@
  * Numerical solutions are plotted as red lines, analytical solutions
  * (when provided) are plotted as black lines.
  *
+ * Resolution can be customized and all visual elements (fonts, line widths,
+ * margins) automatically scale based on the specified dimensions. The baseline
+ * values are optimized for 1200x900 pixels. Scaling uses the geometric mean
+ * of width and height ratios for balanced visual appearance.
+ *
  * Uses VTK's charting capabilities (vtkChartXY, vtkContextView) for
  * rendering 2D plots to off-screen images.
  *

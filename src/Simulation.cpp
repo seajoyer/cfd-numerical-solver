@@ -1,5 +1,6 @@
 #include "Simulation.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -32,7 +33,12 @@ void Simulation::CreateWriters() {
     
     // Create writers for each enabled format
     for (const auto& format : settings_.output_formats) {
-        if (format == "vtk") {
+        // Convert to lowercase for comparison
+        std::string format_lower = format;
+        std::transform(format_lower.begin(), format_lower.end(), format_lower.begin(),
+                      [](unsigned char c) { return std::tolower(c); });
+        
+        if (format_lower == "vtk") {
             // VTK format: create subdirectory structure
             // vtk/solver__R_recon__N_size__CFL_value/
             std::ostringstream subdir_oss;
@@ -49,10 +55,11 @@ void Simulation::CreateWriters() {
                 std::string vtk_analytical_dir = case_output_dir_ + "/vtk/analytical";
                 vtk_analytical_writer_ = WriterFactory::Create("vtk", vtk_analytical_dir, true);
             }
-        } else if (format == "png") {
-            // PNG format: create single directory
+        } else if (format_lower.substr(0, 3) == "png") {
+            // PNG format (with or without resolution): create single directory
+            // Pass the full format string to WriterFactory to parse resolution
             std::string png_dir = case_output_dir_ + "/png";
-            png_writer_ = WriterFactory::Create("png", png_dir, false);
+            png_writer_ = WriterFactory::Create(format, png_dir, false);
         }
     }
 }

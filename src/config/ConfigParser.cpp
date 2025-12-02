@@ -583,7 +583,7 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "        - P0 (piecewise constant, first-order)\n";
     std::cout << "        - P1 (piecewise linear with slope limiting, second-order)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, ENO5)\n";
-    std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, …; e.g., WENO3, WENO5, …)\n\n";
+    std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
     
     std::cout << "  godunov-kolgan-rodionov:\n";
     std::cout << "      Compatible reconstructions: P1, ENO, WENO\n";
@@ -591,7 +591,7 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "      Reconstructions:\n";
     std::cout << "        - P1 (piecewise linear with slope limiting, MUSCL-Hancock)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, ENO5)\n";
-    std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, …; e.g., WENO3, WENO5, …)\n\n";
+    std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
     
     std::cout << "  analytical:\n";
     std::cout << "      Compatible reconstructions: N/A\n";
@@ -728,18 +728,21 @@ void ConfigParser::PrintOutputFormatsList() const {
     std::cout << "      Compatible with ParaView, VisIt, and other visualization tools\n";
     std::cout << "      Contains all simulation fields (density, velocity, pressure, etc.)\n\n";
     
-    std::cout << "  png:\n";
+    std::cout << "  png or png<width>x<height>:\n";
     std::cout << "      PNG image with 4 subplot panels:\n";
     std::cout << "        - Top-left:     Density vs X\n";
     std::cout << "        - Top-right:    Velocity vs X\n";
     std::cout << "        - Bottom-left:  Pressure vs X\n";
     std::cout << "        - Bottom-right: Specific Internal Energy vs X\n";
     std::cout << "      Numerical solution: red line\n";
-    std::cout << "      Analytical solution: black line (if enabled)\n\n";
+    std::cout << "      Analytical solution: black line (if enabled)\n";
+    std::cout << "      Default resolution: 1200x900\n";
+    std::cout << "      Custom resolution examples: png1920x1080, png800x600, png3840x2160\n";
+    std::cout << "      Font sizes and line widths scale automatically with resolution\n\n";
     
     std::cout << "Multiple formats can be specified:\n";
-    std::cout << "  YAML:  output_formats: [vtk, png]\n";
-    std::cout << "  CLI:   --output-formats vtk,png\n\n";
+    std::cout << "  YAML:  output_formats: [vtk, png1920x1080]\n";
+    std::cout << "  CLI:   --output-formats vtk,png1920x1080\n\n";
     
     std::cout << "Note: Format names are case-insensitive\n";
 }
