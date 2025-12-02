@@ -44,6 +44,7 @@ add_executable(${NAME}
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
+    src/output/PNGWriter.cpp
 
     src/data/DataLayer.cpp
     src/data/Variables.cpp
@@ -81,4 +82,10 @@ target_link_libraries(${NAME}
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::IOLegacy
+        VTK::ChartsCore
+        VTK::ViewsContext2D
+        VTK::RenderingContext2D
+        VTK::IOImage
+        VTK::RenderingContextOpenGL2
+        VTK::RenderingOpenGL2
 )

@@ -14,15 +14,23 @@
  * It supports 1D, 2D, and 3D data output with automatic conversion
  * from DataLayer's internal representation to VTK format.
  *
- * Files are named as: output_dir/N_<gridsize>__step_<stepnum>.vtk
+ * Output structure:
+ * ```
+ * output_dir/
+ *   ├── analytical/              (if analytical solution enabled)
+ *   │   └── step_NNNN.vtk
+ *   └── solver__R_recon__N_size__CFL_value/
+ *       └── solver__...__step_NNNN.vtk
+ * ```
  */
 class VTKWriter : public StepWriter {
    public:
     /**
      * @brief Constructs a VTKWriter with specified output directory.
      * @param output_dir Directory where VTK files will be written
+     * @param is_analytical If true, writes to analytical subdirectory with simpler naming
      */
-    explicit VTKWriter(const std::string& output_dir);
+    explicit VTKWriter(const std::string& output_dir, bool is_analytical = false);
     ~VTKWriter() override;
 
     /**
@@ -37,6 +45,7 @@ class VTKWriter : public StepWriter {
 
    private:
     std::string output_dir_;
+    bool is_analytical_;
 
     // PIMPL to hide VTK implementation details
     class Impl;

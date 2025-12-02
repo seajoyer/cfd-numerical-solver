@@ -1,5 +1,5 @@
 config:
-    run_cases: [sod1, sod5]
+    run_cases: [sod1, sod2]  # or simply: all
     
     global:
         solver: godunov
@@ -30,10 +30,10 @@ config:
 
         output_every_steps: 50
         output_every_time: 0.0
-        output_format: vtk
+        
+        output_formats: [vtk, png]
         output_dir: "../result"
 
-    # Define individual simulation cases
     # Each case can override any global setting
     cases:
         sod1:

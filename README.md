@@ -31,8 +31,8 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
 - xtensor (auto-fetched if not found)
 - yaml-cpp (auto-fetched if not found)
 - cxxopts (auto-fetched if not found)
-- VTK (required, install via package manager)
-- Doxygen (optional, for documentation)
+- VTK (auto-fetched if not found)
+- Doxygen (optional, auto-fetched if not found)
 
 ## Building from Source
 
@@ -76,14 +76,14 @@ Override configuration parameters:
 ```
 
 Key options:
-- `-i, --simulation-case`: Select simulation case (e.g., `sod3`, `custom_case`, or `all`)
+- `-h, --help`: Show all options
+- `-i, --run-cases`: Select simulation cases (e.g., `[sod3, custom_case]`, or `all`)
 - `-N, --N-cells`: Number of grid cells
 - `--cfl`: CFL number
 - `-s, --solver`: Solver type
 - `--riemann-solver`: Riemann solver type
 - `--reconstruction`: Reconstruction scheme
 - `-o, --output-dir`: Output directory
-- `-h, --help`: Show all options
 
 ## Configuration
 
@@ -92,70 +92,97 @@ Key options:
 
 ```yaml
 config:
-  settings:
-    solver: godunov
-    riemann_solver: exact
-    reconstruction: P0
-    left_boundary: free_stream
-    right_boundary: free_stream
-
-    N: 1000
-    cfl: 0.5
-    padding: 2
-    gamma: 1.4
-    dim: 1
-    L_x: 1
-
-    Q_user: 2
-
-    t_end: 0.25
-    step_end: 0
-
-    log_every_steps: 50
-    log_every_time: 0.0
-
-    output_every_steps: 50
-    output_every_time: 0.0
-
-    output_format: vtk
-    output_dir: "../result"
-
-    # Use "all" to run all available cases
-    simulation_case: sod1
-    x0: 0.5
-    analytical: true
-
-  initial_conditions:
-    sod1:
-      rho_L: 1.0
-      u_L: 0.0
-      P_L: 1.0
-      rho_R: 0.125
-      u_R: 0.0
-      P_R: 0.1
-      x0: 0.5
-      t_end: 0.25
+    run_cases: [sod1, sod5]  # or simply `all`
     
-    sod2:
-      rho_L: 1.0
-      u_L: -2.0
-      P_L: 0.4
-      rho_R: 1.0
-      u_R: 2.0
-      P_R: 0.4
-      x0: 0.5
-      t_end: 0.15
-    
-    # Add custom cases here
-    # custom_case:
-    #   rho_L: 2.0
-    #   u_L: 1.0
-    #   P_L: 5.0
-    #   rho_R: 0.5
-    #   u_R: -0.5
-    #   P_R: 2.0
-    #   x0: 0.3
-    #   t_end: 0.1
+    global:
+        solver: godunov
+        riemann_solver: exact
+        reconstruction: P0
+        left_boundary: free_stream
+        right_boundary: free_stream
+
+        N: 1000
+        cfl: 0.5
+        padding: 2
+        gamma: 1.4
+        dim: 1
+        L_x: 1
+        L_y: 1
+        L_z: 1
+
+        Q_user: 2
+
+        x0: 0.5
+        analytical: true
+
+        t_end: 0.25
+        step_end: 0
+
+        log_every_steps: 50
+        log_every_time: 0.0
+
+        output_every_steps: 50
+        output_every_time: 0.0
+        output_format: vtk
+        output_dir: "../result"
+
+    # Define individual simulation cases
+    # Each case can override any global setting
+    cases:
+        sod1:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 1.0
+            rho_R: 0.125
+            u_R: 0.0
+            P_R: 0.1
+
+            x0: 0.5
+            t_end: 0.25
+        
+        sod2:
+            rho_L: 1.0
+            u_L: -2.0
+            P_L: 0.4
+            rho_R: 1.0
+            u_R: 2.0
+            P_R: 0.4
+
+            x0: 0.5
+            t_end: 0.15
+        
+        sod3:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 1000.0
+            rho_R: 1.0
+            u_R: 0.0
+            P_R: 0.01
+
+            x0: 0.5
+            t_end: 0.012
+        
+        sod4:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 0.01
+            rho_R: 1.0
+            u_R: 0.0
+            P_R: 100.0
+
+            x0: 0.5
+            t_end: 0.035
+        
+        sod5:
+            rho_L: 5.99924
+            u_L: 19.5975
+            P_L: 460.894
+            rho_R: 5.99242
+            u_R: -6.19633
+            P_R: 46.0950
+
+            x0: 0.5
+            t_end: 0.035
 ```
 
 </details>
@@ -165,21 +192,23 @@ config:
 Results are organized hierarchically:
 
 ```
-result/
-├── sod1/  # сase names are added only if `simulation-case` is `all`.
-│   ├── godunov__R_p0__N_1000__CFL_5e-1/
-│   │   └── *.vtk
-│   └── analytical/
-│       └── *.vtk
-├── sod3/
-│   └── ...
+├── run_01-12-2025_14:29:00:018
+│   ├── sod1
+│   │   ├── analytical
+│   │   │   ├── step_0000.vtk
+│   │   │   └── ...
+│   │   └── godunov__R_p0__N_1000__CFL_5e-1
+│   │       ├── godunov__R_p0__N_1000__CFL_5e-1__step_0000.vtk
+│   │       └── ...
+│   └── sod2
+│       └── ...
+└── run_01-12-2025_14:29:38:088
+    └── ...
 ```
-
-Each numerical simulation creates a directory with solver parameters in the name, while analytical solutions go to `analytical/` subdirectories.
 
 ### Running Multiple Cases
 
-Set `simulation_case: all` to run all defined initial conditions in sequence:
+Set `run_cases: all` to run all defined initial conditions in sequence:
 
 ```bash
 ./cfd-numerical-solver -i all

@@ -3,6 +3,7 @@
 #include <cxxopts.hpp>
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
@@ -10,24 +11,64 @@
 
 ConfigParser::ConfigParser() = default;
 
+auto ConfigParser::ParseOutputFormats(const YAML::Node& node) -> std::vector<std::string> {
+    std::vector<std::string> formats;
+    
+    if (node.IsSequence()) {
+        // Handle list format: [vtk, png]
+        for (const auto& format_node : node) {
+            std::string fmt = format_node.as<std::string>();
+            // Convert to lowercase
+            std::transform(fmt.begin(), fmt.end(), fmt.begin(),
+                          [](unsigned char c) { return std::tolower(c); });
+            formats.push_back(fmt);
+        }
+    } else if (node.IsScalar()) {
+        // Handle single string format: vtk
+        std::string fmt = node.as<std::string>();
+        std::transform(fmt.begin(), fmt.end(), fmt.begin(),
+                      [](unsigned char c) { return std::tolower(c); });
+        formats.push_back(fmt);
+    }
+    
+    return formats;
+}
+
+auto ConfigParser::ParseOutputFormatsString(const std::string& formats_str) -> std::vector<std::string> {
+    std::vector<std::string> formats;
+    std::istringstream ss(formats_str);
+    std::string format;
+    
+    while (std::getline(ss, format, ',')) {
+        // Trim whitespace
+        format.erase(0, format.find_first_not_of(" \t"));
+        format.erase(format.find_last_not_of(" \t") + 1);
+        
+        if (!format.empty()) {
+            // Convert to lowercase
+            std::transform(format.begin(), format.end(), format.begin(),
+                          [](unsigned char c) { return std::tolower(c); });
+            formats.push_back(format);
+        }
+    }
+    
+    return formats;
+}
+
 auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> std::optional<bool> {
     try {
         cxxopts::Options opts("cfd_numerical_solver", "CFD Numerical Solver - Computational Fluid Dynamics");
 
-        // Only parse --help and --config in this pass
         opts.add_options()
             ("h,help", "Print help")
             ("c,config", "Config file path", cxxopts::value<std::string>())
         ;
         
-        // Allow unrecognised options (we'll parse them later)
         opts.allow_unrecognised_options();
 
         auto result = opts.parse(argc, argv);
 
         if (result.count("help")) {
-            // For full help, we need to show all options
-            // So create the full options object
             cxxopts::Options full_opts("cfd_numerical_solver", "CFD Numerical Solver - Computational Fluid Dynamics");
             
             full_opts.add_options()
@@ -37,6 +78,7 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
                 ("list-riemann", "List all supported Riemann solvers")
                 ("list-boundaries", "List all supported boundary conditions")
                 ("list-cases", "List all available simulation cases")
+                ("list-formats", "List all supported output formats")
             ;
 
             full_opts.add_options("Solver")
@@ -49,11 +91,11 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
 
             full_opts.add_options("Grid")
                 ("N,N-cells", "Number of cells", cxxopts::value<int>())
-                ("dim", "Dimensions (only 1D is supported for now)", cxxopts::value<int>())
-                ("Lx", "Domain length X", cxxopts::value<double>())
-                ("Ly", "Domain length Y (not yet supported)", cxxopts::value<double>())
-                ("Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())
-                ("padding", "Ghost cell padding", cxxopts::value<int>())
+                ("d,dim", "Dimensions (only 1D is supported for now)", cxxopts::value<int>())
+                ("x,Lx", "Domain length X", cxxopts::value<double>())
+                ("y,Ly", "Domain length Y (not yet supported)", cxxopts::value<double>())
+                ("z,Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())
+                ("p,padding", "Ghost cell padding", cxxopts::value<int>())
             ;
 
             full_opts.add_options("Physics")
@@ -76,7 +118,7 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
             full_opts.add_options("Output")
                 ("output-steps", "Output every N steps", cxxopts::value<std::size_t>())
                 ("output-time", "Output every N time units", cxxopts::value<double>())
-                ("f,output-format", "Output format (only VTK is supported for now)", cxxopts::value<std::string>())
+                ("output-formats", "Comma-separated output formats (vtk,png)", cxxopts::value<std::string>())
                 ("o,output-dir", "Output directory", cxxopts::value<std::string>())
             ;
             
@@ -147,6 +189,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
             ("list-riemann", "List all supported Riemann solvers")
             ("list-boundaries", "List all supported boundary conditions")
             ("list-cases", "List all available simulation cases")
+            ("list-formats", "List all supported output formats")
         ;
 
         opts.add_options("Solver")
@@ -186,7 +229,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         opts.add_options("Output")
             ("output-steps", "Output every N steps", cxxopts::value<std::size_t>())
             ("output-time", "Output every N time units", cxxopts::value<double>())
-            ("f,output-format", "Output format (only VTK is supported for now)", cxxopts::value<std::string>())
+            ("output-formats", "Comma-separated output formats (vtk,png)", cxxopts::value<std::string>())
             ("o,output-dir", "Output directory", cxxopts::value<std::string>())
         ;
         // clang-format on
@@ -219,7 +262,12 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
             return std::nullopt;
         }
 
-        // Override settings with CLI arguments (stored in cli_overrides_ for highest priority)
+        if (result.count("list-formats")) {
+            PrintOutputFormatsList();
+            return std::nullopt;
+        }
+
+        // Override settings with CLI arguments
         if (result.count("config")) config_path_ = result["config"].as<std::string>();
 
         // Solver options
@@ -285,8 +333,9 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         if (result.count("output-time")) {
             cli_overrides_.output_every_time = result["output-time"].as<double>();
         }
-        if (result.count("output-format")) {
-            cli_overrides_.output_format = result["output-format"].as<std::string>();
+        if (result.count("output-formats")) {
+            std::string formats_str = result["output-formats"].as<std::string>();
+            cli_overrides_.output_formats = ParseOutputFormatsString(formats_str);
         }
         if (result.count("output-dir")) {
             cli_overrides_.output_dir = result["output-dir"].as<std::string>();
@@ -399,7 +448,18 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     
     if (node["output_every_steps"]) settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
     if (node["output_every_time"]) settings.output_every_time = node["output_every_time"].as<double>();
-    if (node["output_format"]) settings.output_format = node["output_format"].as<std::string>();
+    
+    // Handle output_formats (can be string or list)
+    if (node["output_formats"]) {
+        settings.output_formats = ParseOutputFormats(node["output_formats"]);
+    } else if (node["output_format"]) {
+        // Backward compatibility: support old single format option
+        std::string fmt = node["output_format"].as<std::string>();
+        std::transform(fmt.begin(), fmt.end(), fmt.begin(),
+                      [](unsigned char c) { return std::tolower(c); });
+        settings.output_formats = {fmt};
+    }
+    
     if (node["output_dir"]) settings.output_dir = node["output_dir"].as<std::string>();
 }
 
@@ -477,7 +537,17 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
     // Output Configuration
     if (node["output_every_steps"]) overrides.output_every_steps = node["output_every_steps"].as<std::size_t>();
     if (node["output_every_time"]) overrides.output_every_time = node["output_every_time"].as<double>();
-    if (node["output_format"]) overrides.output_format = node["output_format"].as<std::string>();
+    
+    // Handle output_formats (can be string or list)
+    if (node["output_formats"]) {
+        overrides.output_formats = ParseOutputFormats(node["output_formats"]);
+    } else if (node["output_format"]) {
+        std::string fmt = node["output_format"].as<std::string>();
+        std::transform(fmt.begin(), fmt.end(), fmt.begin(),
+                      [](unsigned char c) { return std::tolower(c); });
+        overrides.output_formats = std::vector<std::string>{fmt};
+    }
+    
     if (node["output_dir"]) overrides.output_dir = node["output_dir"].as<std::string>();
 }
 
@@ -624,6 +694,15 @@ void ConfigParser::PrintCasesList() const {
             overrides_str << "solver=" << *ic.overrides.solver << ", ";
             has_overrides = true;
         }
+        if (ic.overrides.output_formats) {
+            overrides_str << "output_formats=[";
+            for (size_t i = 0; i < ic.overrides.output_formats->size(); ++i) {
+                if (i > 0) overrides_str << ",";
+                overrides_str << (*ic.overrides.output_formats)[i];
+            }
+            overrides_str << "], ";
+            has_overrides = true;
+        }
         
         if (has_overrides) {
             std::string overrides = overrides_str.str();
@@ -638,4 +717,29 @@ void ConfigParser::PrintCasesList() const {
     }
     
     std::cout << "Total: " << case_names.size() << " case(s)\n";
+}
+
+void ConfigParser::PrintOutputFormatsList() const {
+    std::cout << "Supported Output Formats:\n";
+    std::cout << "=========================\n\n";
+    
+    std::cout << "  vtk:\n";
+    std::cout << "      VTK structured grid format\n";
+    std::cout << "      Compatible with ParaView, VisIt, and other visualization tools\n";
+    std::cout << "      Contains all simulation fields (density, velocity, pressure, etc.)\n\n";
+    
+    std::cout << "  png:\n";
+    std::cout << "      PNG image with 4 subplot panels:\n";
+    std::cout << "        - Top-left:     Density vs X\n";
+    std::cout << "        - Top-right:    Velocity vs X\n";
+    std::cout << "        - Bottom-left:  Pressure vs X\n";
+    std::cout << "        - Bottom-right: Specific Internal Energy vs X\n";
+    std::cout << "      Numerical solution: red line\n";
+    std::cout << "      Analytical solution: black line (if enabled)\n\n";
+    
+    std::cout << "Multiple formats can be specified:\n";
+    std::cout << "  YAML:  output_formats: [vtk, png]\n";
+    std::cout << "  CLI:   --output-formats vtk,png\n\n";
+    
+    std::cout << "Note: Format names are case-insensitive\n";
 }

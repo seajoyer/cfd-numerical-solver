@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <vector>
 
 /**
  * @file Settings.hpp
@@ -53,7 +54,7 @@ struct CaseSettings {
     // Output Configuration
     std::optional<std::size_t> output_every_steps;
     std::optional<double> output_every_time;
-    std::optional<std::string> output_format;
+    std::optional<std::vector<std::string>> output_formats;
     std::optional<std::string> output_dir;
 };
 
@@ -151,7 +152,7 @@ struct Settings {
     int padding = 2;
     
     /** @brief Ratio of specific heat
-     * @note For ideal gas EOS: ÃƒÅ½Ã‚Â³ = cp/cv
+     * @note For ideal gas EOS: γ = cp/cv
      * @note Common values: 1.4 (air), 1.67 (monatomic), 1.33 (polyatomic)
      */
     double gamma = 1.4;
@@ -242,21 +243,46 @@ struct Settings {
      */
     double output_every_time = 0.0;
     
-    /** @brief Output file format
-     * @note Currently only "vtk" is supported
-     * @see VTKWriter
+    /** @brief Output file formats
+     * 
+     * Supported values:
+     * - "vtk": VTK structured grid format
+     * - "png": PNG image with 4 subplot panels
+     * 
+     * Multiple formats can be specified simultaneously.
+     * 
+     * @see VTKWriter, PNGWriter
      */
-    std::string output_format = "vtk";
+    std::vector<std::string> output_formats = {"vtk"};
     
     /** @brief Base directory for output files
      * 
-     * Numerical solutions are written to:
-     *   {output_dir}/{solver}__R_{reconstruction}__N_{N}__CFL_{cfl}/
-     * 
-     * Analytical solutions (if enabled) are written to:
-     *   {output_dir}/analytical/
+     * Output structure:
+     * ```
+     * output_dir/run_<timestamp>/
+     *   └── <case_name>/
+     *       ├── png/
+     *       │   └── step_NNNN.png
+     *       └── vtk/
+     *           ├── analytical/
+     *           │   └── step_NNNN.vtk
+     *           └── solver__R_reconstruction__N_size__CFL_value/
+     *               └── solver__...__step_NNNN.vtk
+     * ```
      */
     std::string output_dir = "data/output";
+    
+    /**
+     * @brief Check if a specific output format is enabled
+     * @param format Format to check (e.g., "vtk", "png")
+     * @return true if the format is in output_formats
+     */
+    [[nodiscard]] auto HasOutputFormat(const std::string& format) const -> bool {
+        for (const auto& fmt : output_formats) {
+            if (fmt == format) return true;
+        }
+        return false;
+    }
 };
 
 /**
@@ -315,7 +341,7 @@ inline auto MergeSettings(const Settings& global,
     // Output Configuration
     if (case_overrides.output_every_steps) merged.output_every_steps = *case_overrides.output_every_steps;
     if (case_overrides.output_every_time) merged.output_every_time = *case_overrides.output_every_time;
-    if (case_overrides.output_format) merged.output_format = *case_overrides.output_format;
+    if (case_overrides.output_formats) merged.output_formats = *case_overrides.output_formats;
     if (case_overrides.output_dir) merged.output_dir = *case_overrides.output_dir;
     
     // Apply CLI overrides last (highest priority - always win)
@@ -354,7 +380,7 @@ inline auto MergeSettings(const Settings& global,
     // Output Configuration
     if (cli_overrides.output_every_steps) merged.output_every_steps = *cli_overrides.output_every_steps;
     if (cli_overrides.output_every_time) merged.output_every_time = *cli_overrides.output_every_time;
-    if (cli_overrides.output_format) merged.output_format = *cli_overrides.output_format;
+    if (cli_overrides.output_formats) merged.output_formats = *cli_overrides.output_formats;
     if (cli_overrides.output_dir) merged.output_dir = *cli_overrides.output_dir;
     
     return merged;

@@ -26,10 +26,35 @@ auto Simulation::CreateBoundaryCondition(const std::string& boundary_type, doubl
     return BoundaryFactory::Create(boundary_type, rho_inf, u_inf, p_inf);
 }
 
-auto Simulation::CreateWriter(const std::string& output_format,
-                              const std::string& output_dir)
-    -> std::unique_ptr<StepWriter> {
-    return WriterFactory::Create(output_format, output_dir);
+void Simulation::CreateWriters() {
+    // Base output directory for this case is already set in settings_.output_dir
+    case_output_dir_ = settings_.output_dir;
+    
+    // Create writers for each enabled format
+    for (const auto& format : settings_.output_formats) {
+        if (format == "vtk") {
+            // VTK format: create subdirectory structure
+            // vtk/solver__R_recon__N_size__CFL_value/
+            std::ostringstream subdir_oss;
+            subdir_oss << case_output_dir_ << "/vtk/"
+                       << settings_.solver << "__R_" << settings_.reconstruction 
+                       << "__N_" << settings_.N 
+                       << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
+            std::string vtk_numerical_dir = subdir_oss.str();
+            
+            vtk_writer_ = WriterFactory::Create("vtk", vtk_numerical_dir, false);
+            
+            // Create analytical VTK writer if analytical is enabled
+            if (settings_.analytical) {
+                std::string vtk_analytical_dir = case_output_dir_ + "/vtk/analytical";
+                vtk_analytical_writer_ = WriterFactory::Create("vtk", vtk_analytical_dir, true);
+            }
+        } else if (format == "png") {
+            // PNG format: create single directory
+            std::string png_dir = case_output_dir_ + "/png";
+            png_writer_ = WriterFactory::Create("png", png_dir, false);
+        }
+    }
 }
 
 void Simulation::ApplyInitialConditions(DataLayer& layer) {
@@ -109,20 +134,10 @@ void Simulation::Initialize() {
                                 initial_conditions_.u_R, initial_conditions_.P_R);
     solver_->AddBoundary(0, left_bc, right_bc);
 
-    // Initialize output writer
-    // Construct detailed subdirectory for numerical solution
-    std::ostringstream subdir_oss;
-    subdir_oss << settings_.solver << "__R_" << settings_.reconstruction << "__N_" <<
-        settings_.N << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
-    std::string numerical_output_dir = settings_.output_dir + "/" + subdir_oss.str();
-    
-    writer_ = CreateWriter(settings_.output_format, numerical_output_dir);
-
+    // Initialize analytical solver if enabled
     if (settings_.analytical) {
         analytical_settings_ = settings_;
         analytical_settings_.solver = "analytical";
-        // Analytical solution goes to output_dir/analytical
-        analytical_settings_.output_dir = settings_.output_dir + "/analytical";
 
         analytical_layer_ = std::make_unique<DataLayer>(
             analytical_settings_.N, analytical_settings_.padding,
@@ -131,11 +146,12 @@ void Simulation::Initialize() {
         ApplyInitialConditions(*analytical_layer_);
 
         analytical_solver_ = std::make_unique<AnalyticalSolver>(analytical_settings_);
-
-        analytical_writer_ = CreateWriter(analytical_settings_.output_format,
-                                          analytical_settings_.output_dir);
     }
 
+    // Create output writers
+    CreateWriters();
+
+    // Print configuration summary
     std::cout << '\n';
     std::cout << "Simulation initialized:" << '\n';
     std::cout << ">>> Case:                " << settings_.simulation_case << '\n';
@@ -157,7 +173,15 @@ void Simulation::Initialize() {
     std::cout << ">>> Max time:            " << settings_.t_end << '\n';
     std::cout << ">>> Output every steps:  " << settings_.output_every_steps << '\n';
     std::cout << ">>> Output every time:   " << settings_.output_every_time << '\n';
-    std::cout << ">>> Output format:       " << settings_.output_format << '\n';
+    
+    // Print output formats
+    std::cout << ">>> Output formats:      [";
+    for (size_t i = 0; i < settings_.output_formats.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << settings_.output_formats[i];
+    }
+    std::cout << "]\n";
+    
     std::cout << ">>> Output directory:    " << settings_.output_dir << '\n';
     std::cout << ">>> Initial conditions:" << '\n';
     std::cout << std::fixed << std::setprecision(4);
@@ -225,27 +249,44 @@ auto Simulation::ShouldRun() const -> bool {
         (settings_.step_end == 0) || (step_cur_ < settings_.step_end);
 
     // Continue running if BOTH enabled criteria are satisfied
-    // (if a criterion is disabled, it's automatically satisfied)
     return time_not_exceeded && steps_not_exceeded;
 }
 
 void Simulation::WriteInitialState() const {
     std::cout << "Writing the initial state..." << '\n';
 
-    if (writer_) {
-        writer_->Write(*layer_, settings_, 0, 0.0);
+    // Write VTK files
+    if (vtk_writer_) {
+        vtk_writer_->Write(*layer_, settings_, 0, 0.0);
     }
-    if (analytical_writer_ && settings_.analytical) {
-        analytical_writer_->Write(*layer_, settings_, 0, 0.0);
+    if (vtk_analytical_writer_ && analytical_layer_) {
+        vtk_analytical_writer_->Write(*analytical_layer_, settings_, 0, 0.0);
+    }
+    
+    // Write PNG file (with analytical comparison if available)
+    if (png_writer_) {
+        const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
+        png_writer_->Write(*layer_, analytical_ptr, settings_, 0, 0.0);
     }
 }
 
 void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
-    if (writer_ && ShouldWrite()) {
-        writer_->Write(*layer_, settings_, step_cur, t_cur);
+    if (!ShouldWrite()) {
+        return;
     }
-    if (analytical_writer_ && analytical_layer_ && ShouldWrite()) {
-        analytical_writer_->Write(*analytical_layer_, settings_, step_cur, t_cur);
+    
+    // Write VTK files
+    if (vtk_writer_) {
+        vtk_writer_->Write(*layer_, settings_, step_cur, t_cur);
+    }
+    if (vtk_analytical_writer_ && analytical_layer_) {
+        vtk_analytical_writer_->Write(*analytical_layer_, settings_, step_cur, t_cur);
+    }
+    
+    // Write PNG file (with analytical comparison if available)
+    if (png_writer_) {
+        const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
+        png_writer_->Write(*layer_, analytical_ptr, settings_, step_cur, t_cur);
     }
 }
 
@@ -278,10 +319,11 @@ void Simulation::Run() {
         }
         ++step_cur_;
 
-        if (settings_.analytical) {
+        if (settings_.analytical && analytical_solver_ && analytical_layer_) {
             // Force this step size
             analytical_solver_->SetDt(dt_);
-            analytical_solver_->Step(*analytical_layer_, t_cur_);
+            double analytical_t = t_cur_;
+            analytical_solver_->Step(*analytical_layer_, analytical_t);
         }
 
         WriteStepState(t_cur_, step_cur_);

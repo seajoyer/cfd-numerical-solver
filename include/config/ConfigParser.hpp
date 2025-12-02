@@ -59,24 +59,6 @@ public:
     /**
      * @brief Parse configuration from a YAML file
      * 
-     * Loads all settings and initial conditions from the specified YAML file.
-     * The file should contain:
-     * - config/settings section with solver parameters
-     * - config/initial_conditions section with Riemann problem states
-     * 
-     * Expected YAML structure:
-     * @code{.yaml}
-     * config:
-     *   settings:
-     *     solver: godunov
-     *     N: 1000
-     *     # ... other settings
-     *   initial_conditions:
-     *     sod1:
-     *       rho_L: 1.0
-     *       # ... state definition
-     * @endcode
-     * 
      * @param filename Path to YAML configuration file
      * @return true if parsing succeeded, false on error
      * @note Prints error messages to std::cerr on failure
@@ -93,13 +75,6 @@ public:
      * - std::nullopt: User requested --help (graceful exit)
      * - false: Parsing error occurred
      * - true: Parsing succeeded
-     * 
-     * Command-line options include:
-     * - Solver options: --solver, --riemann-solver, --reconstruction
-     * - Grid options: --N-cells, --cfl, --padding
-     * - Physics options: --gamma, --t-end
-     * - Initial conditions: --simulation-case, --x0
-     * - Output options: --output-dir, --output-format
      * 
      * @param argc Argument count from main()
      * @param argv Argument vector from main()
@@ -151,7 +126,7 @@ public:
         -> const std::map<std::string, InitialConditions>&;
     
     /**
-     * @brief Get specific initial condition by name
+     * @brief Get specific initial condition (case to run) by name
      * @param case_name Name of the simulation case
      * @return Const reference to InitialConditions
      * @throw std::out_of_range if case_name not found
@@ -199,37 +174,28 @@ public:
 
     /**
      * @brief Print list of supported solvers and their reconstructions
-     * 
-     * Displays formatted information about all available solver types
-     * and which reconstruction schemes each solver supports.
      */
     void PrintSolversList() const;
 
     /**
      * @brief Print list of supported Riemann solvers
-     * 
-     * Displays formatted information about all available Riemann solver
-     * implementations with brief descriptions.
      */
     void PrintRiemannSolversList() const;
 
     /**
      * @brief Print list of supported boundary conditions
-     * 
-     * Displays formatted information about all available boundary condition
-     * types with brief descriptions.
      */
     void PrintBoundaryConditionsList() const;
 
     /**
      * @brief Print list of all available simulation cases
-     * 
-     * Displays formatted information about all cases defined in the
-     * configuration file, including initial conditions and overrides.
-     * 
-     * @note Requires configuration file to be loaded first
      */
     void PrintCasesList() const;
+
+    /**
+     * @brief Print list of supported output formats
+     */
+    void PrintOutputFormatsList() const;
 
 private:
     /** @brief Parsed global settings structure */
@@ -249,32 +215,17 @@ private:
 
     /**
      * @brief Parse command line for --config and --help only
-     * 
-     * This is a preliminary parsing pass that:
-     * 1. Checks for --help flag and displays help if present
-     * 2. Extracts --config flag to override default config path
-     * 3. Ignores all other flags (for later parsing)
-     * 
-     * This allows us to load the config file before processing list flags.
-     * 
-     * @param argc Argument count from main()
-     * @param argv Argument vector from main()
-     * @return Optional bool indicating success/failure/help
      */
     auto ParseCommandLineForConfigAndHelp(int argc, char* argv[]) 
         -> std::optional<bool>;
 
     /**
      * @brief Load settings from YAML node
-     * @param node YAML node containing settings
-     * @param settings Output settings structure
      */
     static void LoadSettings(const YAML::Node& node, Settings& settings);
     
     /**
      * @brief Load initial conditions and case settings from YAML node
-     * @param node YAML node containing cases
-     * @param initial_conditions Output map of initial conditions
      */
     static void LoadCases(
         const YAML::Node& node,
@@ -282,17 +233,23 @@ private:
     
     /**
      * @brief Load case-specific setting overrides from YAML node
-     * @param node YAML node for a single case
-     * @param overrides Output CaseSettings structure
      */
     static void LoadCaseOverrides(const YAML::Node& node, CaseSettings& overrides);
     
     /**
      * @brief Load run_cases list from YAML node
-     * @param node YAML node containing run_cases
-     * @param run_cases Output vector of case names
      */
     static void LoadRunCases(const YAML::Node& node, std::vector<std::string>& run_cases);
+
+    /**
+     * @brief Parse output formats from YAML node (can be string or list)
+     */
+    static auto ParseOutputFormats(const YAML::Node& node) -> std::vector<std::string>;
+
+    /**
+     * @brief Parse comma-separated format string from CLI
+     */
+    static auto ParseOutputFormatsString(const std::string& formats_str) -> std::vector<std::string>;
 };
 
 #endif  // CONFIGPARSER_HPP

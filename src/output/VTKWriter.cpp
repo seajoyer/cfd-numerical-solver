@@ -28,9 +28,9 @@ class VTKWriter::Impl {
     }
 };
 
-VTKWriter::VTKWriter(const std::string& output_dir)
-    : output_dir_(output_dir), pimpl_(std::make_unique<Impl>()) {
-    // Create output_rodionov directory if it doesn't exist
+VTKWriter::VTKWriter(const std::string& output_dir, bool is_analytical)
+    : output_dir_(output_dir), is_analytical_(is_analytical), pimpl_(std::make_unique<Impl>()) {
+    // Create output directory if it doesn't exist
     std::filesystem::create_directories(output_dir_);
 }
 
@@ -40,11 +40,12 @@ auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settin
     -> std::string {
     std::ostringstream oss;
 
-    std::string last_dir = output_dir_.substr(output_dir_.find_last_of("/\\") + 1);
-    if (last_dir == "analytical") {
+    if (is_analytical_) {
+        // Analytical solution uses simple naming
         oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step
             << ".vtk";
     } else {
+        // Numerical solution includes solver parameters in filename
         oss << output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
             << "__N_" << N << "__CFL_" << utils::DoubleWithoutDot(settings.cfl) <<
             "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
@@ -168,21 +169,16 @@ void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
     writer->SetInputData(grid);
     writer->SetFileTypeToBinary();
     writer->Write();
-
-    // std::cout << ">>> Wrote VTK file: " << filename
-    // << " (step=" << step << ", time=" << time << ")" << '\r';
 }
 
 void VTKWriter::Write2D(const DataLayer& layer, const Settings& settings,
                         std::size_t step, double time) const {
     // Placeholder for 2D implementation
-    // In the future, this will handle 2D grids with proper indexing
     throw std::runtime_error("2D VTK output not yet implemented");
 }
 
 void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
                         std::size_t step, double time) const {
     // Placeholder for 3D implementation
-    // In the future, this will handle 3D grids with proper indexing
     throw std::runtime_error("3D VTK output not yet implemented");
 }
