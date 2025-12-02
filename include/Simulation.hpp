@@ -31,15 +31,17 @@
  * - Manages time integration loop
  * - Controls output writing at specified intervals
  * - Optionally runs analytical solutions for verification
+ * - Finalizes accumulated outputs (e.g., GIF animation)
  * 
  * ## Output Organization
  * ```
  * output_dir/run_<timestamp>/
  *   └── <case_name>/
- *       ├── png/                              (if PNG format enabled)
+ *       ├── godunov__R_p0__N_1000__CFL_5e-1.gif  (GIF animation, if enabled)
+ *       ├── png/                                 (if PNG format enabled)
  *       │   └── step_NNNN.png
- *       └── vtk/                              (if VTK format enabled)
- *           ├── analytical/                   (if analytical enabled)
+ *       └── vtk/                                 (if VTK format enabled)
+ *           ├── analytical/                      (if analytical enabled)
  *           │   └── step_NNNN.vtk
  *           └── solver__R_recon__N_size__CFL_value/
  *               └── solver__...__step_NNNN.vtk
@@ -65,6 +67,12 @@ public:
     
     /**
      * @brief Executes complete simulation workflow
+     * 
+     * This method:
+     * 1. Initializes all components
+     * 2. Writes initial state
+     * 3. Runs the time-stepping loop
+     * 4. Finalizes any accumulated outputs (e.g., GIF)
      */
     void Run();
 
@@ -114,9 +122,10 @@ private:
     /**
      * @brief Creates output writers for all enabled formats
      * 
-     * Creates separate writers for each output format (vtk, png).
+     * Creates separate writers for each output format (vtk, png, gif).
      * VTK format creates separate writers for numerical and analytical.
-     * PNG format creates a single writer that handles both.
+     * PNG and GIF formats create single writers that handle both.
+     * GIF writer is stored in the case directory directly.
      */
     void CreateWriters();
 
@@ -163,6 +172,14 @@ private:
      */
     void PrintLog() const;
 
+    /**
+     * @brief Finalizes all writers that require finalization
+     * 
+     * Called at the end of simulation to finalize accumulated outputs.
+     * For example, GIFWriter needs to encode all frames into the final GIF.
+     */
+    void FinalizeWriters();
+
     // ==================== Member Data ====================
     
     /** @brief Numerical solver configuration */
@@ -188,6 +205,9 @@ private:
     
     /** @brief PNG writer (handles both numerical and analytical) */
     std::unique_ptr<StepWriter> png_writer_;
+
+    /** @brief GIF writer (handles both numerical and analytical) */
+    std::unique_ptr<StepWriter> gif_writer_;
     
     /** @brief Numerical solution data */
     std::unique_ptr<DataLayer> layer_;

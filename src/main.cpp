@@ -110,7 +110,7 @@ auto main(int argc, char* argv[]) -> int {
             std::cout << "========================================\n";
         }
 
-        std::cout << "\nResults saved to: " << run_dir << "\n";
+        std::cout << "Results saved to: " << run_dir << "\n";
 
         return 0;
 

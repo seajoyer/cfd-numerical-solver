@@ -45,6 +45,7 @@ add_executable(${NAME}
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
     src/output/PNGWriter.cpp
+    src/output/GIFWriter.cpp
 
     src/data/DataLayer.cpp
     src/data/Variables.cpp
@@ -71,6 +72,7 @@ add_executable(${NAME}
 target_include_directories(${NAME}
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include/external
 )
 
 target_link_libraries(${NAME}

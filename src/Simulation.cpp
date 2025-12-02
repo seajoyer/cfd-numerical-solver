@@ -1,6 +1,5 @@
 #include "Simulation.hpp"
 
-#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -36,8 +35,8 @@ void Simulation::CreateWriters() {
         // Convert to lowercase for comparison
         std::string format_lower = format;
         std::transform(format_lower.begin(), format_lower.end(), format_lower.begin(),
-                      [](unsigned char c) { return std::tolower(c); });
-        
+                       [](unsigned char c) { return std::tolower(c); });
+
         if (format_lower == "vtk") {
             // VTK format: create subdirectory structure
             // vtk/solver__R_recon__N_size__CFL_value/
@@ -56,10 +55,13 @@ void Simulation::CreateWriters() {
                 vtk_analytical_writer_ = WriterFactory::Create("vtk", vtk_analytical_dir, true);
             }
         } else if (format_lower.substr(0, 3) == "png") {
-            // PNG format (with or without resolution): create single directory
-            // Pass the full format string to WriterFactory to parse resolution
+            // PNG format: create single directory
             std::string png_dir = case_output_dir_ + "/png";
             png_writer_ = WriterFactory::Create(format, png_dir, false);
+        } else if (format_lower.substr(0, 3) == "gif") {
+            // GIF format: write directly to case directory
+            // GIF file will be named: solver__R_recon__N_size__CFL_value.gif
+            gif_writer_ = WriterFactory::Create(format, case_output_dir_, false);
         }
     }
 }
@@ -275,6 +277,12 @@ void Simulation::WriteInitialState() const {
         const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
         png_writer_->Write(*layer_, analytical_ptr, settings_, 0, 0.0);
     }
+
+    // Write GIF frame (with analytical comparison if available)
+    if (gif_writer_) {
+        const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
+        gif_writer_->Write(*layer_, analytical_ptr, settings_, 0, 0.0);
+    }
 }
 
 void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
@@ -295,6 +303,12 @@ void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
         const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
         png_writer_->Write(*layer_, analytical_ptr, settings_, step_cur, t_cur);
     }
+
+    // Write GIF frame (with analytical comparison if available)
+    if (gif_writer_) {
+        const DataLayer* analytical_ptr = analytical_layer_ ? analytical_layer_.get() : nullptr;
+        gif_writer_->Write(*layer_, analytical_ptr, settings_, step_cur, t_cur);
+    }
 }
 
 void Simulation::PrintLog() const {
@@ -305,6 +319,25 @@ void Simulation::PrintLog() const {
         std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
             << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
         std::cout.flush();
+    }
+}
+
+void Simulation::FinalizeWriters() {
+    // Finalize any writers that require it
+    if (gif_writer_ && gif_writer_->RequiresFinalization()) {
+        std::string gif_path = gif_writer_->Finalize(settings_);
+    }
+    
+    // VTK and PNG writers don't require finalization
+    // but we check anyway for future extensibility
+    if (vtk_writer_ && vtk_writer_->RequiresFinalization()) {
+        vtk_writer_->Finalize(settings_);
+    }
+    if (vtk_analytical_writer_ && vtk_analytical_writer_->RequiresFinalization()) {
+        vtk_analytical_writer_->Finalize(settings_);
+    }
+    if (png_writer_ && png_writer_->RequiresFinalization()) {
+        png_writer_->Finalize(settings_);
     }
 }
 
@@ -339,7 +372,10 @@ void Simulation::Run() {
     }
 
     std::cout << '\n';
-    std::cout << "Simulation completed!" << '\n';
+    std::cout << "\nSimulation completed!" << '\n';
     std::cout << ">>> Final time:  " << t_cur_ << '\n';
     std::cout << ">>> Total steps: " << step_cur_ << '\n';
+
+    // Finalize writers (e.g., encode GIF from accumulated frames)
+    FinalizeWriters();
 }

@@ -31,7 +31,7 @@ config:
         output_every_steps: 50
         output_every_time: 0.0
         
-        output_formats: [vtk, png]
+        output_formats: all
         output_dir: "../result"
 
     # Each case can override any global setting

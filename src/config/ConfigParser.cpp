@@ -118,7 +118,7 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
             full_opts.add_options("Output")
                 ("output-steps", "Output every N steps", cxxopts::value<std::size_t>())
                 ("output-time", "Output every N time units", cxxopts::value<double>())
-                ("output-formats", "Comma-separated output formats (vtk,png)", cxxopts::value<std::string>())
+                ("output-formats", "Comma-separated output formats", cxxopts::value<std::string>())
                 ("o,output-dir", "Output directory", cxxopts::value<std::string>())
             ;
             
@@ -229,7 +229,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         opts.add_options("Output")
             ("output-steps", "Output every N steps", cxxopts::value<std::size_t>())
             ("output-time", "Output every N time units", cxxopts::value<double>())
-            ("output-formats", "Comma-separated output formats (vtk,png)", cxxopts::value<std::string>())
+            ("output-formats", "Comma-separated output formats", cxxopts::value<std::string>())
             ("o,output-dir", "Output directory", cxxopts::value<std::string>())
         ;
         // clang-format on
@@ -740,9 +740,25 @@ void ConfigParser::PrintOutputFormatsList() const {
     std::cout << "      Custom resolution examples: png1920x1080, png800x600, png3840x2160\n";
     std::cout << "      Font sizes and line widths scale automatically with resolution\n\n";
     
+    std::cout << "  gif or gif<width>x<height>:\n";
+    std::cout << "      Animated GIF with same 4 subplot panels as PNG:\n";
+    std::cout << "        - Top-left:     Density vs X\n";
+    std::cout << "        - Top-right:    Velocity vs X\n";
+    std::cout << "        - Bottom-left:  Pressure vs X\n";
+    std::cout << "        - Bottom-right: Specific Internal Energy vs X\n";
+    std::cout << "      Numerical solution: red line\n";
+    std::cout << "      Analytical solution: black line (if enabled)\n";
+    std::cout << "      Default resolution: 1200x900\n";
+    std::cout << "      Custom resolution examples: gif1920x1080, gif800x600\n";
+    std::cout << "      Font sizes and line widths scale automatically with resolution\n";
+    std::cout << "      Frame delay: 10 centiseconds (100ms) per frame\n\n";
+    
+    std::cout << "      Memory note: GIF stores all frames in memory until finalization.\n";
+    std::cout << "      For long simulations, consider reducing output frequency or resolution.\n\n";
+    
     std::cout << "Multiple formats can be specified:\n";
-    std::cout << "  YAML:  output_formats: [vtk, png1920x1080]\n";
-    std::cout << "  CLI:   --output-formats vtk,png1920x1080\n\n";
+    std::cout << "  YAML:  output_formats: [vtk, png1920x1080, gif]\n";
+    std::cout << "  CLI:   --output-formats vtk,png1920x1080,gif\n\n";
     
     std::cout << "Note: Format names are case-insensitive\n";
 }
