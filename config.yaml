@@ -5,6 +5,7 @@ config:
         solver: godunov
         riemann_solver: exact
         reconstruction: P0
+        time_integrator: euler
         left_boundary: free_stream
         right_boundary: free_stream
 

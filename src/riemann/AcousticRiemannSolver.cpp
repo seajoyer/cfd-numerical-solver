@@ -41,12 +41,10 @@ auto AcousticRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& 
         return CentralFlux(left, right, gamma);
     }
 
-    // u* = (u_L Z_L - u_R Z_R + (p_L - p_R)) / (Z_L + Z_R)
-    const double u_star = (uL * ZL - uR * ZR + (pL - pR)) / denom;
+    const double u_star = (uL * ZL + uR * ZR + (pL - pR)) / denom;
 
-    // p* = (Z_L Z_R (u_L - u_R) + p_R / Z_R + p_L / Z_L) / (Z_L + Z_R)
     const double term1 = ZL * ZR * (uL - uR);
-    const double term2 = pR / ZR + pL / ZL;
+    const double term2 = pR * ZR + pL * ZL;
     const double p_star = (term1 + term2) / denom;
 
     if (!std::isfinite(u_star) || !std::isfinite(p_star)) {

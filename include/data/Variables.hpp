@@ -33,36 +33,6 @@ struct Primitive {
 };
 
 /**
- * @class Conservative
- * @brief Conservative state for the 1D Euler equations.
- *
- * This structure represents the conserved quantities:
- *
- *  - rho:  mass density
- *  - rhoU: momentum density in x-direction
- *  - E:    total energy density
- */
-struct Conservative {
-    double rho;   ///< Mass density
-    double rhoU;  ///< Momentum density in x-direction
-    double E;     ///< Total energy density
-
-    /**
-     * @brief Constructs a zero-initialized conservative state.
-     */
-    Conservative();
-
-    /**
-     * @brief Constructs a conservative state from components.
-     *
-     * @param rho_  Mass density.
-     * @param rhoU_ Momentum density.
-     * @param E_    Total energy density.
-     */
-    Conservative(double rho_, double rhoU_, double E_);
-};
-
-/**
  * @class Flux
  * @brief Numerical flux for the 1D Euler equations.
  *
@@ -102,6 +72,37 @@ struct Flux {
      * @return Component-wise difference Fplus - Fminus.
      */
     static auto Diff(const Flux& Fplus, const Flux& Fminus) -> Flux;
+};
+
+/**
+ * @class Conservative
+ * @brief Conservative state for the 1D Euler equations.
+ *
+ * This structure represents the conserved quantities:
+ *
+ *  - rho:  mass density
+ *  - rhoU: momentum density in x-direction
+ *  - E:    total energy density
+ */
+struct Conservative {
+    double rho;   ///< Mass density
+    double rhoU;  ///< Momentum density in x-direction
+    double E;     ///< Total energy density
+
+    /**
+     * @brief Constructs a zero-initialized conservative state.
+     */
+    Conservative();
+
+    /**
+     * @brief Constructs a conservative state from components.
+     *
+     * @param rho_  Mass density.
+     * @param rhoU_ Momentum density.
+     * @param E_    Total energy density.
+     */
+    Conservative(double rho_, double rhoU_, double E_);
+    auto operator=(const Flux& f) -> Conservative&;
 };
 
 /**
@@ -165,6 +166,8 @@ auto operator*(Conservative a, double s) -> Conservative;
 auto operator*(double s, Conservative a) -> Conservative;
 auto operator-=(Conservative& u, const Flux& f) -> Conservative&;
 auto operator-(Conservative u, const Flux& f) -> Conservative;
+auto operator+=(Conservative& u, const Flux& f) -> Conservative&;
+auto operator+(Conservative u, const Flux& f) -> Conservative;
 
 /// --- Small algebra helpers for Flux ---
 

@@ -110,7 +110,20 @@ struct Settings {
      * @note Case-insensitive
      */
     std::string reconstruction = "p0";
-    
+
+    /** @brief Time integration scheme identifier
+     *
+     * Supported values:
+     * - "euler"      : First-order Forward Euler scheme
+     * - "ssprk2"     : Second-order SSP Runge–Kutta (TVD RK2)
+     * - "ssprk3"     : Third-order SSP Runge–Kutta (SSPRK(3,3))
+     * - "maccormack" : Two-step MacCormack predictor–corrector scheme
+     *
+     * @note Case-insensitive
+     * @note Used by solver factory to construct the appropriate TimeIntegrator
+     */
+    std::string time_integrator = "euler";
+
     /** @brief Left boundary condition type
      * 
      * Supported values:
@@ -244,13 +257,13 @@ struct Settings {
     double output_every_time = 0.0;
     
     /** @brief Output file formats
-     * 
+     *
      * Supported values:
      * - "vtk": VTK structured grid format
      * - "png": PNG image with 4 subplot panels
-     * 
+     *
      * Multiple formats can be specified simultaneously.
-     * 
+     *
      * @see VTKWriter, PNGWriter
      */
     std::vector<std::string> output_formats = {"vtk"};
@@ -271,7 +284,7 @@ struct Settings {
      * ```
      */
     std::string output_dir = "data/output";
-    
+
     /**
      * @brief Check if a specific output format is enabled
      * @param format Format to check (e.g., "vtk", "png")

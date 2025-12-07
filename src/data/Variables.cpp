@@ -15,6 +15,14 @@ Conservative::Conservative() : rho(0.0), rhoU(0.0), E(0.0) {}
 Conservative::Conservative(double rho_, double rhoU_, double E_)
     : rho(rho_), rhoU(rhoU_), E(E_) {}
 
+auto Conservative::operator=(const Flux& f) -> Conservative& {
+    this->rho = f.mass;
+    this->rhoU = f.momentum;
+    this->E = f.energy;
+
+    return *this;
+}
+
 // ---------- Flux ----------
 
 Flux::Flux() : mass(0.0), momentum(0.0), energy(0.0) {}
@@ -178,9 +186,21 @@ auto operator+=(Flux& f, const Conservative& u) -> Flux& {
     return f;
 }
 
+auto operator+=(Conservative& u, const Flux& f) -> Conservative& {
+    u.rho += f.mass;
+    u.rhoU += f.momentum;
+    u.E += f.energy;
+    return u;
+}
+
 auto operator+(Flux f, const Conservative& u) -> Flux {
     f += u;
     return f;
+}
+
+auto operator+(Conservative u, const Flux& f) -> Conservative {
+    u += f;
+    return u;
 }
 
 // ---------- Optional algebra for Primitive ----------

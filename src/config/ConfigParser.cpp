@@ -13,7 +13,7 @@ ConfigParser::ConfigParser() = default;
 
 auto ConfigParser::ParseOutputFormats(const YAML::Node& node) -> std::vector<std::string> {
     std::vector<std::string> formats;
-    
+
     if (node.IsSequence()) {
         // Handle list format: [vtk, png]
         for (const auto& format_node : node) {
@@ -30,7 +30,7 @@ auto ConfigParser::ParseOutputFormats(const YAML::Node& node) -> std::vector<std
                       [](unsigned char c) { return std::tolower(c); });
         formats.push_back(fmt);
     }
-    
+
     return formats;
 }
 
@@ -38,12 +38,12 @@ auto ConfigParser::ParseOutputFormatsString(const std::string& formats_str) -> s
     std::vector<std::string> formats;
     std::istringstream ss(formats_str);
     std::string format;
-    
+
     while (std::getline(ss, format, ',')) {
         // Trim whitespace
         format.erase(0, format.find_first_not_of(" \t"));
         format.erase(format.find_last_not_of(" \t") + 1);
-        
+
         if (!format.empty()) {
             // Convert to lowercase
             std::transform(format.begin(), format.end(), format.begin(),
@@ -51,7 +51,7 @@ auto ConfigParser::ParseOutputFormatsString(const std::string& formats_str) -> s
             formats.push_back(format);
         }
     }
-    
+
     return formats;
 }
 
@@ -63,14 +63,14 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
             ("h,help", "Print help")
             ("c,config", "Config file path", cxxopts::value<std::string>())
         ;
-        
+
         opts.allow_unrecognised_options();
 
         auto result = opts.parse(argc, argv);
 
         if (result.count("help")) {
             cxxopts::Options full_opts("cfd_numerical_solver", "CFD Numerical Solver - Computational Fluid Dynamics");
-            
+
             full_opts.add_options()
                 ("h,help", "Print help")
                 ("c,config", "Config file path", cxxopts::value<std::string>())
@@ -121,7 +121,7 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
                 ("output-formats", "Comma-separated output formats", cxxopts::value<std::string>())
                 ("o,output-dir", "Output directory", cxxopts::value<std::string>())
             ;
-            
+
             std::cout << full_opts.help() << '\n';
             return std::nullopt;
         }
@@ -142,7 +142,7 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[]) -> s
 auto ConfigParser::ParseFile(const std::string& filename) -> bool {
     try {
         YAML::Node config = YAML::LoadFile(filename);
-        
+
         // Load global settings from config/global
         if (config["config"]["global"]) {
             YAML::Node global_node = config["config"]["global"];
@@ -150,7 +150,7 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
         } else {
             std::cerr << "Warning: No 'global' section found in config. Using defaults.\n";
         }
-        
+
         // Load cases from config/cases
         if (config["config"]["cases"]) {
             YAML::Node cases_node = config["config"]["cases"];
@@ -159,7 +159,7 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
             std::cerr << "Error: No 'cases' section found in config.\n";
             return false;
         }
-        
+
         // Load run_cases from config/run_cases
         if (config["config"]["run_cases"]) {
             YAML::Node run_cases_node = config["config"]["run_cases"];
@@ -168,7 +168,7 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
             // Default: run all cases
             run_cases_ = {"all"};
         }
-        
+
         config_path_ = filename;
         return true;
     } catch (const std::exception& e) {
@@ -306,7 +306,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         if (result.count("run-cases")) {
             std::string cases_str = result["run-cases"].as<std::string>();
             run_cases_.clear();
-            
+
             // Parse comma-separated list
             std::istringstream ss(cases_str);
             std::string case_name;
@@ -414,13 +414,16 @@ auto ConfigParser::GetConfigPath() const -> const std::string& { return config_p
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     if (node["solver"]) settings.solver = node["solver"].as<std::string>();
     if (node["solver"]) settings.solver = utils::ToLower(settings.solver);
-    
+
     if (node["riemann_solver"]) settings.riemann_solver = node["riemann_solver"].as<std::string>();
     if (node["riemann_solver"]) settings.riemann_solver = utils::ToLower(settings.riemann_solver);
-    
+
     if (node["reconstruction"]) settings.reconstruction = node["reconstruction"].as<std::string>();
     if (node["reconstruction"]) settings.reconstruction = utils::ToLower(settings.reconstruction);
-    
+
+    if (node["time_integrator"]) settings.time_integrator = node["time_integrator"].as<std::string>();
+    if (node["time_integrator"]) settings.time_integrator = utils::ToLower(settings.time_integrator);
+
     if (node["left_boundary"]) settings.left_boundary = node["left_boundary"].as<std::string>();
     if (node["right_boundary"]) settings.right_boundary = node["right_boundary"].as<std::string>();
 
@@ -445,10 +448,10 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
 
     if (node["log_every_steps"]) settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
     if (node["log_every_time"]) settings.log_every_time = node["log_every_time"].as<double>();
-    
+
     if (node["output_every_steps"]) settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
     if (node["output_every_time"]) settings.output_every_time = node["output_every_time"].as<double>();
-    
+
     // Handle output_formats (can be string or list)
     if (node["output_formats"]) {
         settings.output_formats = ParseOutputFormats(node["output_formats"]);
@@ -459,7 +462,7 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
                       [](unsigned char c) { return std::tolower(c); });
         settings.output_formats = {fmt};
     }
-    
+
     if (node["output_dir"]) settings.output_dir = node["output_dir"].as<std::string>();
 }
 
@@ -469,7 +472,7 @@ void ConfigParser::LoadCases(const YAML::Node& node,
     for (const auto& entry : node) {
         auto case_name = entry.first.as<std::string>();
         const YAML::Node& case_data = entry.second;
-        
+
         InitialConditions ic;
         ic.rho_L = case_data["rho_L"].as<double>();
         ic.u_L = case_data["u_L"].as<double>();
@@ -477,7 +480,7 @@ void ConfigParser::LoadCases(const YAML::Node& node,
         ic.rho_R = case_data["rho_R"].as<double>();
         ic.u_R = case_data["u_R"].as<double>();
         ic.P_R = case_data["P_R"].as<double>();
-        
+
         // Load case-specific overrides
         LoadCaseOverrides(case_data, ic.overrides);
 
@@ -505,7 +508,7 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
     if (node["right_boundary"]) {
         overrides.right_boundary = node["right_boundary"].as<std::string>();
     }
-    
+
     // Grid Configuration
     if (node["N"]) overrides.N = node["N"].as<int>();
     if (node["cfl"]) overrides.cfl = node["cfl"].as<double>();
@@ -515,29 +518,29 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
     if (node["L_x"]) overrides.L_x = node["L_x"].as<double>();
     if (node["L_y"]) overrides.L_y = node["L_y"].as<double>();
     if (node["L_z"]) overrides.L_z = node["L_z"].as<double>();
-    
+
     // Physical Parameters
     if (node["Q_user"]) overrides.Q_user = node["Q_user"].as<double>();
-    
+
     // Initial Conditions
     if (node["x0"]) overrides.x0 = node["x0"].as<double>();
     if (node["analytical"]) {
         auto analytical_str = node["analytical"].as<std::string>();
         overrides.analytical = (analytical_str == "true" || analytical_str == "True" || analytical_str == "TRUE");
     }
-    
+
     // Time Control
     if (node["t_end"]) overrides.t_end = node["t_end"].as<double>();
     if (node["step_end"]) overrides.step_end = node["step_end"].as<std::size_t>();
-    
+
     // Logging Configuration
     if (node["log_every_steps"]) overrides.log_every_steps = node["log_every_steps"].as<std::size_t>();
     if (node["log_every_time"]) overrides.log_every_time = node["log_every_time"].as<double>();
-    
+
     // Output Configuration
     if (node["output_every_steps"]) overrides.output_every_steps = node["output_every_steps"].as<std::size_t>();
     if (node["output_every_time"]) overrides.output_every_time = node["output_every_time"].as<double>();
-    
+
     // Handle output_formats (can be string or list)
     if (node["output_formats"]) {
         overrides.output_formats = ParseOutputFormats(node["output_formats"]);
@@ -547,13 +550,13 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
                       [](unsigned char c) { return std::tolower(c); });
         overrides.output_formats = std::vector<std::string>{fmt};
     }
-    
+
     if (node["output_dir"]) overrides.output_dir = node["output_dir"].as<std::string>();
 }
 
 void ConfigParser::LoadRunCases(const YAML::Node& node, std::vector<std::string>& run_cases) {
     run_cases.clear();
-    
+
     if (node.IsSequence()) {
         for (const auto& case_node : node) {
             run_cases.push_back(case_node.as<std::string>());
@@ -570,12 +573,12 @@ void ConfigParser::LoadRunCases(const YAML::Node& node, std::vector<std::string>
 void ConfigParser::PrintSolversList() const {
     std::cout << "Supported Solvers and Compatible Reconstructions:\n";
     std::cout << "=================================================\n\n";
-    
+
     std::cout << "  godunov:\n";
     std::cout << "      Compatible reconstructions: P0\n";
     std::cout << "      Description: First-order Godunov method\n";
     std::cout << "      Reconstruction: P0 (piecewise constant, first-order)\n\n";
-    
+
     std::cout << "  godunov-kolgan:\n";
     std::cout << "      Compatible reconstructions: P0, P1, ENO, WENO\n";
     std::cout << "      Description: Godunov method with higher-order reconstruction\n";
@@ -584,7 +587,7 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "        - P1 (piecewise linear with slope limiting, second-order)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, ENO5)\n";
     std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
-    
+
     std::cout << "  godunov-kolgan-rodionov:\n";
     std::cout << "      Compatible reconstructions: P1, ENO, WENO\n";
     std::cout << "      Description: Second-order MUSCL-Hancock scheme\n";
@@ -592,63 +595,63 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "        - P1 (piecewise linear with slope limiting, MUSCL-Hancock)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, ENO5)\n";
     std::cout << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
-    
+
     std::cout << "  analytical:\n";
     std::cout << "      Compatible reconstructions: N/A\n";
     std::cout << "      Description: Exact Riemann solver for verification\n";
     std::cout << "      Note: No reconstruction needed (exact solution)\n\n";
-    
+
     std::cout << "Note: Solver and reconstruction names are case-insensitive\n";
 }
 
 void ConfigParser::PrintRiemannSolversList() const {
     std::cout << "Supported Riemann Solvers:\n";
     std::cout << "==========================\n\n";
-    
+
     std::cout << "  exact:\n";
     std::cout << "      Exact ideal gas Riemann solver (iterative)\n";
     std::cout << "      Most accurate but computationally expensive\n\n";
-    
+
     std::cout << "  hll:\n";
     std::cout << "      HLL (Harten-Lax-van Leer) approximate solver\n";
     std::cout << "      Robust but diffusive, two-wave approximation\n\n";
-    
+
     std::cout << "  hllc:\n";
     std::cout << "      HLLC (HLL-Contact) approximate solver\n";
     std::cout << "      Restores contact discontinuity, less diffusive than HLL\n\n";
-    
+
     std::cout << "  acoustic:\n";
     std::cout << "      Linearized acoustic Riemann solver\n";
     std::cout << "      Fast but only accurate for weak perturbations\n\n";
-    
+
     std::cout << "Note: Riemann solver names are case-insensitive\n";
 }
 
 void ConfigParser::PrintBoundaryConditionsList() const {
     std::cout << "Supported Boundary Conditions:\n";
     std::cout << "==============================\n\n";
-    
+
     std::cout << "  free_stream:\n";
     std::cout << "      Far-field boundary with specified external state\n\n";
-    
+
     std::cout << "  inlet:\n";
     std::cout << "      Inflow boundary with prescribed values\n\n";
-    
+
     std::cout << "  outlet:\n";
     std::cout << "      Outflow boundary (zero-gradient extrapolation)\n\n";
-    
+
     std::cout << "  reflective:\n";
     std::cout << "      Reflecting wall (inverts normal velocity)\n\n";
-    
+
     std::cout << "  non_reflective:\n";
     std::cout << "      Non-reflecting characteristic boundary\n\n";
-    
+
     std::cout << "  periodic:\n";
     std::cout << "      Periodic boundary condition\n\n";
-    
+
     std::cout << "  symmetry:\n";
     std::cout << "      Symmetry plane\n\n";
-    
+
     std::cout << "  wall:\n";
     std::cout << "      Solid wall (zero normal velocity)\n\n";
 }
@@ -658,26 +661,26 @@ void ConfigParser::PrintCasesList() const {
         std::cout << "No cases loaded. Please load a configuration file first.\n";
         return;
     }
-    
+
     std::cout << "Available Simulation Cases:\n";
     std::cout << "===========================\n\n";
-    
+
     auto case_names = GetAllCaseNames();
     for (const auto& case_name : case_names) {
         const auto& ic = initial_conditions_.at(case_name);
-        
+
         std::cout << "  " << case_name << ":\n";
-        std::cout << "      Left state:   rho_L = " << ic.rho_L 
-                  << ",  u_L = " << ic.u_L 
+        std::cout << "      Left state:   rho_L = " << ic.rho_L
+                  << ",  u_L = " << ic.u_L
                   << ",  P_L = " << ic.P_L << "\n";
-        std::cout << "      Right state:  rho_R = " << ic.rho_R 
-                  << ",  u_R = " << ic.u_R 
+        std::cout << "      Right state:  rho_R = " << ic.rho_R
+                  << ",  u_R = " << ic.u_R
                   << ",  P_R = " << ic.P_R << "\n";
-        
+
         // Show case-specific overrides if any
         bool has_overrides = false;
         std::ostringstream overrides_str;
-        
+
         if (ic.overrides.x0) {
             overrides_str << "x0=" << *ic.overrides.x0 << ", ";
             has_overrides = true;
@@ -703,7 +706,7 @@ void ConfigParser::PrintCasesList() const {
             overrides_str << "], ";
             has_overrides = true;
         }
-        
+
         if (has_overrides) {
             std::string overrides = overrides_str.str();
             // Remove trailing ", "
@@ -712,22 +715,22 @@ void ConfigParser::PrintCasesList() const {
             }
             std::cout << "      Overrides:    " << overrides << "\n";
         }
-        
+
         std::cout << "\n";
     }
-    
+
     std::cout << "Total: " << case_names.size() << " case(s)\n";
 }
 
 void ConfigParser::PrintOutputFormatsList() const {
     std::cout << "Supported Output Formats:\n";
     std::cout << "=========================\n\n";
-    
+
     std::cout << "  vtk:\n";
     std::cout << "      VTK structured grid format\n";
     std::cout << "      Compatible with ParaView, VisIt, and other visualization tools\n";
     std::cout << "      Contains all simulation fields (density, velocity, pressure, etc.)\n\n";
-    
+
     std::cout << "  png or png<width>x<height>:\n";
     std::cout << "      PNG image with 4 subplot panels:\n";
     std::cout << "        - Top-left:     Density vs X\n";
@@ -739,7 +742,7 @@ void ConfigParser::PrintOutputFormatsList() const {
     std::cout << "      Default resolution: 1200x900\n";
     std::cout << "      Custom resolution examples: png1920x1080, png800x600, png3840x2160\n";
     std::cout << "      Font sizes and line widths scale automatically with resolution\n\n";
-    
+
     std::cout << "  gif or gif<width>x<height>:\n";
     std::cout << "      Animated GIF with same 4 subplot panels as PNG:\n";
     std::cout << "        - Top-left:     Density vs X\n";
@@ -752,13 +755,13 @@ void ConfigParser::PrintOutputFormatsList() const {
     std::cout << "      Custom resolution examples: gif1920x1080, gif800x600\n";
     std::cout << "      Font sizes and line widths scale automatically with resolution\n";
     std::cout << "      Frame delay: 10 centiseconds (100ms) per frame\n\n";
-    
+
     std::cout << "      Memory note: GIF stores all frames in memory until finalization.\n";
     std::cout << "      For long simulations, consider reducing output frequency or resolution.\n\n";
-    
+
     std::cout << "Multiple formats can be specified:\n";
     std::cout << "  YAML:  output_formats: [vtk, png1920x1080, gif]\n";
     std::cout << "  CLI:   --output-formats vtk,png1920x1080,gif\n\n";
-    
+
     std::cout << "Note: Format names are case-insensitive\n";
 }

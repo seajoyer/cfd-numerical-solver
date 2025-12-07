@@ -25,11 +25,29 @@ add_executable(${NAME}
     src/solver/SolverFactory.cpp
     src/solver/GodunovSolver.cpp
     src/solver/GodunovKolganRodionovSolver.cpp
+    src/solver/FiniteVolumeSolver.cpp
+    src/solver/MacCormackSolver.cpp
     src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
     src/solver/EOS.cpp
     src/solver/TimeStepCalculator.cpp
     src/solver/PositivityLimiter.cpp
+
+    src/time/ForwardEulerTimeIntegrator.cpp
+    src/time/MacCormackTimeIntegrator.cpp
+    src/time/SSPRK3TimeIntegrator.cpp
+    src/time/SSPRK2TimeIntegrator.cpp
+    src/time/TimeIntegrator.cpp
+
+    src/viscosity/VNRArtificialViscosity.cpp
+    include/viscosity/ArtificialViscosity.hpp
+
+    src/spatial/ForwardEulerSpatialOperator.cpp
+    src/spatial/BackwardEulerSpatialOperator.cpp
+    src/spatial/GodunovSpatialOperator.cpp
+    src/spatial/GodunovSpatialOperator.cpp
+    src/spatial/GodunocKolganRodionovSpatialOperator.cpp
+    include/spatial/SpatialOperator.hpp
 
     src/reconstruction/P0Reconstruction.cpp
     src/reconstruction/P1Reconstruction.cpp
