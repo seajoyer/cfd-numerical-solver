@@ -180,6 +180,7 @@ auto operator*(Flux a, double s) -> Flux;
 auto operator*(double s, Flux a) -> Flux;
 auto operator+=(Flux& f, const Conservative& u) -> Flux&;
 auto operator+(Flux f, const Conservative& u) -> Flux;
+auto operator-(Flux f, const Conservative& u) -> Flux;
 
 /// --- Small algebra helpers for Primitive (useful in reconstruction) ---
 

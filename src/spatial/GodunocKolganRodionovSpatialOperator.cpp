@@ -10,8 +10,11 @@
 #include "reconstruction/P1Reconstruction.hpp"
 #include "reconstruction/WENOReconstruction.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
+#include "riemann/RusanovRiemannSolver.hpp"
 #include "riemann/HLLCRiemannSolver.hpp"
 #include "riemann/HLLRiemannSolver.hpp"
+#include "riemann/RoeRiemannSolver.hpp"
+#include "riemann/OsherRiemannSolver.hpp"
 #include "solver/EOS.hpp"
 
 GodunovKolganRodionovSpatialOperator::GodunovKolganRodionovSpatialOperator(
@@ -78,10 +81,14 @@ void GodunovKolganRodionovSpatialOperator::InitializeRiemannSolver(
                        return static_cast<char>(std::tolower(c));
                    });
 
-    if (lower.find("hllc") != std::string::npos) {
+    if (lower.find("rusanov") != std::string::npos) {
+        riemann_solver_ = std::make_shared<RusanovRiemannSolver>();
+    } else if (lower.find("hllc") != std::string::npos) {
         riemann_solver_ = std::make_shared<HLLCRiemannSolver>();
-    } else if (lower.find("hll") != std::string::npos) {
-        riemann_solver_ = std::make_shared<HLLRiemannSolver>();
+    } else if (lower.find("roe") != std::string::npos) {
+        riemann_solver_ = std::make_shared<RoeRiemannSolver>();
+    } else if (lower.find("osher") != std::string::npos) {
+        riemann_solver_ = std::make_shared<OsherRiemannSolver>();
     } else if (lower.find("exact") != std::string::npos) {
         riemann_solver_ =
             std::make_shared<ExactIdealGasRiemannSolver>(0.0, settings.Q_user);

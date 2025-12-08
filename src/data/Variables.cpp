@@ -198,6 +198,11 @@ auto operator+(Flux f, const Conservative& u) -> Flux {
     return f;
 }
 
+auto operator-(Flux f, const Conservative& u) -> Flux {
+    f += -1 * u;
+    return f;
+}
+
 auto operator+(Conservative u, const Flux& f) -> Conservative {
     u += f;
     return u;

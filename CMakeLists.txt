@@ -55,8 +55,11 @@ add_executable(${NAME}
     src/reconstruction/WENOReconstruction.cpp
     include/reconstruction/Reconstruction.hpp
 
+    src/riemann/RusanovRiemannSolver.cpp
     src/riemann/HLLRiemannSolver.cpp
     src/riemann/HLLCRiemannSolver.cpp
+    src/riemann/RoeRiemannSolver.cpp
+    src/riemann/OsherRiemannSolver.cpp
     src/riemann/ExactIdealGasRiemannSolver.cpp
     src/riemann/AcousticRiemannSolver.cpp
 
