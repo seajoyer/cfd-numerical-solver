@@ -4,6 +4,7 @@
 #include "spatial/ForwardEulerSpatialOperator.hpp"
 #include "spatial/BackwardEulerSpatialOperator.hpp"
 #include "TimeIntegrator.hpp"
+#include "bc/BoundaryManager.hpp"
 
 /**
  * @class MacCormackTimeIntegrator
@@ -24,7 +25,8 @@
  */
 class MacCormackTimeIntegrator : public TimeIntegrator {
 public:
-    MacCormackTimeIntegrator();
+    MacCormackTimeIntegrator() = default;
+    MacCormackTimeIntegrator(std::shared_ptr<BoundaryManager> bm, Settings &settings);
 
     void Advance(DataLayer& layer,
                  double dt,
@@ -35,6 +37,8 @@ public:
 private:
     std::unique_ptr<ForwardEulerSpatialOperator> forward_operator_;
     std::unique_ptr<BackwardEulerSpatialOperator> backward_operator_;
+
+    std::shared_ptr<BoundaryManager> boundary_manager_;
 };
 
 #endif  // MACCORMACKTIMEINTEGRATOR_HPP

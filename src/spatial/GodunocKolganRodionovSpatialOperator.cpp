@@ -40,6 +40,7 @@ void GodunovKolganRodionovSpatialOperator::InitializeReconstruction(
         return;
     }
 
+
     if (name.starts_with("eno")) {
         int order = 3;
         try {
@@ -156,6 +157,13 @@ void GodunovKolganRodionovSpatialOperator::ComputeRHS(const DataLayer& layer,
     xt::xarray<Flux> fluxes =
         xt::xarray<Flux>::from_shape({static_cast<std::size_t>(n_interfaces)});
 
+    xt::xarray<double> q;
+    if (viscosity_) {
+        viscosity_->ComputeInterfaceQ(layer, dx, q);
+    } else {
+        q = xt::zeros<double>({static_cast<std::size_t>(n_interfaces)});
+    }
+
     auto clamp_interface = [n_interfaces](int idx) {
         if (idx < 0) {
             return 0;
@@ -173,6 +181,9 @@ void GodunovKolganRodionovSpatialOperator::ComputeRHS(const DataLayer& layer,
 
         W_L_cell(j) = WR_interface(left_interface_index);
         W_R_cell(j) = WL_interface(right_interface_index);
+
+        W_L_cell(j).P += q(j);
+        W_R_cell(j).P += q(j);
 
         U_L(j) = EOS::PrimToCons(W_L_cell(j), gamma);
         U_R(j) = EOS::PrimToCons(W_R_cell(j), gamma);

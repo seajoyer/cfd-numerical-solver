@@ -6,6 +6,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <chrono>
 
 #include "bc/BoundaryFactory.hpp"
 #include "utils/StringUtils.hpp"
@@ -350,9 +351,16 @@ void Simulation::Run() {
 
     std::cout << "\nStarting simulation..." << '\n';
 
+    std::chrono::duration<double> runtime{0};
+    std::chrono::duration<double> wall_time{0};
+
+    auto start_wall = std::chrono::high_resolution_clock::now();
     while (ShouldRun()) {
         // Advance one time step and get the actual dt used
+        auto start = std::chrono::high_resolution_clock::now();
         dt_ = solver_->Step(*layer_, t_cur_);
+        auto end = std::chrono::high_resolution_clock::now();
+        runtime += end - start;
 
         if (settings_.solver == "analytical") {
             t_cur_ += dt_;
@@ -370,11 +378,15 @@ void Simulation::Run() {
 
         PrintLog();
     }
+    auto end_wall = std::chrono::high_resolution_clock::now();
+    wall_time = end_wall - start_wall;
 
     std::cout << '\n';
     std::cout << "\nSimulation completed!" << '\n';
     std::cout << ">>> Final time:  " << t_cur_ << '\n';
     std::cout << ">>> Total steps: " << step_cur_ << '\n';
+    std::cout << ">>> Wall time: " << wall_time.count() << "s\n";
+    std::cout << ">>> Computation time: " << runtime.count() << "s\n";
 
     // Finalize writers (e.g., encode GIF from accumulated frames)
     FinalizeWriters();

@@ -2,6 +2,7 @@
 #define SSPRK3TIMEINTEGRATOR_HPP
 
 #include "TimeIntegrator.hpp"
+#include "bc/BoundaryManager.hpp"
 
 /**
  * @class SSPRK3TimeIntegrator
@@ -18,13 +19,18 @@
  */
 class SSPRK3TimeIntegrator : public TimeIntegrator {
 public:
-    SSPRK3TimeIntegrator();
+    SSPRK3TimeIntegrator() = default;
+
+    SSPRK3TimeIntegrator(std::shared_ptr<BoundaryManager> bc);
 
     void Advance(DataLayer& layer,
                  double dt,
                  double dx,
                  const Settings& settings,
                  const SpatialOperator& op) const override;
+
+private:
+    std::shared_ptr<BoundaryManager> boundary_manager_;
 };
 
 #endif  // SSPRK3TIMEINTEGRATOR_HPP

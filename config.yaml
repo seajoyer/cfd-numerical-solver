@@ -9,6 +9,10 @@ config:
         left_boundary: free_stream
         right_boundary: free_stream
 
+        global_limiter: false
+        diffusion: true
+        viscosity: false
+
         N: 1000
         cfl: 0.5
         padding: 2

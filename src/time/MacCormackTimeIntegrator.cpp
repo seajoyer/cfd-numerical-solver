@@ -5,12 +5,13 @@
 #include "solver/PositivityLimiter.hpp"
 
 
-MacCormackTimeIntegrator::MacCormackTimeIntegrator() {
+MacCormackTimeIntegrator::MacCormackTimeIntegrator(std::shared_ptr<BoundaryManager> bm, Settings &settings) :
+    boundary_manager_(bm) {
     rho_min_ = 1e-10;
     p_min_ = 1e-10;
 
-    forward_operator_ = std::make_unique<ForwardEulerSpatialOperator>();
-    backward_operator_ = std::make_unique<BackwardEulerSpatialOperator>();
+    forward_operator_ = std::make_unique<ForwardEulerSpatialOperator>(settings);
+    backward_operator_ = std::make_unique<BackwardEulerSpatialOperator>(settings);
 }
 
 void MacCormackTimeIntegrator::Advance(DataLayer& layer,
@@ -61,6 +62,8 @@ void MacCormackTimeIntegrator::Advance(DataLayer& layer,
     for (int j = core_start; j < core_end; ++j) {
         StoreConservativeCell(U_pred(j), j, dx, settings, layer);
     }
+
+    boundary_manager_->ApplyAll(layer);
 
     backward_operator_->ComputeRHS(layer, dx, gamma, rhs);
 

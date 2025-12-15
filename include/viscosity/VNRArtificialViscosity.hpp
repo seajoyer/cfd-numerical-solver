@@ -31,8 +31,8 @@ public:
      * @param C1 Linear term coefficient (typical 0.1–0.5).
      * @param C2 Quadratic term coefficient (typical 1.0–2.0).
      */
-    explicit VNRArtificialViscosity(const Settings& settings, double C1 = 0.1,
-                                    double C2 = 1.0)
+    explicit VNRArtificialViscosity(const Settings& settings, double C1 = 1.5,
+                                    double C2 = 6.0)
         : settings_(settings), C1_(C1), C2_(C2) {
     }
 

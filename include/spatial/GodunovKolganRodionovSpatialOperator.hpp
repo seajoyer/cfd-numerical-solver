@@ -7,6 +7,8 @@
 #include "config/Settings.hpp"
 #include "reconstruction/Reconstruction.hpp"
 #include "riemann/RiemannSolver.hpp"
+#include "viscosity/ArtificialViscosity.hpp"
+#include "viscosity/VNRArtificialViscosity.hpp"
 
 /**
  * @class GodunovKolganRodionovSpatialOperator
@@ -67,6 +69,9 @@ private:
 
     /** @brief Riemann solver. */
     std::shared_ptr<RiemannSolver> riemann_solver_;
+
+    /** @brief Von Neumann Richtmyer viscosity. */
+    std::shared_ptr<ArtificialViscosity> viscosity_;
 
     /** @brief Local dt used for the half-time predictor. */
     double dt_local_;

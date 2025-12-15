@@ -21,7 +21,10 @@
 GodunovSpatialOperator::GodunovSpatialOperator(const Settings& settings) {
     InitializeReconstruction(settings);
     InitializeRiemannSolver(settings);
-    viscosity_ = std::make_unique<VNRArtificialViscosity>(settings);
+    viscosity_ = nullptr;
+    if (settings.viscosity) {
+        viscosity_ = std::make_unique<VNRArtificialViscosity>(settings);
+    }
 }
 
 void GodunovSpatialOperator::InitializeReconstruction(const Settings& settings) {
@@ -135,11 +138,8 @@ void GodunovSpatialOperator::ComputeRHS(const DataLayer& layer,
         Primitive WL = left_states(i);
         Primitive WR = right_states(i);
 
-        const double qi = q(i);
-        if (qi > 0.0) {
-            WL.P += qi;
-            WR.P += qi;
-        }
+        WL.P += q(i);
+        WR.P += q(i);
 
         fluxes(i) = riemann_solver_->ComputeFlux(WL, WR, gamma);
     }

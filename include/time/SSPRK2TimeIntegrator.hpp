@@ -5,6 +5,7 @@
 #include "data/DataLayer.hpp"
 #include "data/Variables.hpp"
 #include "config/Settings.hpp"
+#include "bc/BoundaryManager.hpp"
 
 /**
  * @class SSPRK2TimeIntegrator
@@ -28,8 +29,10 @@
  */
 class SSPRK2TimeIntegrator : public TimeIntegrator {
 public:
-    /// Default constructor with small positivity thresholds.
-    SSPRK2TimeIntegrator();
+    SSPRK2TimeIntegrator() = default;
+
+    /// Constructor with small positivity thresholds.
+    SSPRK2TimeIntegrator(std::shared_ptr<BoundaryManager> bm);
 
     /**
      * @brief Advances the solution by one SSPRK2 step.
@@ -45,6 +48,9 @@ public:
                  double dx,
                  const Settings& settings,
                  const SpatialOperator& op) const override;
+
+private:
+    std::shared_ptr<BoundaryManager> boundary_manager_;
 };
 
 #endif  // SSPRK2TIMEINTEGRATOR_HPP

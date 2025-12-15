@@ -3,10 +3,17 @@
 #include "data/DataLayer.hpp"
 #include "data/Variables.hpp"
 
+BackwardEulerSpatialOperator::BackwardEulerSpatialOperator(const Settings& settings) {
+    viscosity_ = nullptr;
+    if (settings.viscosity) {
+        viscosity_ = std::make_shared<VNRArtificialViscosity>(settings);
+    }
+}
+
 void BackwardEulerSpatialOperator::ComputeRHS(const DataLayer& layer,
-                                                        double dx,
-                                                        double gamma,
-                                                        xt::xarray<Conservative>& rhs) const {
+                                              double dx,
+                                              double gamma,
+                                              xt::xarray<Conservative>& rhs) const {
     const int total_size = layer.GetTotalSize();
     const int core_start = layer.GetCoreStart(0);
     const int core_end = layer.GetCoreEndExclusive(0);
@@ -30,8 +37,16 @@ void BackwardEulerSpatialOperator::ComputeRHS(const DataLayer& layer,
     xt::xarray<Flux> fluxes =
         xt::xarray<Flux>::from_shape({static_cast<std::size_t>(total_size)});
 
+    xt::xarray<double> q;
+    if (viscosity_) {
+        viscosity_->ComputeInterfaceQ(layer, dx, q);
+    } else {
+        q = xt::zeros<double>({static_cast<std::size_t>(total_size - 1)});
+    }
+
     for (int j = 0; j < total_size; ++j) {
-        const Primitive w = layer.GetPrimitive(j);
+        Primitive w = layer.GetPrimitive(j);
+        w.P += q(j - 1);
         fluxes(j) = EulerFlux(w, gamma);
     }
 
@@ -43,9 +58,7 @@ void BackwardEulerSpatialOperator::ComputeRHS(const DataLayer& layer,
         const Flux dF = Flux::Diff(fluxes(j), fluxes(jm1));
 
         Conservative lj;
-        lj.rho = -dF.mass * inv_dx;
-        lj.rhoU = -dF.momentum * inv_dx;
-        lj.E = -dF.energy * inv_dx;
+        lj -= dF * inv_dx;
 
         rhs(j) = lj;
     }

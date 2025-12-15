@@ -445,6 +445,18 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
         auto analytical_str = node["analytical"].as<std::string>();
         settings.analytical = (analytical_str == "true" || analytical_str == "True" || analytical_str == "TRUE");
     }
+    if (node["diffusion"]) {
+        auto diffusion_str = node["diffusion"].as<std::string>();
+        settings.diffusion = (diffusion_str == "true" || diffusion_str == "True" || diffusion_str == "TRUE");
+    }
+    if (node["viscosity"]) {
+        auto viscosity_str = node["viscosity"].as<std::string>();
+        settings.viscosity = (viscosity_str == "true" || viscosity_str == "True" || viscosity_str == "TRUE");
+    }
+    if (node["global_limiter"]) {
+        auto global_limiter = node["global_limiter"].as<std::string>();
+        settings.global_limiter = (global_limiter == "true" || global_limiter == "True" || global_limiter == "TRUE");
+    }
 
     if (node["log_every_steps"]) settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
     if (node["log_every_time"]) settings.log_every_time = node["log_every_time"].as<double>();

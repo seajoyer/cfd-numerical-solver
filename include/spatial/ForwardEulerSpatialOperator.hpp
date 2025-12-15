@@ -1,39 +1,44 @@
 #ifndef FORWARDEULERSPATIALOPERATOR_HPP
 #define FORWARDEULERSPATIALOPERATOR_HPP
 
+#include <memory>
+
 #include "spatial/SpatialOperator.hpp"
+#include "viscosity/ArtificialViscosity.hpp"
+#include "config/Settings.hpp"
 
 /**
  * @class ForwardEulerSpatialOperator
- * @brief Forward-Euler-style spatial operator for MacCormack predictor.
+ * @brief Forward-difference RHS operator for MacCormack predictor with optional artificial viscosity.
  *
- * Implements the forward-difference form
- *
- *   L_j(U) = - ( F_{j+1} - F_j ) / dx,
- *
+ * Computes:
+ *   L_j(U) = - (F_{j+1} - F_j) / dx,
  * where F_j is the physical Euler flux evaluated at cell centers.
- * Ghost cells are assumed to be already filled by boundary conditions.
+ *
+ * If viscosity is enabled, an effective pressure is used:
+ *   P_eff(j) = P(j) + q_cell(j),
+ * where q_cell is obtained from interface viscosity q_{j+1/2} by averaging.
  */
 class ForwardEulerSpatialOperator : public SpatialOperator {
 public:
     ForwardEulerSpatialOperator() = default;
-    ~ForwardEulerSpatialOperator() override = default;
 
     /**
-     * @brief Computes forward-difference RHS using cell-center Euler fluxes.
+     * @brief Constructs operator with artificial viscosity model.
      *
-     * On core cells j = [core_start, core_end):
-     *
-     *   rhs_j.rho  = - (F_{j+1}.mass     - F_j.mass)     / dx
-     *   rhs_j.rhoU = - (F_{j+1}.momentum - F_j.momentum) / dx
-     *   rhs_j.E    = - (F_{j+1}.energy   - F_j.energy)   / dx
-     *
-     * Non-core entries in rhs are set to zero.
+     * @param settings Global settings used to construct viscosity model.
      */
+    explicit ForwardEulerSpatialOperator(const Settings& settings);
+
+    ~ForwardEulerSpatialOperator() override = default;
+
     void ComputeRHS(const DataLayer& layer,
                     double dx,
                     double gamma,
                     xt::xarray<Conservative>& rhs) const override;
+
+private:
+    std::shared_ptr<ArtificialViscosity> viscosity_;
 };
 
 #endif  // FORWARDEULERSPATIALOPERATOR_HPP

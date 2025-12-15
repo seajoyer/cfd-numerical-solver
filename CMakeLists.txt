@@ -39,6 +39,11 @@ add_executable(${NAME}
     src/time/SSPRK2TimeIntegrator.cpp
     src/time/TimeIntegrator.cpp
 
+    src/limiter/GlobalLimiter.cpp
+    src/limiter/VacuumFixLimiter.cpp
+
+    src/filter/SolutionFilter.cpp
+
     src/viscosity/VNRArtificialViscosity.cpp
     include/viscosity/ArtificialViscosity.hpp
 

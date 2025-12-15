@@ -193,6 +193,20 @@ struct Settings {
      */
     double Q_user = 2.0;
 
+    // ========================== Limiter =========================
+
+    /** @brief Enable global post-step limiter (simple minmod-like energy smoothing). */
+    bool global_limiter = false;
+
+    /** @brief Enable vacuum-fix limiter that caps specific internal energy in near-vacuum regions. */
+    bool vacuum_fix_limiter = false;
+
+    /** @brief Add Von Neumann Richtmyer artificial viscosity. */
+    bool viscosity = false;
+
+    /** @brief Add Georgievskiy-Levin-Sutyrin diffusion / anti-diffusion. */
+    bool diffusion = false;
+
     // ==================== Initial Conditions ====================
     
     /** @brief Name of the simulation case to run

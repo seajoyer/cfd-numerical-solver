@@ -2,6 +2,7 @@
 #define BACKWARDEULERSPATIALOPERATOR_HPP
 
 #include "spatial/SpatialOperator.hpp"
+#include "viscosity/VNRArtificialViscosity.hpp"
 
 /**
  * @class BackwardEulerSpatialOperator
@@ -17,6 +18,14 @@
 class BackwardEulerSpatialOperator : public SpatialOperator {
 public:
     BackwardEulerSpatialOperator() = default;
+
+    /**
+     * @brief Constructs operator with artificial viscosity model.
+     *
+     * @param settings Global settings used to construct viscosity model.
+     */
+    explicit BackwardEulerSpatialOperator(const Settings& settings);
+
     ~BackwardEulerSpatialOperator() override = default;
 
     /**
@@ -34,6 +43,9 @@ public:
                     double dx,
                     double gamma,
                     xt::xarray<Conservative>& rhs) const override;
+
+private:
+    std::shared_ptr<ArtificialViscosity> viscosity_;
 };
 
 #endif  // BACKWARDEULERSPATIALOPERATOR_HPP

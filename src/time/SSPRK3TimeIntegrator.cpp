@@ -1,9 +1,10 @@
 #include "time/SSPRK3TimeIntegrator.hpp"
 
+#include "bc/BoundaryManager.hpp"
 #include "solver/EOS.hpp"
 #include "solver/PositivityLimiter.hpp"
 
-SSPRK3TimeIntegrator::SSPRK3TimeIntegrator() {
+SSPRK3TimeIntegrator::SSPRK3TimeIntegrator(std::shared_ptr<BoundaryManager> bm) : boundary_manager_(bm) {
     rho_min_ = 1e-10;
     p_min_ = 1e-10;
 }
@@ -49,6 +50,7 @@ void SSPRK3TimeIntegrator::Advance(DataLayer& layer,
         StoreConservativeCell(U1(j), j, dx, settings, layer);
     }
 
+    boundary_manager_->ApplyAll(layer);
     op.ComputeRHS(layer, dx, gamma, rhs);
 
     for (int j = 0; j < total_size; ++j) {
@@ -62,6 +64,7 @@ void SSPRK3TimeIntegrator::Advance(DataLayer& layer,
         StoreConservativeCell(U2(j), j, dx, settings, layer);
     }
 
+    boundary_manager_->ApplyAll(layer);
     op.ComputeRHS(layer, dx, gamma, rhs);
 
     for (int j = core_start; j < core_end; ++j) {

@@ -55,7 +55,7 @@ private:
     /** @brief Selected Riemann solver (HLL, HLLC, Exact, Acoustic). */
     std::shared_ptr<RiemannSolver> riemann_solver_;
 
-    /** @brief Selected Riemann solver (HLL, HLLC, Exact, Acoustic). */
+    /** @brief Von Neumann Richtmyer viscosity. */
     std::shared_ptr<ArtificialViscosity> viscosity_;
 
     /** @brief Initializes reconstruction_ based on settings.reconstruction. */

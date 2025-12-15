@@ -10,6 +10,9 @@
 #include "data/Variables.hpp"
 #include "spatial/SpatialOperator.hpp"
 #include "time/TimeIntegrator.hpp"
+#include "limiter/GlobalLimiter.hpp"
+#include "limiter/VacuumFixLimiter.hpp"
+#include "filter/SolutionFilter.hpp"
 
 /**
  * @class FiniteVolumeSolver
@@ -98,7 +101,7 @@ private:
     Settings settings_;
 
     /** @brief Manager responsible for applying all boundary conditions. */
-    BoundaryManager boundary_manager_;
+    std::shared_ptr<BoundaryManager> boundary_manager_;
 
     /** @brief Spatial semi-discrete operator dU/dt = L(U). */
     std::shared_ptr<SpatialOperator> spatial_operator_;
@@ -111,6 +114,11 @@ private:
 
     /** @brief Minimal allowed pressure for positivity limiting. */
     double p_min_;
+
+    std::unique_ptr<GlobalLimiter> global_limiter_;
+    std::unique_ptr<SolutionFilter> diffusion_;
+    std::unique_ptr<VacuumFixLimiter> vacuum_fix_limiter_;
+    SolutionFilter solution_filter_;
 
     /**
      * @brief Computes spatial step size dx for a uniform 1D grid.

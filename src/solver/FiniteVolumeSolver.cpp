@@ -12,31 +12,39 @@
 FiniteVolumeSolver::FiniteVolumeSolver(const Settings& settings,
                                        std::shared_ptr<SpatialOperator> spatial_operator)
     : settings_(settings),
-      boundary_manager_(settings.dim),
       spatial_operator_(std::move(spatial_operator)),
       rho_min_(1e-10),
       p_min_(1e-10) {
     cfl_ = settings_.cfl;
 
+    boundary_manager_ = std::make_shared<BoundaryManager>(settings.dim);
+    global_limiter_ = nullptr;
+    if (settings.global_limiter) {
+        global_limiter_ = std::make_unique<GlobalLimiter>();
+    }
+    diffusion_ = nullptr;
+    if (settings.diffusion) {
+        diffusion_ = std::make_unique<SolutionFilter>();
+    }
     time_integrator_ = nullptr;
     InitializeTimeIntegrator();
-
     if (time_integrator_) {
         time_integrator_->SetPositivityThresholds(rho_min_, p_min_);
     }
+    vacuum_fix_limiter_ = std::make_unique<VacuumFixLimiter>();
 }
 
 void FiniteVolumeSolver::InitializeTimeIntegrator() {
     std::string t_integrator = settings_.time_integrator;
 
     if (t_integrator == "ssprk2") {
-        time_integrator_ = std::make_shared<SSPRK2TimeIntegrator>();
+        time_integrator_ = std::make_shared<SSPRK2TimeIntegrator>(boundary_manager_);
     } else if (t_integrator == "ssprk3") {
-        time_integrator_ = std::make_shared<SSPRK3TimeIntegrator>();
+        time_integrator_ = std::make_shared<SSPRK3TimeIntegrator>(boundary_manager_);
     } else if (t_integrator == "euler") {
         time_integrator_ = std::make_shared<ForwardEulerTimeIntegrator>();
     } else if (settings_.solver == "maccormack") {
-        time_integrator_ = std::make_shared<MacCormackTimeIntegrator>();
+        time_integrator_ = std::make_shared<MacCormackTimeIntegrator>(boundary_manager_, settings_);
     }
 
     if (time_integrator_) {
@@ -60,7 +68,7 @@ void FiniteVolumeSolver::SetCfl(double cfl) { cfl_ = cfl; }
 void FiniteVolumeSolver::AddBoundary(int axis,
                                      std::shared_ptr<BoundaryCondition> left_bc,
                                      std::shared_ptr<BoundaryCondition> right_bc) {
-    boundary_manager_.Set(axis, std::move(left_bc), std::move(right_bc));
+    boundary_manager_->Set(axis, std::move(left_bc), std::move(right_bc));
 }
 
 auto FiniteVolumeSolver::ComputeDx(const DataLayer& layer) const -> double {
@@ -78,11 +86,11 @@ auto FiniteVolumeSolver::ComputeDx(const DataLayer& layer) const -> double {
 }
 
 auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
-    if (!spatial_operator_ || !time_integrator_) {
+    if (!time_integrator_) {
         return 0.0;
     }
 
-    boundary_manager_.ApplyAll(layer);
+    boundary_manager_->ApplyAll(layer);
 
     const double dx = ComputeDx(layer);
     const int total_size = layer.GetTotalSize();
@@ -107,7 +115,15 @@ auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
     }
 
     time_integrator_->Advance(layer, dt, dx, settings_, *spatial_operator_);
-
+    if (diffusion_){
+        solution_filter_.Apply(layer);
+    }
+    if (global_limiter_) {
+        global_limiter_->Apply(layer, dx, settings_);
+    }
+    // if (vacuum_fix_limiter_) {
+        // vacuum_fix_limiter_->Apply(layer, dx, settings_);
+    // }
     t_cur += dt;
     return dt;
 }
