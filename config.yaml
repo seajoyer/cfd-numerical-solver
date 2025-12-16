@@ -1,8 +1,8 @@
 config:
-    run_cases: [sod1, sod2]  # or simply: all
+    run_cases: [sod1, sod2, sod3, sod4, sod5]  # or simply: all
     
     global:
-        solver: godunov
+        solver: cabaret
         riemann_solver: exact
         reconstruction: P0
         time_integrator: euler
@@ -10,12 +10,12 @@ config:
         right_boundary: free_stream
 
         global_limiter: false
-        diffusion: true
+        diffusion: false
         viscosity: false
 
         N: 1000
         cfl: 0.5
-        padding: 2
+        padding: 3
         gamma: 1.4
         dim: 1
         L_x: 1

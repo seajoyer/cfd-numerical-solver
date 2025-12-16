@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "solver/AnalyticalSolver.hpp"
+#include "solver/CabaretSolver.hpp"
 #include "solver/FiniteVolumeSolver.hpp"
 #include "solver/GodunovKolganRodionovSolver.hpp"
 #include "solver/GodunovSolver.hpp"
@@ -99,6 +100,9 @@ auto SolverFactory::Create(Settings& settings) -> std::unique_ptr<Solver> {
     if (type_lower == "maccormack") {
         // return std::make_unique<MacCormackSolver>(settings);
         return std::make_unique<FiniteVolumeSolver>(settings, nullptr);
+    }
+    if (type_lower == "cabaret") {
+        return std::make_unique<CabaretSolver>(settings);
     }
 
     std::cerr << "\nError: Unknown solver type: " << settings.solver << "\n\n";

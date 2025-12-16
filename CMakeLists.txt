@@ -26,6 +26,7 @@ add_executable(${NAME}
     src/solver/GodunovSolver.cpp
     src/solver/GodunovKolganRodionovSolver.cpp
     src/solver/FiniteVolumeSolver.cpp
+    src/solver/CabaretSolver.cpp
     src/solver/MacCormackSolver.cpp
     src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp

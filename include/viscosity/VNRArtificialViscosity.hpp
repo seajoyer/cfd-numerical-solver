@@ -41,8 +41,8 @@ public:
                            xt::xarray<double>& q) const override;
 
 private:
-    double C1_; ///< Linear coefficient in q
-    double C2_; ///< Quadratic coefficient in q
+    double C1_{1.5}; ///< Linear coefficient in q
+    double C2_{6.0}; ///< Quadratic coefficient in q
     Settings settings_;
 };
 
