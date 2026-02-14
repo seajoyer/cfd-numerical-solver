@@ -11,18 +11,18 @@
 
 <br>
 
-A modular CFD solver for 1D compressible flow using finite volume methods. Features flexible configuration via YAML and VTK output for visualization in ParaView. The project is designed for educational purposes.
+A modular CFD solver for 1D compressible flow using finite volume methods. Features flexible configuration via YAML with support of VTK output for visualization in ParaView. The project is designed for educational purposes.
 
 ## Features
 
-- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov, Analytical
-- **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC
+- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov, McCormak, Analytical
+- **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC, Osher, Roe, Rusanov
 - **Reconstruction**: P0 (piecewise constant), P1 (piecewise linear), ENO, WENO
 - **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall
 - **Equation of State**: Ideal gas
 - **Initial Conditions**: Configurable Riemann problems (5 predefined Sod tests + custom cases)
 - **Dimensions**: Currently 1D (2D/3D planned)
-- **Output**: VTK files with organized directory structure
+- **Output**: VTK, PNG and GIF (with adjustable resolution)
 
 ## Dependencies
 
@@ -59,32 +59,6 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
    ```
    Documentation available at `build/docs/html/index.html`
 
-## Usage
-
-Run with default configuration:
-```bash
-./cfd-numerical-solver
-```
-
-The solver reads `../config.yaml` by default and outputs to `../result/`.
-
-### Command Line Options
-
-Override configuration parameters:
-```bash
-./cfd-numerical-solver -i sod3 --N-cells 2000 --cfl 0.4
-```
-
-Key options:
-- `-h, --help`: Show all options
-- `-i, --run-cases`: Select simulation cases (e.g., `[sod3, custom_case]`, or `all`)
-- `-N, --N-cells`: Number of grid cells
-- `--cfl`: CFL number
-- `-s, --solver`: Solver type
-- `--riemann-solver`: Riemann solver type
-- `--reconstruction`: Reconstruction scheme
-- `-o, --output-dir`: Output directory
-
 ## Configuration
 
  <details>
@@ -92,14 +66,19 @@ Key options:
 
 ```yaml
 config:
-    run_cases: [sod1, sod5]  # or simply `all`
+    run_cases: [sod1, sod2]  # or simply: all
     
     global:
         solver: godunov
         riemann_solver: exact
         reconstruction: P0
+        time_integrator: euler
         left_boundary: free_stream
         right_boundary: free_stream
+
+        global_limiter: false
+        diffusion: true
+        viscosity: false
 
         N: 1000
         cfl: 0.5
@@ -123,10 +102,10 @@ config:
 
         output_every_steps: 50
         output_every_time: 0.0
-        output_format: vtk
+        
+        output_formats: [vtk, png, gif2560x1600]
         output_dir: "../result"
 
-    # Define individual simulation cases
     # Each case can override any global setting
     cases:
         sod1:
@@ -184,34 +163,51 @@ config:
             x0: 0.5
             t_end: 0.035
 ```
-
 </details>
 
-### Output Structure
+Override configuration parameters as follows:
+```bash
+./cfd-numerical-solver --run-cases sod1,sod3 --N-cells 2000 --cfl 0.4
+```
+
+Check `./cfd-numerical-solver --help` for a full list of command-line options, including flags to list supported solvers, Riemann solvers, boundary conditions, simulation cases, and output formats.
+
+## Usage
+
+Run with default configuration:
+```bash
+./cfd-numerical-solver
+```
+
+The solver reads `../config.yaml` by default and outputs to `../result/`.
+
+## Output Structure
 
 Results are organized hierarchically:
 
 ```
-├── run_01-12-2025_14:29:00:018
-│   ├── sod1
-│   │   ├── analytical
-│   │   │   ├── step_0000.vtk
-│   │   │   └── ...
-│   │   └── godunov__R_p0__N_1000__CFL_5e-1
-│   │       ├── godunov__R_p0__N_1000__CFL_5e-1__step_0000.vtk
-│   │       └── ...
-│   └── sod2
-│       └── ...
-└── run_01-12-2025_14:29:38:088
+├── run_01-12-2025_10:29:00:018
+│   ├── sod1
+│   │   ├── godunov__R_p0__N_1000__CFL_5e-1.gif
+│   │   ├── png
+│   │   │   ├── step_0000.png
+│   │   │   ├── step_0050.png
+│   │   │   └── ...
+│   │   └── vtk
+│   │       ├── analytical
+│   │       │   ├── step_0000.vtk
+│   │       │   ├── step_0050.vtk
+│   │       │   └── ...
+│   │       └── godunov__R_p0__N_1000__CFL_5e-1
+│   │           ├── godunov__R_p0__N_1000__CFL_5e-1__step_0000.vtk
+│   │           ├── godunov__R_p0__N_1000__CFL_5e-1__step_0050.vtk
+│   │           └── ...
+│   ├── custom-case
+│   │   └── ...
+│   └── ...
+│
+└── run_16-12-2025_16:57:02:437
     └── ...
-```
-
-### Running Multiple Cases
-
-Set `run_cases: all` to run all defined initial conditions in sequence:
-
-```bash
-./cfd-numerical-solver -i all
 ```
 
 ## License
