@@ -17,6 +17,10 @@ struct DataLayer;
  * Concrete implementations (e.g., VTKWriter, PNGWriter, GIFWriter) define 
  * specific file formats and data serialization strategies.
  *
+ * Each writer is responsible for handling both 1D and 2D data internally
+ * by checking layer.GetDim(). Writers that don't support 2D should log
+ * a warning and skip gracefully.
+ *
  * Writers that accumulate data over multiple steps (e.g., GIFWriter) should
  * override the Finalize() method to perform final output operations.
  *
@@ -28,7 +32,11 @@ class StepWriter {
     virtual ~StepWriter() = default;
 
     /**
-     * @brief Write simulation data to disk
+     * @brief Write simulation data to disk (1D or 2D).
+     *
+     * Implementations must handle both 1D and 2D DataLayer layouts
+     * by checking layer.GetDim(). If a writer does not support 2D,
+     * it should log a warning and return gracefully.
      * 
      * @param layer The numerical solution data layer
      * @param settings Solver settings for output file name construction
@@ -39,10 +47,11 @@ class StepWriter {
                        double time) const = 0;
 
     /**
-     * @brief Write simulation data with optional analytical comparison
+     * @brief Write simulation data with optional analytical comparison.
      * 
      * This overload allows writers to include analytical solution data
      * for comparison plots (e.g., PNG writer, GIF writer).
+     * Default implementation ignores analytical data and delegates to Write().
      * 
      * @param layer The numerical solution data layer
      * @param analytical_layer Optional analytical solution data (may be nullptr)
@@ -57,28 +66,25 @@ class StepWriter {
     }
 
     /**
-     * @brief Finalize output and write any accumulated data
+     * @brief Finalize output and write any accumulated data.
      * 
      * This method is called at the end of simulation to allow writers
      * that accumulate data (like GIFWriter) to perform final output.
+     * Default implementation does nothing.
      * 
-     * @param settings Solver settings for output file name construction
-     * @return Path to the finalized output file (empty if not applicable)
+     * @param settings Solver settings for filename construction
+     * @return Path to the generated output file (empty string if not applicable)
      */
-    virtual auto Finalize(const Settings& settings) -> std::string {
-        // Default implementation does nothing
+    virtual auto Finalize(const Settings& settings) -> std::string { 
         (void)settings;
-        return "";
+        return ""; 
     }
-    
+
     /**
-     * @brief Check if this writer requires finalization
-     * 
+     * @brief Whether this writer requires Finalize() to be called.
      * @return true if Finalize() should be called at end of simulation
      */
-    [[nodiscard]] virtual auto RequiresFinalization() const -> bool {
-        return false;
-    }
+    [[nodiscard]] virtual auto RequiresFinalization() const -> bool { return false; }
 };
 
 #endif  // STEPWRITER_HPP

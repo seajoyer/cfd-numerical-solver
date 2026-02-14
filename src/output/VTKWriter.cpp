@@ -2,10 +2,12 @@
 
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
+#include <vtkFieldData.h>
 #include <vtkPoints.h>
 #include <vtkStructuredGrid.h>
 #include <vtkStructuredGridWriter.h>
 
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <iomanip>
@@ -14,7 +16,6 @@
 #include <stdexcept>
 
 #include "data/DataLayer.hpp"
-#include "utils/StringUtils.hpp"
 
 // PIMPL implementation
 class VTKWriter::Impl {
@@ -36,6 +37,9 @@ VTKWriter::VTKWriter(const std::string& output_dir, bool is_analytical)
 
 VTKWriter::~VTKWriter() = default;
 
+auto VTKWriter::RequiresFinalization() const -> bool { return false; }
+auto VTKWriter::Finalize(const Settings&) -> std::string { return ""; }
+
 auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settings) const
     -> std::string {
     std::ostringstream oss;
@@ -47,8 +51,8 @@ auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settin
     } else {
         // Numerical solution includes solver parameters in filename
         oss << output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
-            << "__N_" << N << "__CFL_" << utils::DoubleWithoutDot(settings.cfl) <<
-            "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+            << "__N_" << N << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
+            << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
 
     return oss.str();
@@ -73,13 +77,19 @@ void VTKWriter::Write(const DataLayer& layer, const Settings& settings, std::siz
     }
 }
 
+void VTKWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
+                      const Settings& settings, std::size_t step, double time) const {
+    // Default implementation ignores analytical data and delegates to Write()
+    Write(layer, settings, step, time);
+}
+
 void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
                         std::size_t step, double time) const {
     const int N = layer.GetN();
-    const int start = layer.GetCoreStart();
-    const int end = layer.GetCoreEndExclusive();
+    const int start = layer.GetCoreStart(0);
+    const int end = layer.GetCoreEndExclusive(0);
 
-    // Fix: Use actual core size for nx
+    // Use actual core size for nx
     const int nx = end - start;
     if (nx <= 0) {
         throw std::runtime_error("Invalid core range: start=" + std::to_string(start) +
@@ -125,7 +135,7 @@ void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
     grid->SetPoints(points);
 
     // Helper lambda to add scalar field (repeated along Y)
-    auto add_scalar_field = [&](const xt::xarray<double>& data,
+    auto add_scalar_field = [&](const auto& data_accessor,
                                 const char* name) -> void {
         vtkSmartPointer<vtkDoubleArray> array = vtkSmartPointer<vtkDoubleArray>::New();
         array->SetName(name);
@@ -135,7 +145,7 @@ void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
             for (int j = 0; j < ny; ++j) {
                 for (int i = 0; i < nx; ++i) {
                     const int idx = start + i;
-                    double val = data(idx);
+                    double val = data_accessor(idx);
                     auto pid = static_cast<vtkIdType>(i + j * nx) +
                                static_cast<vtkIdType>(k * nx * ny);
                     array->SetValue(pid, val);
@@ -145,15 +155,15 @@ void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
         grid->GetPointData()->AddArray(array);
     };
 
-    // Add all scalar fields
-    add_scalar_field(layer.rho, "density");
-    add_scalar_field(layer.u, "velocity");
-    add_scalar_field(layer.P, "pressure");
-    add_scalar_field(layer.p, "momentum");
-    add_scalar_field(layer.e, "specific_internal_energy");
-    add_scalar_field(layer.U, "conserved_energy");
-    add_scalar_field(layer.V, "volume");
-    add_scalar_field(layer.m, "mass");
+    // Add all scalar fields using lambda accessors
+    add_scalar_field([&layer](int i) { return layer.rho(i); }, "density");
+    add_scalar_field([&layer](int i) { return layer.u(i); }, "velocity");
+    add_scalar_field([&layer](int i) { return layer.P(i); }, "pressure");
+    add_scalar_field([&layer](int i) { return layer.p(i); }, "momentum");
+    add_scalar_field([&layer](int i) { return layer.e(i); }, "specific_internal_energy");
+    add_scalar_field([&layer](int i) { return layer.U(i); }, "conserved_energy");
+    add_scalar_field([&layer](int i) { return layer.V(i); }, "volume");
+    add_scalar_field([&layer](int i) { return layer.m(i); }, "mass");
 
     // Add time as field data
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
@@ -173,8 +183,112 @@ void VTKWriter::Write1D(const DataLayer& layer, const Settings& settings,
 
 void VTKWriter::Write2D(const DataLayer& layer, const Settings& settings,
                         std::size_t step, double time) const {
-    // Placeholder for 2D implementation
-    throw std::runtime_error("2D VTK output not yet implemented");
+    const int cs_x = layer.GetCoreStart(0);
+    const int ce_x = layer.GetCoreEndExclusive(0);
+    const int cs_y = layer.GetCoreStart(1);
+    const int ce_y = layer.GetCoreEndExclusive(1);
+    const int nx = ce_x - cs_x;
+    const int ny = ce_y - cs_y;
+
+    if (nx <= 0 || ny <= 0) {
+        throw std::runtime_error("Invalid 2D core range");
+    }
+
+    // Generate filename (using NxM format for 2D)
+    std::ostringstream oss;
+    if (is_analytical_) {
+        oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+    } else {
+        oss << output_dir_ << "/"
+            << settings.solver << "__R_" << settings.reconstruction
+            << "__N_" << settings.GetNx() << "x" << settings.GetNy()
+            << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
+            << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+    }
+    std::string filename = oss.str();
+
+    // Create VTK objects
+    vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+
+    const int nz = 1;  // 2D represented in XY plane
+    grid->SetDimensions(nx, ny, nz);
+
+    // Total number of points
+    vtkIdType num_points = static_cast<vtkIdType>(nx) * ny * nz;
+    points->SetNumberOfPoints(num_points);
+
+    // Set points: structured grid ordering (i fastest, then j, then k)
+    for (int k = 0; k < nz; ++k) {
+        for (int j = 0; j < ny; ++j) {
+            for (int i = 0; i < nx; ++i) {
+                double x = layer.xc(cs_x + i);
+                double y = layer.yc(cs_y + j);
+                double z = 0.0;
+                auto pid = static_cast<vtkIdType>(i + j * nx);
+                points->SetPoint(pid, x, y, z);
+            }
+        }
+    }
+    grid->SetPoints(points);
+
+    // Helper lambda to add 2D scalar field
+    auto add_scalar_field = [&](const auto& data_accessor,
+                                const char* name) -> void {
+        vtkSmartPointer<vtkDoubleArray> array = vtkSmartPointer<vtkDoubleArray>::New();
+        array->SetName(name);
+        array->SetNumberOfComponents(1);
+        array->SetNumberOfTuples(num_points);
+        for (int j = 0; j < ny; ++j) {
+            for (int i = 0; i < nx; ++i) {
+                double val = data_accessor(cs_x + i, cs_y + j);
+                auto pid = static_cast<vtkIdType>(i + j * nx);
+                array->SetValue(pid, val);
+            }
+        }
+        grid->GetPointData()->AddArray(array);
+    };
+
+    // Add scalar fields
+    add_scalar_field([&layer](int i, int j) { return layer.rho(i, j); }, "density");
+    add_scalar_field([&layer](int i, int j) { return layer.u(i, j); }, "velocity_x");
+    add_scalar_field([&layer](int i, int j) { return layer.v(i, j); }, "velocity_y");
+    add_scalar_field([&layer](int i, int j) { 
+        return std::sqrt(layer.u(i, j) * layer.u(i, j) + layer.v(i, j) * layer.v(i, j)); 
+    }, "velocity_magnitude");
+    add_scalar_field([&layer](int i, int j) { return layer.P(i, j); }, "pressure");
+    add_scalar_field([&layer](int i, int j) { return layer.e(i, j); }, "energy");
+
+    // Add velocity vector field
+    vtkSmartPointer<vtkDoubleArray> velocity_vectors = vtkSmartPointer<vtkDoubleArray>::New();
+    velocity_vectors->SetName("velocity");
+    velocity_vectors->SetNumberOfComponents(3);
+    velocity_vectors->SetNumberOfTuples(num_points);
+    for (int j = 0; j < ny; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            double vec[3] = {layer.u(cs_x + i, cs_y + j), 
+                           layer.v(cs_x + i, cs_y + j), 
+                           0.0};
+            auto pid = static_cast<vtkIdType>(i + j * nx);
+            velocity_vectors->SetTuple(pid, vec);
+        }
+    }
+    grid->GetPointData()->AddArray(velocity_vectors);
+
+    // Add time as field data
+    vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
+    time_array->SetName("TimeValue");
+    time_array->SetNumberOfComponents(1);
+    time_array->InsertNextValue(time);
+    grid->GetFieldData()->AddArray(time_array);
+
+    // Write to file
+    vtkSmartPointer<vtkStructuredGridWriter> writer =
+        vtkSmartPointer<vtkStructuredGridWriter>::New();
+    writer->SetFileName(filename.c_str());
+    writer->SetInputData(grid);
+    writer->SetFileTypeToBinary();
+    writer->Write();
 }
 
 void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,

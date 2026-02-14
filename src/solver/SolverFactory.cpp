@@ -13,64 +13,47 @@
 #include "spatial/ForwardEulerSpatialOperator.hpp"
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
 #include "spatial/GodunovSpatialOperator.hpp"
+#include "spatial/GodunovSpatialOperator2D.hpp"
 #include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
 
 namespace {
-/**
- * @brief Validates that the solver and reconstruction combination is compatible
- * 
- * Compatibility rules:
- * - godunov: P0
- * - godunov-kolgan: P0, P1, ENO, WENO
- * - godunov-kolgan-rodionov: P1, ENO, WENO
- * - analytical: no reconstruction needed
- * 
- * @param solver Solver type (lowercase)
- * @param reconstruction Reconstruction scheme (lowercase)
- * @throws std::runtime_error if combination is incompatible
- */
 void ValidateSolverReconstructionCompatibility(const std::string& solver,
                                                const std::string& reconstruction) {
-    // Analytical solver doesn't use reconstruction
-    if (solver == "analytical") {
-        return;
-    }
+    if (solver == "analytical") return;
 
-    // Godunov solver only supports P0
     if (solver == "godunov") {
         if (reconstruction.find("p0") == std::string::npos) {
             std::cerr << "\nError: Incompatible solver-reconstruction pair!\n";
-            std::cerr << "  Solver: " << solver << "\n";
-            std::cerr << "  Reconstruction: " << reconstruction << "\n\n";
-            std::cerr <<
-                "The 'godunov' solver only supports P0 (piecewise constant) reconstruction.\n";
-            std::cerr << "To see all compatible solver-reconstruction pairs, use:\n";
-            std::cerr << "  ./cfd_numerical_solver --list-solvers\n\n";
+            std::cerr << "  Solver: " << solver << ", Reconstruction: " << reconstruction << "\n";
             throw std::runtime_error("Incompatible solver-reconstruction pair");
         }
         return;
     }
 
-    // Godunov-Kolgan-Rodionov requires at least P1
     if (solver == "godunov-kolgan-rodionov") {
         if (reconstruction.find("p0") != std::string::npos) {
-            std::cerr << "\nError: Incompatible solver-reconstruction pair!\n";
-            std::cerr << "  Solver: " << solver << "\n";
-            std::cerr << "  Reconstruction: " << reconstruction << "\n\n";
-            std::cerr <<
-                "The 'godunov-kolgan-rodionov' solver requires at least P1 reconstruction.\n";
-            std::cerr << "It supports: P1, ENO (any order), WENO (any order)\n\n";
-            std::cerr << "To see all compatible solver-reconstruction pairs, use:\n";
-            std::cerr << "  ./cfd_numerical_solver --list-solvers\n\n";
+            std::cerr << "\nError: godunov-kolgan-rodionov requires at least P1\n";
             throw std::runtime_error("Incompatible solver-reconstruction pair");
         }
         return;
     }
+}
 
-    // Godunov-Kolgan supports all reconstruction schemes
-    if (solver == "godunov-kolgan") {
-        return;
+void Validate2DReconstructionSupport(const std::string& reconstruction, int dim) {
+    if (dim < 2) return;
+
+    // 2D currently only supports P0 reconstruction in the spatial operator.
+    // Higher-order reconstruction objects are created but unused in 2D.
+    std::string recon_lower = reconstruction;
+    std::transform(recon_lower.begin(), recon_lower.end(), recon_lower.begin(),
+                   [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); });
+
+    if (recon_lower.find("p0") == std::string::npos) {
+        std::cerr << "\nWarning: 2D spatial operator currently uses P0 reconstruction only.\n"
+                  << "  Configured reconstruction '" << reconstruction
+                  << "' will be ignored in 2D.\n"
+                  << "  The solver will run with P0 (piecewise-constant) reconstruction.\n\n";
     }
 }
 } // namespace
@@ -79,36 +62,57 @@ auto SolverFactory::Create(Settings& settings) -> std::unique_ptr<Solver> {
     std::string type_lower = settings.solver;
     std::string recon_lower = settings.reconstruction;
 
-    // Validate compatibility before creating solver
     ValidateSolverReconstructionCompatibility(type_lower, recon_lower);
 
     if (type_lower == "analytical") {
         return std::make_unique<AnalyticalSolver>(settings);
     }
-    if (type_lower == "godunov" or type_lower == "godunov-kolgan") {
-        // return std::make_unique<GodunovSolver>(settings);
+
+    // For 2D, use GodunovSpatialOperator2D
+    if (settings.dim >= 2) {
+        Validate2DReconstructionSupport(recon_lower, settings.dim);
+
+        if (settings.time_integrator != "euler") {
+            std::cerr << "Warning: 2D currently uses Forward Euler only. "
+                      << "Configured time_integrator '" << settings.time_integrator
+                      << "' will be ignored.\n";
+        }
+
+        if (type_lower == "godunov" || type_lower == "godunov-kolgan") {
+            auto spatial_operator = std::make_shared<GodunovSpatialOperator2D>(settings);
+            return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);
+        }
+        if (type_lower == "godunov-kolgan-rodionov") {
+            // GKR in 2D: use GodunovSpatialOperator2D (P0 fallback)
+            // Higher-order 2D reconstruction can be added later
+            std::cerr << "\nWarning: godunov-kolgan-rodionov in 2D uses P0 spatial operator.\n"
+                      << "  Second-order GKR predictor-corrector is not yet implemented for 2D.\n"
+                      << "  Running with first-order Godunov method.\n\n";
+            auto spatial_operator = std::make_shared<GodunovSpatialOperator2D>(settings);
+            return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);
+        }
+        if (type_lower == "maccormack") {
+            std::cerr << "\nError: MacCormack solver is not supported in 2D.\n\n";
+            throw std::runtime_error("MacCormack solver does not support 2D");
+        }
+
+        std::cerr << "\nError: Unknown solver type for 2D: " << settings.solver << "\n\n";
+        throw std::runtime_error("Unknown solver type: " + settings.solver);
+    }
+
+    if (type_lower == "godunov" || type_lower == "godunov-kolgan") {
         auto spatial_operator = std::make_shared<GodunovSpatialOperator>(settings);
         return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);
     }
     if (type_lower == "godunov-kolgan-rodionov") {
-        // return std::make_unique<GodunovKolganRodionovSolver>(settings);
         auto spatial_operator =
             std::make_shared<GodunovKolganRodionovSpatialOperator>(settings);
         return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);
     }
     if (type_lower == "maccormack") {
-        // return std::make_unique<MacCormackSolver>(settings);
         return std::make_unique<FiniteVolumeSolver>(settings, nullptr);
     }
 
     std::cerr << "\nError: Unknown solver type: " << settings.solver << "\n\n";
-    std::cerr << "Supported solvers:\n";
-    std::cerr << "  - godunov\n";
-    std::cerr << "  - godunov-kolgan\n";
-    std::cerr << "  - godunov-kolgan-rodionov\n";
-    std::cerr << "  - analytical\n\n";
-    std::cerr << "To see all solver options and their compatible reconstructions, use:\n";
-    std::cerr << "  ./cfd_numerical_solver --list-solvers\n\n";
-
     throw std::runtime_error("Unknown solver type: " + settings.solver);
 }

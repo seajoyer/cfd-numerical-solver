@@ -53,14 +53,27 @@ auto PNGWriter::GenerateFilename(std::size_t step) const -> std::string {
     return oss.str();
 }
 
-void PNGWriter::Write(const DataLayer& layer, const Settings& settings, std::size_t step,
-                      double time) const {
-    // Call the version with nullptr for analytical layer
+void PNGWriter::Write(const DataLayer& layer, const Settings& settings,
+                      std::size_t step, double time) const {
+    if (layer.GetDim() >= 2) {
+        static bool warned = false;
+        if (!warned) {
+            std::cerr << "PNGWriter: 2D visualization not yet supported, skipping PNG output.\n"
+                      << "  Use VTK format for 2D simulations.\n";
+            warned = true;
+        }
+        return;
+    }
+
     Write(layer, nullptr, settings, step, time);
 }
 
 void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
                       const Settings& settings, std::size_t step, double time) const {
+    if (layer.GetDim() >= 2) {
+        return;  // Warning already issued by the other Write overload
+    }
+
     const int start = layer.GetCoreStart();
     const int end = layer.GetCoreEndExclusive();
     const int n_points = end - start;

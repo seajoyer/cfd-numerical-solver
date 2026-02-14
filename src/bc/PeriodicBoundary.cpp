@@ -5,10 +5,72 @@
 #include "data/DataLayer.hpp"
 
 void PeriodicBoundary::Apply(DataLayer& layer, int axis, Side side) const {
+    if (layer.GetDim() >= 2) {
+        // 2D periodic: copy from opposite edge of core domain
+        const int pad = layer.GetPadding();
+        const int cs_x = layer.GetCoreStart(0);
+        const int ce_x = layer.GetCoreEndExclusive(0);
+        const int cs_y = layer.GetCoreStart(1);
+        const int ce_y = layer.GetCoreEndExclusive(1);
+        const int tx = layer.GetTotalSize(0);
+        const int ty = layer.GetTotalSize(1);
+
+        if (axis == 0) {
+            // X-axis periodic: left ghosts ← right core edge, right ghosts ← left core edge
+            for (int j = 0; j < ty; ++j) {
+                for (int g = 0; g < pad; ++g) {
+                    int dst, src;
+                    if (side == Side::kLeft) {
+                        dst = g;
+                        src = ce_x - pad + g;  // rightmost 'pad' core cells
+                    } else {
+                        dst = ce_x + g;
+                        src = cs_x + g;         // leftmost 'pad' core cells
+                    }
+                    layer.rho(dst, j) = layer.rho(src, j);
+                    layer.u(dst, j)   = layer.u(src, j);
+                    layer.v(dst, j)   = layer.v(src, j);
+                    layer.P(dst, j)   = layer.P(src, j);
+                    layer.p(dst, j)   = layer.p(src, j);
+                    layer.q(dst, j)   = layer.q(src, j);
+                    layer.e(dst, j)   = layer.e(src, j);
+                    layer.U(dst, j)   = layer.U(src, j);
+                    layer.V(dst, j)   = layer.V(src, j);
+                    layer.m(dst, j)   = layer.m(src, j);
+                }
+            }
+        } else {
+            // Y-axis periodic: bottom ghosts ← top core edge, top ghosts ← bottom core edge
+            for (int i = 0; i < tx; ++i) {
+                for (int g = 0; g < pad; ++g) {
+                    int dst, src;
+                    if (side == Side::kLeft) {
+                        dst = g;
+                        src = ce_y - pad + g;
+                    } else {
+                        dst = ce_y + g;
+                        src = cs_y + g;
+                    }
+                    layer.rho(i, dst) = layer.rho(i, src);
+                    layer.u(i, dst)   = layer.u(i, src);
+                    layer.v(i, dst)   = layer.v(i, src);
+                    layer.P(i, dst)   = layer.P(i, src);
+                    layer.p(i, dst)   = layer.p(i, src);
+                    layer.q(i, dst)   = layer.q(i, src);
+                    layer.e(i, dst)   = layer.e(i, src);
+                    layer.U(i, dst)   = layer.U(i, src);
+                    layer.V(i, dst)   = layer.V(i, src);
+                    layer.m(i, dst)   = layer.m(i, src);
+                }
+            }
+        }
+        return;
+    }
+
+    // --- Original 1D logic ---
     (void)axis;
 
     const int pad = layer.GetPadding();
-    const int n = layer.GetN();
     const int core_start = layer.GetPadding();
     const int core_end = layer.GetCoreEndExclusive();
 
@@ -57,6 +119,4 @@ void PeriodicBoundary::Apply(DataLayer& layer, int axis, Side side) const {
         xt::view(layer.xb, xt::range(core_end, core_end + pad)) = copy_from_xb;
         xt::view(layer.xc, xt::range(core_end, core_end + pad)) = copy_from_xc;
     }
-
-    (void)n;
 }

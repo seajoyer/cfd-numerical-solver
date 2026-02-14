@@ -15,7 +15,9 @@ void TimeIntegrator::StoreConservativeCell(const Conservative& uc,
                                            DataLayer& layer) const {
     const double rho = uc.rho;
     const double rhoU = uc.rhoU;
+    const double rhoV = uc.rhoV;
     const double uvel = rho > 0.0 ? rhoU / rho : 0.0;
+    const double vvel = rho > 0.0 ? rhoV / rho : 0.0;
     const double P = EOS::Pressure(uc, settings.gamma);
 
     layer.rho(i) = rho;
@@ -25,7 +27,7 @@ void TimeIntegrator::StoreConservativeCell(const Conservative& uc,
     layer.p(i) = rhoU;
     layer.V(i) = rho > 0.0 ? 1.0 / rho : 0.0;
 
-    const double kinetic = 0.5 * rho * uvel * uvel;
+    const double kinetic = 0.5 * rho * (uvel * uvel + vvel * vvel);
     const double Eint = uc.E - kinetic;
     const double eint = rho > 0.0 ? Eint / rho : 0.0;
     const double Etot = rho > 0.0 ? uc.E : 0.0;
