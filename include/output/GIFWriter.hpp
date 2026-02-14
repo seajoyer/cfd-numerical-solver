@@ -102,6 +102,20 @@ class GIFWriter : public StepWriter {
                const Settings& settings, std::size_t step, double time) const override;
 
     /**
+     * @brief Write 2D simulation data (not implemented for GIF writer).
+     * 
+     * GIFWriter currently only supports 1D data visualization.
+     * This method is required by the StepWriter interface.
+     * 
+     * @param layer The data layer containing simulation state
+     * @param settings Solver settings
+     * @param step Current simulation step number
+     * @param time Current simulation time
+     */
+    void Write2D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                 double time) const override;
+
+    /**
      * @brief Writes all accumulated frames to the final GIF file.
      * 
      * This must be called at the end of simulation to generate the GIF.

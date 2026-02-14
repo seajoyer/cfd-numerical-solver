@@ -1,20 +1,24 @@
 config:
-    run_cases: [sod1, sod2]  # or simply: all
+    run_cases: [lax_liu_3, lax_liu_12]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
     
     global:
         solver: godunov
-        riemann_solver: exact
+        riemann_solver: hllc
         reconstruction: P0
         time_integrator: euler
         left_boundary: free_stream
         right_boundary: free_stream
+        bottom_boundary: free_stream
+        top_boundary: free_stream
 
         global_limiter: false
-        diffusion: true
+        diffusion: false
         viscosity: false
 
-        N: 1000
-        cfl: 0.5
+        N: 200
+        Nx: 0      # 0 = use N
+        Ny: 0      # 0 = use N
+        cfl: 0.4
         padding: 2
         gamma: 1.4
         dim: 1
@@ -25,6 +29,7 @@ config:
         Q_user: 2
 
         x0: 0.5
+        y0: 0.5
         analytical: true
 
         t_end: 0.25
@@ -36,11 +41,11 @@ config:
         output_every_steps: 50
         output_every_time: 0.0
         
-        output_formats: [vtk, png, gif2560x1600]
+        output_formats: [vtk]
         output_dir: "../result"
 
-    # Each case can override any global setting
     cases:
+        # ==================== 1D Cases ====================
         sod1:
             rho_L: 1.0
             u_L: 0.0
@@ -48,10 +53,9 @@ config:
             rho_R: 0.125
             u_R: 0.0
             P_R: 0.1
-
             x0: 0.5
             t_end: 0.25
-        
+
         sod2:
             rho_L: 1.0
             u_L: -2.0
@@ -59,7 +63,6 @@ config:
             rho_R: 1.0
             u_R: 2.0
             P_R: 0.4
-
             x0: 0.5
             t_end: 0.15
         
@@ -70,28 +73,137 @@ config:
             rho_R: 1.0
             u_R: 0.0
             P_R: 0.01
-
             x0: 0.5
             t_end: 0.012
+
+        # ==================== 2D Cases ====================
         
-        sod4:
+        # 2D Sod shock tube along x (sanity check - should match 1D Sod)
+        sod1_2d:
+            dim: 2
+            N: 200
+            ic_type: x_riemann
             rho_L: 1.0
             u_L: 0.0
-            P_L: 0.01
-            rho_R: 1.0
+            v_L: 0.0
+            P_L: 1.0
+            rho_R: 0.125
             u_R: 0.0
-            P_R: 100.0
-
+            v_R: 0.0
+            P_R: 0.1
             x0: 0.5
-            t_end: 0.035
-        
-        sod5:
-            rho_L: 5.99924
-            u_L: 19.5975
-            P_L: 460.894
-            rho_R: 5.99242
-            u_R: -6.19633
-            P_R: 46.0950
+            y0: 0.5
+            t_end: 0.25
+            analytical: false
+            left_boundary: free_stream
+            right_boundary: free_stream
+            bottom_boundary: free_stream
+            top_boundary: free_stream
+            output_formats: [vtk]
+            output_every_steps: 100
 
+        # 2D Sod shock tube along y
+        sod1_2d_y:
+            dim: 2
+            N: 200
+            ic_type: y_riemann
+            rho_L: 1.0
+            u_L: 0.0
+            v_L: 0.0
+            P_L: 1.0
+            rho_R: 0.125
+            u_R: 0.0
+            v_R: 0.0
+            P_R: 0.1
             x0: 0.5
-            t_end: 0.035
+            y0: 0.5
+            t_end: 0.25
+            analytical: false
+            output_formats: [vtk]
+            output_every_steps: 100
+
+        # Lax-Liu Configuration 3 (2D Riemann problem)
+        # Reference: Lax & Liu, "Solution of Two-Dimensional Riemann Problems
+        #            of Gas Dynamics by Positive Schemes", 1998
+        lax_liu_3:
+            dim: 2
+            N: 400
+            ic_type: quadrant
+            x0: 0.5
+            y0: 0.5
+            L_x: 1.0
+            L_y: 1.0
+            gamma: 1.4
+            cfl: 0.4
+            t_end: 0.3
+            analytical: false
+            
+            # Q1 (top-right): x >= 0.5, y >= 0.5
+            rho_Q1: 1.5
+            u_Q1: 0.0
+            v_Q1: 0.0
+            P_Q1: 1.5
+            # Q2 (top-left): x < 0.5, y >= 0.5
+            rho_Q2: 0.5323
+            u_Q2: 1.206
+            v_Q2: 0.0
+            P_Q2: 0.3
+            # Q3 (bottom-left): x < 0.5, y < 0.5
+            rho_Q3: 0.138
+            u_Q3: 1.206
+            v_Q3: 1.206
+            P_Q3: 0.029
+            # Q4 (bottom-right): x >= 0.5, y < 0.5
+            rho_Q4: 0.5323
+            u_Q4: 0.0
+            v_Q4: 1.206
+            P_Q4: 0.3
+
+            left_boundary: free_stream
+            right_boundary: free_stream
+            bottom_boundary: free_stream
+            top_boundary: free_stream
+            output_formats: [vtk]
+            output_every_steps: 200
+
+        # Lax-Liu Configuration 12 (2D Riemann problem)
+        lax_liu_12:
+            dim: 2
+            N: 400
+            ic_type: quadrant
+            x0: 0.5
+            y0: 0.5
+            L_x: 1.0
+            L_y: 1.0
+            gamma: 1.4
+            cfl: 0.4
+            t_end: 0.25
+            analytical: false
+            
+            # Q1 (top-right)
+            rho_Q1: 1.0
+            u_Q1: 0.7276
+            v_Q1: 0.0
+            P_Q1: 1.0
+            # Q2 (top-left)
+            rho_Q2: 0.8
+            u_Q2: 0.0
+            v_Q2: 0.0
+            P_Q2: 1.0
+            # Q3 (bottom-left)
+            rho_Q3: 1.0
+            u_Q3: 0.0
+            v_Q3: 0.7276
+            P_Q3: 1.0
+            # Q4 (bottom-right)
+            rho_Q4: 0.8
+            u_Q4: 0.0
+            v_Q4: 0.0
+            P_Q4: 1.0
+
+            left_boundary: free_stream
+            right_boundary: free_stream
+            bottom_boundary: free_stream
+            top_boundary: free_stream
+            output_formats: [vtk]
+            output_every_steps: 200

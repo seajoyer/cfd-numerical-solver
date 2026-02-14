@@ -3,82 +3,67 @@
 
 #include "config/Settings.hpp"
 
-/**
- * @file InitialConditions.hpp
- * @brief Data structure for Riemann problem initial conditions
- */
+#include <string>
 
 /**
- * @struct InitialConditions
- * @brief Defines left and right states for a 1D Riemann problem with optional overrides
- * 
- * This structure contains the primitive variables (density, velocity, pressure)
- * for both the left and right states of a Riemann problem, along with
- * optional case-specific setting overrides.
- * 
- * The Riemann problem consists of two constant states separated by a
- * discontinuity at position x0:
- * 
- * - Left state (x < x0): (ρ_L, u_L, P_L)
- * - Right state (x ≥ x0): (ρ_R, u_R, P_R)
- * 
- * Initial conditions are typically loaded from the YAML configuration file
- * by ConfigParser and can represent various flow scenarios:
- * - Shock tubes (Sod problems)
- * - Blast waves
- * - Shock-shock interactions
- * - Rarefaction waves
- * 
- * @note All quantities are in SI units or dimensionless
- * @see Settings, CaseSettings, ConfigParser
- * 
- * Example YAML configuration:
- * @code{.yaml}
- * cases:
- *   sod1:
- *     rho_L: 1.0
- *     u_L: 0.0
- *     P_L: 1.0
- *     rho_R: 0.125
- *     u_R: 0.0
- *     P_R: 0.1
- *     # Case-specific overrides:
- *     x0: 0.5
- *     t_end: 0.25
- *     reconstruction: ENO3
- * @endcode
+ * @file InitialConditions.hpp
+ * @brief Data structure for Riemann problem initial conditions (1D and 2D)
+ *
+ * For 1D: standard left/right Riemann problem along x.
+ * For 2D: supports several IC types:
+ *   - "x_riemann":  discontinuity along x (vertical interface)
+ *   - "y_riemann":  discontinuity along y (horizontal interface)
+ *   - "quadrant":   four-quadrant 2D Riemann problem (Lax-Liu type)
+ *
+ * Quadrant layout (when ic_type == "quadrant"):
+ *   Q2 (x<x0, y>=y0) | Q1 (x>=x0, y>=y0)
+ *   -----------------+------------------
+ *   Q3 (x<x0, y<y0)  | Q4 (x>=x0, y<y0)
+ *
+ * For non-quadrant types, only left/right states are used.
  */
 struct InitialConditions {
-    /** @brief Left state density (ρ_L)
-     * @note Must be positive for physical validity
+    // Left state (x < x0 for x_riemann; y < y0 for y_riemann)
+    double rho_L = 1.0;
+    double u_L = 0.0;
+    double v_L = 0.0;   ///< y-velocity for left state (2D)
+    double P_L = 1.0;
+    
+    // Right state
+    double rho_R = 0.125;
+    double u_R = 0.0;
+    double v_R = 0.0;   ///< y-velocity for right state (2D)
+    double P_R = 0.1;
+
+    // ==================== 2D Quadrant IC ====================
+    // Quadrant 1: x >= x0, y >= y0 (top-right)
+    double rho_Q1 = 0.0, u_Q1 = 0.0, v_Q1 = 0.0, P_Q1 = 0.0;
+    // Quadrant 2: x < x0, y >= y0 (top-left)
+    double rho_Q2 = 0.0, u_Q2 = 0.0, v_Q2 = 0.0, P_Q2 = 0.0;
+    // Quadrant 3: x < x0, y < y0 (bottom-left)
+    double rho_Q3 = 0.0, u_Q3 = 0.0, v_Q3 = 0.0, P_Q3 = 0.0;
+    // Quadrant 4: x >= x0, y < y0 (bottom-right)
+    double rho_Q4 = 0.0, u_Q4 = 0.0, v_Q4 = 0.0, P_Q4 = 0.0;
+
+    /**
+     * @brief Initial condition type for 2D problems.
+     *
+     * Values:
+     *   "x_riemann" - discontinuity along x (default, also used for 1D)
+     *   "y_riemann" - discontinuity along y
+     *   "quadrant"  - four-quadrant 2D Riemann problem
      */
-    double rho_L;
-    
-    /** @brief Left state velocity (u_L) */
-    double u_L;
-    
-    /** @brief Left state pressure (P_L)
-     * @note Must be positive for physical validity
-     */
-    double P_L;
-    
-    /** @brief Right state density (ρ_R)
-     * @note Must be positive for physical validity
-     */
-    double rho_R;
-    
-    /** @brief Right state velocity (u_R) */
-    double u_R;
-    
-    /** @brief Right state pressure (P_R)
-     * @note Must be positive for physical validity
-     */
-    double P_R;
-    
-    /** @brief Case-specific setting overrides
-     * @note These override global settings for this specific case
-     */
+    std::string ic_type = "x_riemann";
+
+    /** @brief Case-specific setting overrides */
     CaseSettings overrides;
+
+    /**
+     * @brief Returns true if this is a quadrant-type IC
+     */
+    [[nodiscard]] auto IsQuadrant() const -> bool {
+        return ic_type == "quadrant";
+    }
 };
 
 #endif  // INITIALCONDITIONS_HPP

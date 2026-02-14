@@ -292,3 +292,14 @@ void PNGWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
     pngWriter->SetInputConnection(windowToImageFilter->GetOutputPort());
     pngWriter->Write();
 }
+
+void PNGWriter::Write2D(const DataLayer& layer, const Settings& settings, 
+                        std::size_t step, double time) const {
+    // PNGWriter currently only supports 1D visualization
+    // For 2D simulations, use VTK format or implement 2D plotting
+    (void)layer;
+    (void)settings;
+    (void)step;
+    (void)time;
+    throw std::runtime_error("PNGWriter does not support 2D output yet");
+}

@@ -28,7 +28,7 @@ class StepWriter {
     virtual ~StepWriter() = default;
 
     /**
-     * @brief Write simulation data to disk
+     * @brief Write 1D simulation data to disk
      * 
      * @param layer The numerical solution data layer
      * @param settings Solver settings for output file name construction
@@ -55,6 +55,18 @@ class StepWriter {
         // Default implementation ignores analytical data
         Write(layer, settings, step, time);
     }
+
+    /**
+     * @brief Write 2D simulation data to disk
+     * 
+     * @param layer The numerical solution data layer
+     * @param settings Solver settings for output file name construction
+     * @param step Current simulation step number
+     * @param time Current simulation time
+     */
+    virtual void Write2D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                       double time) const = 0;
+
 
     /**
      * @brief Finalize output and write any accumulated data

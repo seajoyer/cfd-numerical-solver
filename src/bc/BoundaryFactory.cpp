@@ -1,6 +1,8 @@
 #include "bc/BoundaryFactory.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <iostream>
 #include <stdexcept>
 
 #include "bc/FreeStreamBoundary.hpp"
@@ -12,33 +14,72 @@
 #include "bc/SymmetryBoundary.hpp"
 #include "bc/WallBoundary.hpp"
 
-auto BoundaryFactory::Create(const std::string& boundary_type, double rho_inf,
-                             double u_inf, double p_inf)
+auto BoundaryFactory::Create(const std::string& type, double rho_inf,
+                              double u_inf, double p_inf)
     -> std::shared_ptr<BoundaryCondition> {
-    if (boundary_type == "free_stream") {
+
+    std::string lower = type;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    if (lower == "free_stream" || lower == "freestream") {
         return std::make_shared<FreeStreamBoundary>(rho_inf, u_inf, p_inf);
     }
-    if (boundary_type == "inlet") {
-        return std::make_shared<InletBoundary>(rho_inf, u_inf, p_inf);
-    }
-    if (boundary_type == "outlet") {
-        return std::make_shared<OutletBoundary>();
-    }
-    if (boundary_type == "reflective") {
+    if (lower == "reflective") {
         return std::make_shared<ReflectiveBoundary>();
     }
-    if (boundary_type == "non_reflective") {
-        return std::make_shared<NonReflectiveBoundary>();
+    if (lower == "outlet") {
+        return std::make_shared<OutletBoundary>();
     }
-    if (boundary_type == "periodic") {
+    if (lower == "inlet") {
+        return std::make_shared<InletBoundary>(rho_inf, u_inf, p_inf);
+    }
+    if (lower == "periodic") {
         return std::make_shared<PeriodicBoundary>();
     }
-    if (boundary_type == "symmetry") {
+    if (lower == "symmetry") {
         return std::make_shared<SymmetryBoundary>();
     }
-    if (boundary_type == "wall") {
+    if (lower == "wall") {
+        return std::make_shared<WallBoundary>();
+    }
+    if (lower == "non_reflective" || lower == "nonreflective") {
+        return std::make_shared<NonReflectiveBoundary>();
+    }
+
+    std::cerr << "Warning: Unknown boundary type '" << type
+              << "', defaulting to free_stream\n";
+    return std::make_shared<FreeStreamBoundary>(rho_inf, u_inf, p_inf);
+}
+
+auto BoundaryFactory::Create2D(const std::string& type, double rho_inf,
+                                double u_inf, double v_inf, double p_inf)
+    -> std::shared_ptr<BoundaryCondition> {
+
+    std::string lower = type;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    if (lower == "free_stream" || lower == "freestream") {
+        return std::make_shared<FreeStreamBoundary>(rho_inf, u_inf, v_inf, p_inf);
+    }
+    if (lower == "reflective") {
+        return std::make_shared<ReflectiveBoundary>();
+    }
+    if (lower == "outlet") {
+        return std::make_shared<OutletBoundary>();
+    }
+    if (lower == "periodic") {
+        return std::make_shared<PeriodicBoundary>();
+    }
+    if (lower == "symmetry") {
+        return std::make_shared<SymmetryBoundary>();
+    }
+    if (lower == "wall") {
         return std::make_shared<WallBoundary>();
     }
 
-    throw std::runtime_error("Unknown boundary condition type: " + boundary_type);
+    std::cerr << "Warning: Unknown boundary type '" << type
+              << "', defaulting to free_stream\n";
+    return std::make_shared<FreeStreamBoundary>(rho_inf, u_inf, v_inf, p_inf);
 }

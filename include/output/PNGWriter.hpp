@@ -74,6 +74,20 @@ class PNGWriter : public StepWriter {
     void Write(const DataLayer& layer, const DataLayer* analytical_layer,
                const Settings& settings, std::size_t step, double time) const override;
 
+    /**
+     * @brief Write 2D simulation data (not implemented for PNG writer).
+     * 
+     * PNGWriter currently only supports 1D data visualization.
+     * This method is required by the StepWriter interface.
+     * 
+     * @param layer The data layer containing simulation state
+     * @param settings Solver settings
+     * @param step Current simulation step number
+     * @param time Current simulation time
+     */
+    void Write2D(const DataLayer& layer, const Settings& settings, std::size_t step,
+                 double time) const override;
+
    private:
     std::string output_dir_;
     int width_;

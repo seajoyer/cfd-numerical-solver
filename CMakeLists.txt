@@ -50,7 +50,7 @@ add_executable(${NAME}
     src/spatial/ForwardEulerSpatialOperator.cpp
     src/spatial/BackwardEulerSpatialOperator.cpp
     src/spatial/GodunovSpatialOperator.cpp
-    src/spatial/GodunovSpatialOperator.cpp
+    src/spatial/GodunovSpatialOperator2D.cpp
     src/spatial/GodunovKolganRodionovSpatialOperator.cpp
     include/spatial/SpatialOperator.hpp
 
