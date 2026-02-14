@@ -5,20 +5,23 @@
 
 /**
  * @class InletBoundary
- * @brief Implements inlet (inflow) boundary conditions.
+ * @brief Implements inlet (inflow) boundary conditions for 1D and 2D.
  *
  * This boundary condition specifies fixed external (freestream) values
  * for density, velocity, and pressure on the side where the flow enters
  * the computational domain.
  *
  * The direction of flow is determined automatically:
- *  - On the left boundary (Side::Min), inflow occurs when u > 0.
- *  - On the right boundary (Side::Max), inflow occurs when u < 0.
+ *  - On the left boundary (Side::kLeft), inflow occurs when normal velocity > 0.
+ *  - On the right boundary (Side::kRight), inflow occurs when normal velocity < 0.
  *
  * If the flow is directed *into* the domain, the specified inlet
- * state (ρ, u, P) is applied in the ghost cells.
+ * state is applied in the ghost cells.
  * Otherwise, the boundary behaves as an outlet (zero-gradient condition).
  *
+ * In 2D:
+ *  - For x-axis boundaries: normal velocity is u, tangential is v.
+ *  - For y-axis boundaries: normal velocity is v, tangential is u.
  *
  * @see OutletBoundary
  * @see FreeStreamBoundary
@@ -26,36 +29,41 @@
 class InletBoundary : public BoundaryCondition {
    public:
     /**
-     * @brief Constructs an inlet boundary with prescribed external conditions.
+     * @brief Constructs a 1D inlet boundary with prescribed external conditions.
      *
-     * Initializes the boundary with constant inflow values for density,
-     * velocity, and pressure that will be imposed on ghost cells whenever the
-     * flow direction indicates inflow into the domain.
-     *
-     * @param rho_in  External density (ρ) at the inlet.
+     * @param rho_in  External density at the inlet.
      * @param u_in    External velocity (u) at the inlet.
      * @param p_in    External pressure (P) at the inlet.
      */
     InletBoundary(double rho_in, double u_in, double p_in);
 
     /**
+     * @brief Constructs a 2D inlet boundary with prescribed external conditions.
+     *
+     * @param rho_in  External density at the inlet.
+     * @param u_in    External x-velocity at the inlet.
+     * @param v_in    External y-velocity at the inlet.
+     * @param p_in    External pressure at the inlet.
+     */
+    InletBoundary(double rho_in, double u_in, double v_in, double p_in);
+
+    /**
      * @brief Applies inlet boundary condition along a specific axis.
      *
-     * Updates ghost cells with user-defined external values when the flow
-     * direction indicates inflow; otherwise applies zero-gradient copying.
+     * For 2D, checks the normal velocity component for the given axis
+     * to determine inflow/outflow. On inflow: applies prescribed values.
+     * On outflow: zero-gradient (copies from nearest core cell).
      *
      * @param layer Reference to the DataLayer being modified.
-     * @param axis Axis index (0 for 1D).
-     * @param side Which side to apply: Side::Min (left) or Side::Max (right).
-     *
-     * @note For 1D problems, only axis = 0 is used. In higher dimensions,
-     *       the same logic would be applied per direction.
+     * @param axis Axis index (0=x, 1=y).
+     * @param side Which side to apply: Side::kLeft or Side::kRight.
      */
     void Apply(DataLayer& layer, int axis, Side side) const override;
 
    private:
     double rho_in_;
     double u_in_;
+    double v_in_;
     double p_in_;
 };
 

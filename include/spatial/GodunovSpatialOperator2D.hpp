@@ -29,7 +29,8 @@
  * - For x-sweep: Primitive = (rho, u, P), v is passively advected.
  * - For y-sweep: Primitive = (rho, v, P), u is passively advected.
  *
- * @note This operator works with 2D DataLayer arrays.
+ * @note Currently only supports P0 (piecewise constant) reconstruction in 2D.
+ *       The reconstruction_ member is only used for 1D fallback.
  * @note Falls back to 1D behavior when dim=1.
  */
 class GodunovSpatialOperator2D : public SpatialOperator {
@@ -37,12 +38,8 @@ public:
     explicit GodunovSpatialOperator2D(const Settings& settings);
 
     /**
-     * @brief Computes 2D RHS. For dim=1, delegates to 1D logic.
-     *
-     * For dim=2:
-     *  - rhs is a 2D xarray<Conservative> of shape (total_x, total_y)
-     *  - Accumulates x-direction flux differences / dx
-     *  - Accumulates y-direction flux differences / dy
+     * @brief Computes RHS. For dim=1, delegates to 1D logic.
+     *        For dim=2, calls ComputeRHS2D with dy = dx (square cells).
      */
     void ComputeRHS(const DataLayer& layer,
                     double dx,
@@ -50,12 +47,12 @@ public:
                     xt::xarray<Conservative>& rhs) const override;
 
     /**
-     * @brief 2D version with separate dx, dy.
+     * @brief Computes 2D RHS with separate dx, dy (the primary 2D entry point).
      */
     void ComputeRHS2D(const DataLayer& layer,
                       double dx, double dy,
                       double gamma,
-                      xt::xarray<Conservative>& rhs) const;
+                      xt::xarray<Conservative>& rhs) const override;
 
 private:
     std::shared_ptr<Reconstruction> reconstruction_;
@@ -68,10 +65,6 @@ private:
 
     /**
      * @brief Computes x-direction flux contributions for all cells.
-     *
-     * For each row j (from core_start_y to core_end_y), extracts a 1D slice
-     * of primitive states, runs reconstruction and Riemann solver, and
-     * accumulates -dF/dx into the rhs array.
      */
     void ComputeXFluxes(const DataLayer& layer,
                         double dx, double gamma,
@@ -79,10 +72,6 @@ private:
 
     /**
      * @brief Computes y-direction flux contributions for all cells.
-     *
-     * For each column i (from core_start_x to core_end_x), extracts a 1D slice
-     * with rotated velocities (v -> normal, u -> transverse), runs reconstruction
-     * and Riemann solver, and accumulates -dG/dy into the rhs array.
      */
     void ComputeYFluxes(const DataLayer& layer,
                         double dy, double gamma,

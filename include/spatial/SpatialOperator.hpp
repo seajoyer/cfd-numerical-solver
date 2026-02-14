@@ -15,39 +15,56 @@
  *
  *    dU_j/dt = L_j(U),
  *
- * in conservative form, evaluated on a given 1D mesh. Implementations
- * are responsible for:
+ * in conservative form. Implementations are responsible for:
  *  - reconstructing interface or cell-center states,
  *  - invoking a Riemann solver or physical flux,
  *  - assembling conservative flux differences to obtain the RHS.
  *
  * Time integration is not handled here; it is delegated to TimeIntegrator.
+ *
+ * For 2D operators, the 2-argument overload ComputeRHS(layer, dx, dy, gamma, rhs)
+ * should be overridden. The 1-argument dx overload serves as a dispatcher:
+ * for 2D data it defaults to dy = dx (square cells).
  */
 class SpatialOperator {
 public:
     virtual ~SpatialOperator() = default;
 
     /**
-     * @brief Computes the semi-discrete RHS dU/dt for all cells.
+     * @brief Computes the semi-discrete RHS dU/dt for all cells (1D or square-cell 2D).
      *
-     * The operator evaluates the conservative right-hand side L(U) based on:
-     *  - current state stored in DataLayer (including ghost cells),
-     *  - mesh geometry stored in DataLayer (e.g. xc),
-     *  - uniform cell size dx,
-     *  - thermodynamic parameter gamma (from Settings).
-     *
-     * Implementations must fill rhs with the same length as the 1D grid.
-     * Ghost-cell entries in rhs may be left unused or set to zero.
+     * For 1D operators, this is the primary entry point.
+     * For 2D operators, this may dispatch to ComputeRHS2D with dy = dx.
      *
      * @param layer Mesh and primitive state data.
-     * @param dx    Uniform cell size.
+     * @param dx    Uniform cell size (x-direction).
      * @param gamma Ratio of specific heats.
-     * @param rhs   Output array for dU/dt (same 1D length as the grid).
+     * @param rhs   Output array for dU/dt.
      */
     virtual void ComputeRHS(const DataLayer& layer,
                             double dx,
                             double gamma,
                             xt::xarray<Conservative>& rhs) const = 0;
+
+    /**
+     * @brief Computes the semi-discrete RHS for 2D with separate dx, dy.
+     *
+     * Default implementation calls ComputeRHS(layer, dx, gamma, rhs),
+     * which is correct for 1D operators. 2D operators should override this.
+     *
+     * @param layer Mesh and primitive state data.
+     * @param dx    Cell size in x-direction.
+     * @param dy    Cell size in y-direction.
+     * @param gamma Ratio of specific heats.
+     * @param rhs   Output array for dU/dt.
+     */
+    virtual void ComputeRHS2D(const DataLayer& layer,
+                              double dx, double dy,
+                              double gamma,
+                              xt::xarray<Conservative>& rhs) const {
+        (void)dy;  // 1D operators ignore dy
+        ComputeRHS(layer, dx, gamma, rhs);
+    }
 };
 
 #endif  // SPATIALOPERATOR_HPP

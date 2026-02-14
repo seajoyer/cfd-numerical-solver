@@ -268,11 +268,16 @@ void Simulation::Initialize() {
             initial_conditions_.v_R, initial_conditions_.P_R);
         solver_->AddBoundary(0, left_bc, right_bc);
 
+        // For quadrant ICs, use outlet (zero-gradient) on Y boundaries
+        // since L/R states don't apply to the Y direction
+        std::string bottom_type = settings_.bottom_boundary;
+        std::string top_type = settings_.top_boundary;
+
         // Y-axis boundaries
-        auto bottom_bc = CreateBoundaryCondition2D(settings_.bottom_boundary,
+        auto bottom_bc = CreateBoundaryCondition2D(bottom_type,
             initial_conditions_.rho_L, initial_conditions_.u_L,
             initial_conditions_.v_L, initial_conditions_.P_L);
-        auto top_bc = CreateBoundaryCondition2D(settings_.top_boundary,
+        auto top_bc = CreateBoundaryCondition2D(top_type,
             initial_conditions_.rho_R, initial_conditions_.u_R,
             initial_conditions_.v_R, initial_conditions_.P_R);
         solver_->AddBoundary(1, bottom_bc, top_bc);

@@ -69,6 +69,9 @@ auto BoundaryFactory::Create2D(const std::string& type, double rho_inf,
     if (lower == "outlet") {
         return std::make_shared<OutletBoundary>();
     }
+    if (lower == "inlet") {
+        return std::make_shared<InletBoundary>(rho_inf, u_inf, v_inf, p_inf);
+    }
     if (lower == "periodic") {
         return std::make_shared<PeriodicBoundary>();
     }
@@ -77,6 +80,9 @@ auto BoundaryFactory::Create2D(const std::string& type, double rho_inf,
     }
     if (lower == "wall") {
         return std::make_shared<WallBoundary>();
+    }
+    if (lower == "non_reflective" || lower == "nonreflective") {
+        return std::make_shared<NonReflectiveBoundary>();
     }
 
     std::cerr << "Warning: Unknown boundary type '" << type

@@ -98,10 +98,10 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[])
 
             full_opts.add_options("Grid")("N,N-cells", "Number of cells",
                                           cxxopts::value<int>())(
-                "d,dim", "Dimensions (only 1D is supported for now)",
+                "d,dim", "Dimensions (1 or 2)",
                 cxxopts::value<int>())("x,Lx", "Domain length X",
                                        cxxopts::value<double>())(
-                "y,Ly", "Domain length Y (not yet supported)", cxxopts::value<double>())(
+                "y,Ly", "Domain length Y (for 2D simulations)", cxxopts::value<double>())(
                 "z,Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())(
                 "p,padding", "Ghost cell padding", cxxopts::value<int>());
 

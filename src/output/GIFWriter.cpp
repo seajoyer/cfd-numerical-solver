@@ -109,23 +109,25 @@ auto GIFWriter::GetFrameDelay() const -> int {
 
 void GIFWriter::Write(const DataLayer& layer, const Settings& settings,
                       std::size_t step, double time) const {
+    if (layer.GetDim() >= 2) {
+        static bool warned = false;
+        if (!warned) {
+            std::cerr << "GIFWriter: 2D visualization not yet supported, skipping GIF output.\n"
+                      << "  Use VTK format for 2D simulations.\n";
+            warned = true;
+        }
+        return;
+    }
+
     Write(layer, nullptr, settings, step, time);
 }
 
 void GIFWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
                       const Settings& settings, std::size_t step, double time) const {
+    if (layer.GetDim() >= 2) {
+        return;  // Warning already issued
+    }
     RenderFrame(layer, analytical_layer, settings, step, time);
-}
-
-void GIFWriter::Write2D(const DataLayer& layer, const Settings& settings,
-                        std::size_t step, double time) const {
-    // GIFWriter currently only supports 1D visualization
-    // For 2D simulations, use VTK format or implement 2D plotting
-    (void)layer;
-    (void)settings;
-    (void)step;
-    (void)time;
-    throw std::runtime_error("GIFWriter does not support 2D output yet");
 }
 
 void GIFWriter::RenderFrame(const DataLayer& layer, const DataLayer* analytical_layer,

@@ -1,5 +1,6 @@
 #include "output/VTKWriter.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -16,12 +17,12 @@ auto VTKWriter::Finalize(const Settings&) -> std::string { return ""; }
 
 void VTKWriter::Write(const DataLayer& layer, const Settings& settings,
                       std::size_t step, double time) const {
-    if (settings.dim >= 2) {
+    if (layer.GetDim() >= 2) {
         Write2D(layer, settings, step, time);
         return;
     }
 
-    // --- Original 1D VTK writing ---
+    // --- 1D VTK writing ---
     std::ostringstream oss;
     if (is_analytical_) {
         oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
@@ -89,9 +90,17 @@ void VTKWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
 
 void VTKWriter::Write2D(const DataLayer& layer, const Settings& settings,
                         std::size_t step, double time) const {
+    // FIX: 2D filename now includes solver parameters (consistent with 1D)
     std::ostringstream oss;
-    oss << output_dir_ << "/"
-        << settings.solver << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+    if (is_analytical_) {
+        oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+    } else {
+        oss << output_dir_ << "/"
+            << settings.solver << "__R_" << settings.reconstruction
+            << "__N_" << settings.GetNx() << "x" << settings.GetNy()
+            << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
+            << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+    }
     std::string filepath = oss.str();
 
     std::ofstream file(filepath);

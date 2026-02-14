@@ -114,7 +114,8 @@ auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
 
     if (layer.GetDim() >= 2) {
         // 2D time advance
-        Step2D(layer, dt, dx, ComputeDy(layer));
+        const double dy = ComputeDy(layer);
+        Step2D(layer, dt, dx, dy);
     } else {
         // 1D time advance (existing path)
         time_integrator_->Advance(layer, dt, dx, settings_, *spatial_operator_);
@@ -150,13 +151,9 @@ void FiniteVolumeSolver::Step2D(DataLayer& layer, double dt, double dx, double d
         }
     }
 
-    // Compute RHS using the 2D spatial operator
+    // Compute RHS using the 2D spatial operator with actual dx and dy
     xt::xarray<Conservative> rhs;
-
-    // Use the 2D-specific ComputeRHS2D if available, otherwise fall back
-    // We need to cast to GodunovSpatialOperator2D to access ComputeRHS2D
-    // For now, use the overloaded ComputeRHS which detects dim internally
-    spatial_operator_->ComputeRHS(layer, dx, gamma, rhs);
+    spatial_operator_->ComputeRHS2D(layer, dx, dy, gamma, rhs);
 
     // Update core cells
     for (int i = cs_x; i < ce_x; ++i) {

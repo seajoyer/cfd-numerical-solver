@@ -20,14 +20,10 @@
  * (when provided) are plotted as black lines.
  *
  * Resolution can be customized and all visual elements (fonts, line widths,
- * margins) automatically scale based on the specified dimensions. The baseline
- * values are optimized for 1200x900 pixels. Scaling uses the geometric mean
- * of width and height ratios for balanced visual appearance.
+ * margins) automatically scale based on the specified dimensions.
  *
- * Uses VTK's charting capabilities (vtkChartXY, vtkContextView) for
- * rendering 2D plots to off-screen images.
- *
- * Files are named as: output_dir/step_<stepnum>.png
+ * Currently supports 1D data only. For 2D simulations, Write() logs a
+ * warning and skips (use VTK format for 2D output).
  */
 class PNGWriter : public StepWriter {
    public:
@@ -44,16 +40,10 @@ class PNGWriter : public StepWriter {
     ~PNGWriter() override;
 
     /**
-     * @brief Writes the current state of DataLayer to a PNG file.
+     * @brief Writes simulation data to a PNG file.
      * 
-     * Creates a 2x2 grid of plots showing density, velocity, pressure,
-     * and specific internal energy as functions of X coordinate.
-     * Only numerical solution is plotted (red line).
-     * 
-     * @param layer The data layer containing simulation state
-     * @param settings Solver settings for output file name construction
-     * @param step Current simulation step number
-     * @param time Current simulation time
+     * For 1D data: creates a 2x2 grid of plots.
+     * For 2D data: logs a warning and skips (not yet supported).
      */
     void Write(const DataLayer& layer, const Settings& settings, std::size_t step,
                double time) const override;
@@ -61,32 +51,11 @@ class PNGWriter : public StepWriter {
     /**
      * @brief Writes simulation data with analytical comparison.
      * 
-     * Creates a 2x2 grid of plots showing density, velocity, pressure,
-     * and specific internal energy. Numerical solution is plotted as
-     * red line, analytical solution as black line.
-     * 
-     * @param layer The numerical solution data layer
-     * @param analytical_layer The analytical solution data (may be nullptr)
-     * @param settings Solver settings for output file name construction
-     * @param step Current simulation step number
-     * @param time Current simulation time
+     * For 1D data: creates plots with both numerical and analytical solutions.
+     * For 2D data: logs a warning and skips.
      */
     void Write(const DataLayer& layer, const DataLayer* analytical_layer,
                const Settings& settings, std::size_t step, double time) const override;
-
-    /**
-     * @brief Write 2D simulation data (not implemented for PNG writer).
-     * 
-     * PNGWriter currently only supports 1D data visualization.
-     * This method is required by the StepWriter interface.
-     * 
-     * @param layer The data layer containing simulation state
-     * @param settings Solver settings
-     * @param step Current simulation step number
-     * @param time Current simulation time
-     */
-    void Write2D(const DataLayer& layer, const Settings& settings, std::size_t step,
-                 double time) const override;
 
    private:
     std::string output_dir_;
@@ -97,11 +66,6 @@ class PNGWriter : public StepWriter {
     class Impl;
     std::unique_ptr<Impl> pimpl_;
 
-    /**
-     * @brief Generates filename based on step number.
-     * @param step Step number
-     * @return Full path to output file
-     */
     [[nodiscard]] auto GenerateFilename(std::size_t step) const -> std::string;
 };
 
