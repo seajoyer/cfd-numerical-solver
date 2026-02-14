@@ -78,7 +78,7 @@ void SymmetryBoundary::Apply(DataLayer& layer, int axis, Side side) const {
             int dst = padding - 1 - g;
             layer.rho(dst) = layer.rho(src);
             layer.P(dst)   = layer.P(src);
-            layer.p(dst)   = layer.p(src);
+            layer.p(dst)   = -layer.p(src);
             layer.e(dst)   = layer.e(src);
             layer.U(dst)   = layer.U(src);
             layer.V(dst)   = layer.V(src);
@@ -93,7 +93,7 @@ void SymmetryBoundary::Apply(DataLayer& layer, int axis, Side side) const {
             int dst = core_end + g;
             layer.rho(dst) = layer.rho(src);
             layer.P(dst)   = layer.P(src);
-            layer.p(dst)   = layer.p(src);
+            layer.p(dst)   = -layer.p(src);
             layer.e(dst)   = layer.e(src);
             layer.U(dst)   = layer.U(src);
             layer.V(dst)   = layer.V(src);

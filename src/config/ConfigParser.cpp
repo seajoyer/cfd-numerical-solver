@@ -83,24 +83,19 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[])
                 "list-cases", "List all available simulation cases")(
                 "list-formats", "List all supported output formats");
 
-            full_opts.add_options("Solver")("s,solver",
-                                            "Solver type (analytical, godunov, "
-                                            "godunov-kolgan, godunov-kolgan-rodionov)",
-                                            cxxopts::value<std::string>())(
-                "riemann-solver", "Riemann solver (exact, hll, hllc, acoustic)",
-                cxxopts::value<std::string>())(
-                "reconstruction", "Reconstruction scheme (P0, P1, ENO3, WENO5, etc.)",
-                cxxopts::value<std::string>())("l,left-boundary",
-                                               "Left boundary condition",
-                                               cxxopts::value<std::string>())(
-                "r,right-boundary", "Right boundary condition",
-                cxxopts::value<std::string>());
+            full_opts.add_options("Solver")
+                ("s,solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)",cxxopts::value<std::string>())
+                ("riemann-solver", "Riemann solver (exact, hll, hllc, acoustic)", cxxopts::value<std::string>())
+                ("reconstruction", "Reconstruction scheme (P0, P1, ENO3, WENO5, etc.)", cxxopts::value<std::string>())
+                ("l,left-boundary",   "Left boundary condition",  cxxopts::value<std::string>())
+                ("r,right-boundary",  "Right boundary condition", cxxopts::value<std::string>())
+                ("t,top-boundary",    "Top boundary condition (2D)",  cxxopts::value<std::string>())
+                ("b,bottom-boundary", "bottom boundary condition (2D)", cxxopts::value<std::string>());
 
             full_opts.add_options("Grid")("N,N-cells", "Number of cells",
                                           cxxopts::value<int>())(
-                "d,dim", "Dimensions (1 or 2)",
-                cxxopts::value<int>())("x,Lx", "Domain length X",
-                                       cxxopts::value<double>())(
+                "d,dim", "Dimensions (1 or 2)", cxxopts::value<int>())(
+                "x,Lx", "Domain length X", cxxopts::value<double>())(
                 "y,Ly", "Domain length Y (for 2D simulations)", cxxopts::value<double>())(
                 "z,Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())(
                 "p,padding", "Ghost cell padding", cxxopts::value<int>());
@@ -206,17 +201,17 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
             ("l,left-boundary", "Left boundary condition", cxxopts::value<std::string>())
             ("r,right-boundary", "Right boundary condition", cxxopts::value<std::string>())
 
-            ("bottom-boundary", "Bottom boundary condition (2D)", cxxopts::value<std::string>())
-            ("top-boundary", "Top boundary condition (2D)", cxxopts::value<std::string>())
+            ("t,top-boundary",    "Top boundary condition (2D)", cxxopts::value<std::string>())
+            ("b,bottom-boundary", "Bottom boundary condition (2D)", cxxopts::value<std::string>())
         ;
 
         opts.add_options("Grid")
             ("N,N-cells", "Number of cells", cxxopts::value<int>())
-            ("dim", "Dimensions (only 1D is supported for now)", cxxopts::value<int>())
-            ("Lx", "Domain length X", cxxopts::value<double>())
-            ("Ly", "Domain length Y (not yet supported)", cxxopts::value<double>())
-            ("Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())
-            ("padding", "Ghost cell padding", cxxopts::value<int>())
+            ("d,dim", "Dimensions (1 or 2)", cxxopts::value<int>())
+            ("x,Lx", "Domain length X", cxxopts::value<double>())
+            ("y,Ly", "Domain length Y (for 2D simulations)", cxxopts::value<double>())
+            ("z,Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())
+            ("p,padding", "Ghost cell padding", cxxopts::value<int>())
 
             ("Nx", "Cells in x-direction (2D)", cxxopts::value<int>())
             ("Ny", "Cells in y-direction (2D)", cxxopts::value<int>())

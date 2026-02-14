@@ -273,6 +273,13 @@ void Simulation::Initialize() {
         std::string bottom_type = settings_.bottom_boundary;
         std::string top_type = settings_.top_boundary;
 
+        if (initial_conditions_.IsQuadrant() &&
+            (bottom_type == "free_stream" || bottom_type == "inlet")) {
+            std::cerr << "Warning: free_stream/inlet on Y-boundaries with quadrant ICs "
+                      << "uses left/right reference states, which may be incorrect. "
+                      << "Consider using 'outlet' or 'non_reflective' instead.\n";
+        }
+
         // Y-axis boundaries
         auto bottom_bc = CreateBoundaryCondition2D(bottom_type,
             initial_conditions_.rho_L, initial_conditions_.u_L,
@@ -289,14 +296,22 @@ void Simulation::Initialize() {
         solver_->AddBoundary(0, left_bc, right_bc);
     }
 
-    // Analytical solver (1D only)
-    if (settings_.analytical && settings_.dim == 1) {
-        analytical_settings_ = settings_;
-        analytical_settings_.solver = "analytical";
-        analytical_layer_ = std::make_unique<DataLayer>(
-            analytical_settings_.N, analytical_settings_.padding, analytical_settings_.dim);
-        ApplyInitialConditions(*analytical_layer_);
-        analytical_solver_ = std::make_unique<AnalyticalSolver>(analytical_settings_);
+    // Analytical solver (1D only yet)
+    if (settings_.analytical) {
+        if (settings_.dim == 1) {
+            analytical_settings_ = settings_;
+            analytical_settings_.solver = "analytical";
+            analytical_layer_ = std::make_unique<DataLayer>(analytical_settings_.N,
+                                                            analytical_settings_.padding,
+                                                            analytical_settings_.dim);
+            ApplyInitialConditions(*analytical_layer_);
+            analytical_solver_ = std::make_unique<AnalyticalSolver>(analytical_settings_);
+        }
+        if (settings_.dim >= 2) {
+            std::cerr << "Note: Analytical solution is not available for 2D simulations. "
+                    << "Disabling analytical comparison.\n";
+            settings_.analytical = false;
+        }
     }
 
     CreateWriters();

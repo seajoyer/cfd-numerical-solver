@@ -113,11 +113,18 @@ auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
     }
 
     if (layer.GetDim() >= 2) {
-        // 2D time advance
+        if (diffusion_ || global_limiter_) {
+            // Log once, not every step
+            static bool warned = false;
+            if (!warned) {
+                std::cerr << "Warning: diffusion and global_limiter are not yet "
+                        << "supported in 2D. Ignoring these flags.\n";
+                warned = true;
+            }
+        }
         const double dy = ComputeDy(layer);
         Step2D(layer, dt, dx, dy);
     } else {
-        // 1D time advance (existing path)
         time_integrator_->Advance(layer, dt, dx, settings_, *spatial_operator_);
         if (diffusion_) {
             solution_filter_.Apply(layer);

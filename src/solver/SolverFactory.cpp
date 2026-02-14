@@ -72,6 +72,12 @@ auto SolverFactory::Create(Settings& settings) -> std::unique_ptr<Solver> {
     if (settings.dim >= 2) {
         Validate2DReconstructionSupport(recon_lower, settings.dim);
 
+        if (settings.time_integrator != "euler") {
+            std::cerr << "Warning: 2D currently uses Forward Euler only. "
+                      << "Configured time_integrator '" << settings.time_integrator
+                      << "' will be ignored.\n";
+        }
+
         if (type_lower == "godunov" || type_lower == "godunov-kolgan") {
             auto spatial_operator = std::make_shared<GodunovSpatialOperator2D>(settings);
             return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);
@@ -94,7 +100,6 @@ auto SolverFactory::Create(Settings& settings) -> std::unique_ptr<Solver> {
         throw std::runtime_error("Unknown solver type: " + settings.solver);
     }
 
-    // 1D path (unchanged)
     if (type_lower == "godunov" || type_lower == "godunov-kolgan") {
         auto spatial_operator = std::make_shared<GodunovSpatialOperator>(settings);
         return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator);

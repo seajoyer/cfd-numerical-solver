@@ -11,18 +11,18 @@
 
 <br>
 
-A modular CFD solver for 1D compressible flow using finite volume methods. Features flexible configuration via YAML with support of VTK output for visualization in ParaView. The project is designed for educational purposes.
+A modular CFD solver for 1D and 2D compressible flow using finite volume methods. Features flexible configuration via YAML, VTK output for visualization in ParaView, and PNG/GIF output for 1D cases. The project is designed for educational and research purposes.
 
 ## Features
 
-- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov, McCormak, Analytical
+- **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov (1D), MacCormack (1D), Analytical (1D)
 - **Riemann Solvers**: Exact (ideal gas), Acoustic, HLL, HLLC, Osher, Roe, Rusanov
 - **Reconstruction**: P0 (piecewise constant), P1 (piecewise linear), ENO, WENO
 - **Boundary Conditions**: Free stream, inlet, outlet, reflective, non-reflective, periodic, symmetry, wall
 - **Equation of State**: Ideal gas
-- **Initial Conditions**: Configurable Riemann problems (5 predefined Sod tests + custom cases)
-- **Dimensions**: Currently 1D (2D/3D planned)
-- **Output**: VTK, PNG and GIF (with adjustable resolution)
+- **Dimensions**: 1D and 2D
+- **Initial Conditions**: Configurable Riemann problems (5 predefined 1D Sod tests), 2D Riemann problems with x-aligned, y-aligned, and four-quadrant discontinuities (Lax-Liu type)
+- **Output**: VTK (1D and 2D), PNG and GIF (1D only, with adjustable resolution)
 
 ## Dependencies
 
@@ -67,7 +67,7 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
 ```yaml
 config:
     run_cases: [sod1, sod2]  # or simply: all
-    
+
     global:
         solver: godunov
         riemann_solver: exact
@@ -75,12 +75,16 @@ config:
         time_integrator: euler
         left_boundary: free_stream
         right_boundary: free_stream
+        bottom_boundary: free_stream   # 2D: y-min boundary
+        top_boundary: free_stream      # 2D: y-max boundary
 
         global_limiter: false
-        diffusion: true
+        diffusion: false
         viscosity: false
 
         N: 1000
+        Nx: 0      # 2D: cells in x (0 = use N)
+        Ny: 0      # 2D: cells in y (0 = use N)
         cfl: 0.5
         padding: 2
         gamma: 1.4
@@ -92,6 +96,7 @@ config:
         Q_user: 2
 
         x0: 0.5
+        y0: 0.5    # 2D: discontinuity y-position
         analytical: true
 
         t_end: 0.25
@@ -102,7 +107,7 @@ config:
 
         output_every_steps: 50
         output_every_time: 0.0
-        
+
         output_formats: [vtk, png, gif2560x1600]
         output_dir: "../result"
 
@@ -115,53 +120,36 @@ config:
             rho_R: 0.125
             u_R: 0.0
             P_R: 0.1
-
             x0: 0.5
             t_end: 0.25
-        
-        sod2:
-            rho_L: 1.0
-            u_L: -2.0
-            P_L: 0.4
-            rho_R: 1.0
-            u_R: 2.0
-            P_R: 0.4
 
+        # 2D four-quadrant Riemann problem (Lax-Liu Config 3)
+        lax_liu_3:
+            dim: 2
+            N: 400
+            ic_type: quadrant
             x0: 0.5
-            t_end: 0.15
-        
-        sod3:
-            rho_L: 1.0
-            u_L: 0.0
-            P_L: 1000.0
-            rho_R: 1.0
-            u_R: 0.0
-            P_R: 0.01
-
-            x0: 0.5
-            t_end: 0.012
-        
-        sod4:
-            rho_L: 1.0
-            u_L: 0.0
-            P_L: 0.01
-            rho_R: 1.0
-            u_R: 0.0
-            P_R: 100.0
-
-            x0: 0.5
-            t_end: 0.035
-        
-        sod5:
-            rho_L: 5.99924
-            u_L: 19.5975
-            P_L: 460.894
-            rho_R: 5.99242
-            u_R: -6.19633
-            P_R: 46.0950
-
-            x0: 0.5
-            t_end: 0.035
+            y0: 0.5
+            cfl: 0.4
+            t_end: 0.3
+            rho_Q1: 1.5
+            u_Q1: 0.0
+            v_Q1: 0.0
+            P_Q1: 1.5
+            rho_Q2: 0.5323
+            u_Q2: 1.206
+            v_Q2: 0.0
+            P_Q2: 0.3
+            rho_Q3: 0.138
+            u_Q3: 1.206
+            v_Q3: 1.206
+            P_Q3: 0.029
+            rho_Q4: 0.5323
+            u_Q4: 0.0
+            v_Q4: 1.206
+            P_Q4: 0.3
+            output_formats: [vtk]
+            output_every_steps: 200
 ```
 </details>
 
@@ -181,11 +169,51 @@ Run with default configuration:
 
 The solver reads `../config.yaml` by default and outputs to `../result/`.
 
+### 1D Examples
+
+```bash
+# Classic Sod shock tube with analytical comparison
+./cfd-numerical-solver --run-cases sod1 --N-cells 1000 --analytical true
+
+# Strong shock (Sod 3) with HLLC Riemann solver
+./cfd-numerical-solver --run-cases sod3 --riemann-solver hllc --cfl 0.4
+```
+
+### 2D Examples
+
+```bash
+# 2D Sod shock tube along x-axis
+./cfd-numerical-solver --run-cases sod1_2d --dim 2 --N-cells 200
+
+# Lax-Liu quadrant problem
+./cfd-numerical-solver --run-cases lax_liu_3 --N-cells 400 --cfl 0.4
+```
+
+## 2D Solver Details
+
+The 2D extension uses an unsplit finite volume method with dimensionally-independent flux sweeps:
+
+- **Spatial discretization**: Godunov's method with P0 (piecewise constant) reconstruction. The x-sweep and y-sweep each reuse the existing 1D Riemann solvers via velocity rotation: the y-sweep passes `v` as the normal velocity and passively advects `u`.
+- **Time integration**: Forward Euler (explicit). Higher-order time integrators (SSPRK2, SSPRK3) are available for 1D only.
+- **CFL condition**: Uses the unsplit 2D spectral radius: `dt = CFL / ((|u|+c)/dx + (|v|+c)/dy)`.
+- **Boundary conditions**: All 8 boundary types support 2D with correct axis-dependent normal/tangential velocity handling.
+- **Initial conditions**: Three IC types for 2D — `x_riemann` (vertical interface), `y_riemann` (horizontal interface), and `quadrant` (four-quadrant Lax-Liu type).
+- **Output**: VTK structured points format, viewable in ParaView. PNG/GIF output is not yet supported for 2D.
+
+### Current 2D Limitations
+
+- Only P0 (piecewise constant) reconstruction is supported; higher-order spatial reconstruction is planned.
+- Time integration is limited to Forward Euler; SSPRK2/SSPRK3 are not yet available for 2D.
+- MacCormack and Godunov-Kolgan-Rodionov solvers fall back to first-order Godunov in 2D.
+- Analytical solution comparison is not available for 2D cases.
+- Diffusion filter and global limiter are not applied in 2D.
+- Visual output (PNG, GIF) is 1D-only; use VTK + ParaView for 2D visualization.
+
 ## Output Structure
 
 Results are organized hierarchically:
-
 ```
+result/
 ├── run_01-12-2025_10:29:00:018
 │   ├── sod1
 │   │   ├── godunov__R_p0__N_1000__CFL_5e-1.gif
@@ -196,14 +224,15 @@ Results are organized hierarchically:
 │   │   └── vtk
 │   │       ├── analytical
 │   │       │   ├── step_0000.vtk
-│   │       │   ├── step_0050.vtk
 │   │       │   └── ...
 │   │       └── godunov__R_p0__N_1000__CFL_5e-1
 │   │           ├── godunov__R_p0__N_1000__CFL_5e-1__step_0000.vtk
-│   │           ├── godunov__R_p0__N_1000__CFL_5e-1__step_0050.vtk
 │   │           └── ...
-│   ├── custom-case
-│   │   └── ...
+│   ├── lax_liu_3
+│   │   └── vtk
+│   │       └── godunov__R_p0__N_400x400__CFL_4e-1
+│   │           ├── godunov__R_p0__N_400x400__CFL_4e-1__step_0000.vtk
+│   │           └── ...
 │   └── ...
 │
 └── run_16-12-2025_16:57:02:437

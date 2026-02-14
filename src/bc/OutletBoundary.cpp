@@ -61,7 +61,7 @@ void OutletBoundary::Apply(DataLayer& layer, int axis, Side side) const {
     if (side == Side::kLeft) {
         int src = core_start;
         for (int g = 0; g < pad; ++g) {
-            int dst = g;
+            int dst = pad - 1 - g;
             layer.rho(dst) = layer.rho(src);
             layer.u(dst) = layer.u(src);
             layer.P(dst) = layer.P(src);
