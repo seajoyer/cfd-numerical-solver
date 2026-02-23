@@ -1,264 +1,229 @@
 #include "reconstruction/WENOReconstruction.hpp"
 
-#include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
-
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-namespace {
-// Compute nonlinear WENO-JS weights from smoothness indicators and linear weights.
-void ComputeNonlinearWeights(const double* beta,
-                             const double* d,
-                             int r,
-                             double epsilon,
-                             int p,
-                             double* omega) {
-    double alpha_sum = 0.0;
+#include "data/Variables.hpp"  // AxisStride, var::u_*
 
+WENOReconstruction::WENOReconstruction(const int order) : order_(order) {
+    SetOrder(order);
+}
+
+void WENOReconstruction::SetOrder(const int order) {
+    if (order != 3 && order != 5) {
+        throw std::invalid_argument("WENOReconstruction: supported orders are 3 and 5");
+    }
+    order_ = order;
+}
+
+void WENOReconstruction::SetEpsilon(const double epsilon) {
+    if (!(epsilon > 0.0) || !std::isfinite(epsilon)) {
+        throw std::invalid_argument("WENOReconstruction: epsilon must be positive");
+    }
+    epsilon_ = epsilon;
+}
+
+void WENOReconstruction::SetNonlinearWeightPower(const int p) {
+    if (p < 1) {
+        throw std::invalid_argument("WENOReconstruction: p must be >= 1");
+    }
+    p_ = p;
+}
+
+// ----------------------- private helpers (methods) -----------------------
+
+double WENOReconstruction::PowInt(const double x, const int p) {
+    if (p == 1) return x;
+    if (p == 2) return x * x;
+    return std::pow(x, static_cast<double>(p));
+}
+
+void WENOReconstruction::ComputeNonlinearWeights(const double* beta,
+                                                 const double* d,
+                                                 const int r,
+                                                 const double eps,
+                                                 const int p,
+                                                 double* omega) {
+    double alpha_sum = 0.0;
     for (int k = 0; k < r; ++k) {
-        const double denom = std::pow(epsilon + beta[k], p);
+        const double denom = PowInt(eps + beta[k], p);
         const double alpha = d[k] / denom;
         omega[k] = alpha;
         alpha_sum += alpha;
     }
 
-    if (alpha_sum <= 0.0) {
-        // Fallback to linear weights if something goes wrong.
-        for (int k = 0; k < r; ++k) {
-            omega[k] = d[k];
-        }
-    } else {
-        const double inv = 1.0 / alpha_sum;
-        for (int k = 0; k < r; ++k) {
-            omega[k] *= inv;
-        }
+    if (!(alpha_sum > 0.0) || !std::isfinite(alpha_sum)) {
+        for (int k = 0; k < r; ++k) omega[k] = d[k];
+        return;
     }
+
+    const double inv = 1.0 / alpha_sum;
+    for (int k = 0; k < r; ++k) omega[k] *= inv;
 }
 
-// ----- WENO3: left-biased scalar reconstruction at interface i+1/2 -----
+double WENOReconstruction::LoadAt(const xt::xtensor<double, 4>& W,
+                                  const std::size_t v,
+                                  const int i, const int j, const int k,
+                                  const AxisStride& st,
+                                  const int offset) {
+    return W(v,
+             i + offset * st.di,
+             j + offset * st.dj,
+             k + offset * st.dk);
+}
 
-double Weno3LeftScalar(const xt::xarray<double>& f,
-                       int i,
-                       int total_size,
-                       double epsilon,
-                       int p) {
-    // Need cells: i-1, i, i+1
-    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
-    const int half = 1; // (3-1)/2
+void WENOReconstruction::StorePrimitiveComponent(PrimitiveCell& w, const std::size_t v, const double val) {
+    if (v == var::u_rho) w.rho = val;
+    else if (v == var::u_u) w.u = val;
+    else if (v == var::u_v) w.v = val;
+    else if (v == var::u_w) w.w = val;
+    else w.P = val;
+}
 
-    if (i < half || i > n_interfaces - 1 - half) {
-        // Near boundaries: fall back to piecewise-constant.
-        return f(i);
-    }
+// ----- WENO3 (JS) -----
 
-    const double fim1 = f(i - 1);
-    const double fi = f(i);
-    const double fip1 = f(i + 1);
+double WENOReconstruction::Weno3Left(const double fim1, const double fi, const double fip1,
+                                     const double eps, const int p) {
+    const double d[2] = {1.0 / 3.0, 2.0 / 3.0};
 
-    // Linear weights for WENO3 (JS)
-    const int r = 2;
-    const double d[r] = {1.0 / 3.0, 2.0 / 3.0};
-
-    // Smoothness indicators
-    double beta[r];
+    double beta[2];
     beta[0] = (fi - fim1) * (fi - fim1);
     beta[1] = (fip1 - fi) * (fip1 - fi);
 
-    // Candidate polynomials at i+1/2
-    //
-    // q0 = -0.5*f_{i-1} + 1.5*f_{i}
-    // q1 =  0.5*f_{i}   + 0.5*f_{i+1}
-    static const double C[2][3] = {
-        {-0.5, 1.5, 0.0}, // q0: f_{i-1}, f_i, f_{i+1}
-        {0.0, 0.5, 0.5} // q1: f_{i-1}, f_i, f_{i+1}
-    };
+    const double q0 = -0.5 * fim1 + 1.5 * fi;
+    const double q1 =  0.5 * fi   + 0.5 * fip1;
 
-    const double q0 = C[0][0] * fim1 + C[0][1] * fi + C[0][2] * fip1;
-    const double q1 = C[1][0] * fim1 + C[1][1] * fi + C[1][2] * fip1;
-
-    double omega[r];
-    ComputeNonlinearWeights(beta, d, r, epsilon, p, omega);
+    double omega[2];
+    ComputeNonlinearWeights(beta, d, 2, eps, p, omega);
 
     return omega[0] * q0 + omega[1] * q1;
 }
 
-// ----- WENO5: left-biased scalar reconstruction at interface i+1/2 -----
+double WENOReconstruction::Weno3Right(const double fi, const double fip1, const double fip2,
+                                      const double eps, const int p) {
+    const double d[2] = {2.0 / 3.0, 1.0 / 3.0};
 
-double Weno5LeftScalar(const xt::xarray<double>& f,
-                       int i,
-                       int total_size,
-                       double epsilon,
-                       int p) {
-    // Need cells: i-2, i-1, i, i+1, i+2
-    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
-    const int half = 2;
+    double beta[2];
+    beta[0] = (fip2 - fip1) * (fip2 - fip1);
+    beta[1] = (fip1 - fi)   * (fip1 - fi);
 
-    if (i < half || i > n_interfaces - 1 - half) {
-        // Near boundaries: fall back to piecewise-constant.
-        return f(i);
-    }
+    const double q0 = 0.5 * fip1 + 0.5 * fip2;
+    const double q1 = 1.5 * fip1 - 0.5 * fi;
 
-    const double fim2 = f(i - 2);
-    const double fim1 = f(i - 1);
-    const double fi = f(i);
-    const double fip1 = f(i + 1);
-    const double fip2 = f(i + 2);
+    double omega[2];
+    ComputeNonlinearWeights(beta, d, 2, eps, p, omega);
 
-    // Linear weights for WENO5 (JS)
-    const int r = 3;
-    const double d[r] = {0.1, 0.6, 0.3}; // {1/10, 6/10, 3/10}
+    return omega[0] * q0 + omega[1] * q1;
+}
 
-    // Smoothness indicators (Jiang–Shu)
-    double beta[r];
+// ----- WENO5 (JS) -----
 
-    // β0
+double WENOReconstruction::Weno5Left(const double fim2, const double fim1, const double fi,
+                                     const double fip1, const double fip2,
+                                     const double eps, const int p) {
+    const double d[3] = {0.1, 0.6, 0.3};
+
+    double beta[3];
     {
         const double t1 = fim2 - 2.0 * fim1 + fi;
         const double t2 = fim2 - 4.0 * fim1 + 3.0 * fi;
         beta[0] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
-
-    // β1
     {
         const double t1 = fim1 - 2.0 * fi + fip1;
         const double t2 = fim1 - fip1;
         beta[1] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
-
-    // β2
     {
         const double t1 = fi - 2.0 * fip1 + fip2;
         const double t2 = 3.0 * fi - 4.0 * fip1 + fip2;
         beta[2] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
 
-    // Candidate polynomials at i+1/2 written as
-    // qk = sum_{m=-2}^{2} C[k][m+2] * f_{i+m}
-    static const double C[3][5] = {
-        // q0 uses stencil {i-2, i-1, i}
-        {1.0 / 3.0, -7.0 / 6.0, 11.0 / 6.0, 0.0, 0.0},
-        // q1 uses stencil {i-1, i, i+1}
-        {0.0, -1.0 / 6.0, 5.0 / 6.0, 1.0 / 3.0, 0.0},
-        // q2 uses stencil {i, i+1, i+2}
-        {0.0, 0.0, 1.0 / 3.0, 5.0 / 6.0, -1.0 / 6.0}
-    };
+    const double q0 = (1.0 / 3.0) * fim2 + (-7.0 / 6.0) * fim1 + (11.0 / 6.0) * fi;
+    const double q1 = (-1.0 / 6.0) * fim1 + (5.0 / 6.0) * fi + (1.0 / 3.0) * fip1;
+    const double q2 = (1.0 / 3.0) * fi + (5.0 / 6.0) * fip1 + (-1.0 / 6.0) * fip2;
 
-    const double q0 = C[0][0] * fim2 + C[0][1] * fim1 + C[0][2] * fi +
-                      C[0][3] * fip1 + C[0][4] * fip2;
-
-    const double q1 = C[1][0] * fim2 + C[1][1] * fim1 + C[1][2] * fi +
-                      C[1][3] * fip1 + C[1][4] * fip2;
-
-    const double q2 = C[2][0] * fim2 + C[2][1] * fim1 + C[2][2] * fi +
-                      C[2][3] * fip1 + C[2][4] * fip2;
-
-    double omega[r];
-    ComputeNonlinearWeights(beta, d, r, epsilon, p, omega);
+    double omega[3];
+    ComputeNonlinearWeights(beta, d, 3, eps, p, omega);
 
     return omega[0] * q0 + omega[1] * q1 + omega[2] * q2;
 }
 
-// ----- Generic left-biased dispatcher (scalar) -----
+double WENOReconstruction::Weno5Right(const double fim1, const double fi, const double fip1,
+                                      const double fip2, const double fip3,
+                                      const double eps, const int p) {
+    const double d[3] = {0.3, 0.6, 0.1};
 
-double WenoLeftScalar(const xt::xarray<double>& f,
-                      int i,
-                      int total_size,
-                      int order,
-                      double epsilon,
-                      int p) {
-    switch (order) {
-        case 3:
-            return Weno3LeftScalar(f, i, total_size, epsilon, p);
-        case 5:
-            return Weno5LeftScalar(f, i, total_size, epsilon, p);
-        default:
-            // Should not happen if user guarantees {3,5}.
-            throw std::runtime_error("WENOReconstruction: unsupported order.");
+    double beta[3];
+    {
+        const double t1 = fip3 - 2.0 * fip2 + fip1;
+        const double t2 = fip3 - 4.0 * fip2 + 3.0 * fip1;
+        beta[0] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
-}
-
-// Reconstruct left states on a given triple of scalar fields.
-void ReconstructLeftStatesOnScalars(const xt::xarray<double>& rho,
-                                    const xt::xarray<double>& u,
-                                    const xt::xarray<double>& P,
-                                    int order,
-                                    double epsilon,
-                                    int p,
-                                    xt::xarray<Primitive>& left_states) {
-    const int total_size = static_cast<int>(rho.shape()[0]);
-    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
-
-    for (int i = 0; i < n_interfaces; ++i) {
-        Primitive w;
-        w.rho = WenoLeftScalar(rho, i, total_size, order, epsilon, p);
-        w.u = WenoLeftScalar(u, i, total_size, order, epsilon, p);
-        w.P = WenoLeftScalar(P, i, total_size, order, epsilon, p);
-        left_states(i) = w;
+    {
+        const double t1 = fip2 - 2.0 * fip1 + fi;
+        const double t2 = fip2 - fi;
+        beta[1] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
-}
-} // namespace
-
-// ----- WENOReconstruction methods -----
-
-void WENOReconstruction::SetOrder(const int order) {
-    order_ = order;
-}
-
-void WENOReconstruction::SetEpsilon(const double eps) {
-    epsilon_ = eps;
-}
-
-void WENOReconstruction::SetNonlinearWeightPower(const int p) {
-    p_ = p;
-}
-
-void WENOReconstruction::ReconstructStates(const DataLayer& layer,
-                                           xt::xarray<Primitive>& left_states,
-                                           xt::xarray<Primitive>& right_states) const {
-    const int total_size = layer.GetTotalSize();
-    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
-    const std::size_t n_int = static_cast<std::size_t>(n_interfaces);
-
-    left_states = xt::xarray<Primitive>::from_shape({n_int});
-    right_states = xt::xarray<Primitive>::from_shape({n_int});
-
-    if (n_interfaces <= 0) {
-        return;
+    {
+        const double t1 = fip1 - 2.0 * fi + fim1;
+        const double t2 = 3.0 * fip1 - 4.0 * fi + fim1;
+        beta[2] = 13.0 / 12.0 * t1 * t1 + 0.25 * t2 * t2;
     }
 
-    // Left states: WENO on original arrays.
-    ReconstructLeftStatesOnScalars(layer.rho, layer.u, layer.P, order_, epsilon_, p_,
-                                   left_states);
+    const double q0 = (-1.0 / 6.0) * fip3 + (5.0 / 6.0) * fip2 + (1.0 / 3.0) * fip1;
+    const double q1 = (1.0 / 3.0) * fip2 + (5.0 / 6.0) * fip1 + (-1.0 / 6.0) * fi;
+    const double q2 = (11.0 / 6.0) * fip1 + (-7.0 / 6.0) * fi + (1.0 / 3.0) * fim1;
 
-    // Right states: apply the same left-biased reconstruction on a reversed grid
-    // and then mirror the interface indices back.
-    //
-    // Reverse primitive fields: f_rev(k) = f(N-1-k).
-    xt::xarray<double> rho_rev = xt::xarray<double>::from_shape(
-        {static_cast<std::size_t>(total_size)});
-    xt::xarray<double> u_rev = xt::xarray<double>::from_shape(
-        {static_cast<std::size_t>(total_size)});
-    xt::xarray<double> P_rev = xt::xarray<double>::from_shape(
-        {static_cast<std::size_t>(total_size)});
+    double omega[3];
+    ComputeNonlinearWeights(beta, d, 3, eps, p, omega);
 
-    for (int k = 0; k < total_size; ++k) {
-        const int kk = total_size - 1 - k;
-        rho_rev(k) = layer.rho(kk);
-        u_rev(k) = layer.u(kk);
-        P_rev(k) = layer.P(kk);
-    }
+    return omega[0] * q0 + omega[1] * q1 + omega[2] * q2;
+}
 
-    // Temporary left states on reversed grid.
-    xt::xarray<Primitive> left_rev =
-        xt::xarray<Primitive>::from_shape({n_int});
+// ----------------------- main API -----------------------
 
-    ReconstructLeftStatesOnScalars(rho_rev, u_rev, P_rev, order_, epsilon_, p_, left_rev);
+void WENOReconstruction::ReconstructFace(const xt::xtensor<double, 4>& W,
+                                         const Axis axis,
+                                         const int i, const int j, const int k,
+                                         PrimitiveCell& WL,
+                                         PrimitiveCell& WR) const {
+    const AxisStride st = AxisStride::FromAxis(axis);
 
-    // Map them back: interface i in original grid corresponds to
-    // interface (n_interfaces - 1 - i) in the reversed grid.
-    for (int i = 0; i < n_interfaces; ++i) {
-        const int j = n_interfaces - 1 - i;
-        right_states(i) = left_rev(j);
+    for (std::size_t v = 0; v < var::nvar; ++v) {
+        double wl = 0.0;
+        double wr = 0.0;
+
+        if (order_ == 3) {
+            // WL at face i+1/2 from left cell i: uses offsets {-1,0,+1}
+            const double fim1 = LoadAt(W, v, i, j, k, st, -1);
+            const double fi   = LoadAt(W, v, i, j, k, st,  0);
+            const double fip1 = LoadAt(W, v, i, j, k, st, +1);
+
+            // WR at same face from right cell (i+1): needs {0,+1,+2} in left-cell indexing
+            const double fip2 = LoadAt(W, v, i, j, k, st, +2);
+
+            wl = Weno3Left (fim1, fi,   fip1, epsilon_, p_);
+            wr = Weno3Right(fi,   fip1, fip2, epsilon_, p_);
+        } else {
+            // order_ == 5
+            // WL uses {-2,-1,0,+1,+2}
+            const double fim2 = LoadAt(W, v, i, j, k, st, -2);
+            const double fim1 = LoadAt(W, v, i, j, k, st, -1);
+            const double fi   = LoadAt(W, v, i, j, k, st,  0);
+            const double fip1 = LoadAt(W, v, i, j, k, st, +1);
+            const double fip2 = LoadAt(W, v, i, j, k, st, +2);
+
+            // WR uses {-1,0,+1,+2,+3}
+            const double fip3 = LoadAt(W, v, i, j, k, st, +3);
+
+            wl = Weno5Left (fim2, fim1, fi,   fip1, fip2, epsilon_, p_);
+            wr = Weno5Right(fim1, fi,   fip1, fip2, fip3, epsilon_, p_);
+        }
+
+        StorePrimitiveComponent(WL, v, wl);
+        StorePrimitiveComponent(WR, v, wr);
     }
 }

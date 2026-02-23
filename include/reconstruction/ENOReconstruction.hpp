@@ -2,70 +2,43 @@
 #define ENORECONSTRUCTION_HPP
 
 #include "reconstruction/Reconstruction.hpp"
-#include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
 
 /**
  * @class ENOReconstruction
- * @brief Essentially Non-Oscillatory reconstruction of arbitrary order.
+ * @brief Essentially Non-Oscillatory reconstruction of arbitrary order r (runtime).
  *
- * This class implements an ENO reconstruction on a 1D uniform grid for
- * the primitive variables stored in a DataLayer. The formal order of
- * accuracy in space is controlled by the integer parameter @p order.
+ * Reconstructs primitive variables W=(rho,u,v,w,P) at a face using an ENO stencil
+ * selected by the divided-difference smoothness criterion (uniform grid in index space).
  *
- * For a given order r, interface values are reconstructed using stencils
- * of size r chosen adaptively according to the ENO smoothness criterion.
- * The same stencil is applied component-wise to all primitive variables.
+ * Face indexing convention:
+ *  - (i,j,k) is the LEFT cell adjacent to the face.
+ *  - RIGHT cell is +1 along axis.
+ *
+ * For each face:
+ *  - WL is reconstructed from base cell (i,j,k) evaluated at x = base + 0.5
+ *  - WR is reconstructed from base cell (i+1 along axis) evaluated at x = base - 0.5
+ *
+ * Contract:
+ *  - No allocations in the hot path after first call (thread-local scratch buffers).
  */
-class ENOReconstruction : public Reconstruction {
+class ENOReconstruction final : public Reconstruction {
 public:
-    /**
-     * @brief Constructs an ENO reconstruction of the given order.
-     *
-     * @param order Formal ENO reconstruction order (r ≥ 1).
-     */
+    /** @brief Constructs ENO of given order r (r >= 1). */
     explicit ENOReconstruction(int order);
 
-    /**
-     * @brief Virtual destructor.
-     */
     ~ENOReconstruction() override = default;
 
-    /**
-     * @brief Returns the current ENO order.
-     *
-     * @return Integer order r.
-     */
-    [[nodiscard]] auto GetOrder() const -> int { return order_; }
-
-    /**
-     * @brief Sets the ENO reconstruction order.
-     *
-     * @param order New integer order r.
-     */
+    [[nodiscard]] int GetOrder() const { return order_; }
     void SetOrder(int order);
 
-    /**
-     * @brief Reconstructs left/right primitive states at all interfaces.
-     *
-     * For a 1D layer of total size @c M , this method fills
-     *
-     *  - @p left_states(i)  with the left state at interface i+1/2,
-     *  - @p right_states(i) with the right state at interface i+1/2,
-     *
-     * for i = 0,1,...,M-2. The arrays @p left_states and @p right_states
-     * are resized internally to match the number of interfaces.
-     *
-     * @param layer        DataLayer with primitive fields.
-     * @param left_states  Output array of left interface states.
-     * @param right_states Output array of right interface states.
-     */
-    void ReconstructStates(const DataLayer& layer,
-                           xt::xarray<Primitive>& left_states,
-                           xt::xarray<Primitive>& right_states) const override;
+    void ReconstructFace(const xt::xtensor<double, 4>& W,
+                         Axis axis,
+                         int i, int j, int k,
+                         PrimitiveCell& WL,
+                         PrimitiveCell& WR) const override;
 
 private:
-    int order_;
+    int order_ = 1;
 };
 
 #endif  // ENORECONSTRUCTION_HPP

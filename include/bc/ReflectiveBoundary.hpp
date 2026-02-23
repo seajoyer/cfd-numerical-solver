@@ -2,19 +2,24 @@
 #define REFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
+#include "data/DataLayer.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class ReflectiveBoundary
- * @brief Reflecting wall boundary condition for 1D and 2D.
+ * @brief Reflective (slip-wall) boundary condition for conservative Euler state U.
  *
- * Mirrors the state across the boundary and reverses the normal velocity component.
- * In 2D, only the velocity component normal to the boundary is reflected.
+ * Ghost cells are filled by mirroring interior cells across the boundary.
+ * The normal momentum component is inverted, tangential components are copied.
+ *
+ * For axis:
+ *  - X: rhoU changes sign
+ *  - Y: rhoV changes sign
+ *  - Z: rhoW changes sign
  */
-class ReflectiveBoundary : public BoundaryCondition {
+class ReflectiveBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, int axis, Side side) const override;
-private:
-    void Apply2D(DataLayer& layer, int axis, Side side) const;
+    void Apply(DataLayer& layer, Axis axis, Side side) const override;
 };
 
 #endif  // REFLECTIVEBOUNDARY_HPP

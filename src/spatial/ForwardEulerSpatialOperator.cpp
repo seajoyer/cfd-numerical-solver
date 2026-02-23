@@ -1,66 +1,111 @@
 #include "spatial/ForwardEulerSpatialOperator.hpp"
 
-#include <algorithm>
+#include <stdexcept>
 
-#include "data/DataLayer.hpp"
+#include "bc/BoundaryManager.hpp"
 #include "data/Variables.hpp"
 #include "viscosity/VNRArtificialViscosity.hpp"
 
-ForwardEulerSpatialOperator::ForwardEulerSpatialOperator(const Settings& settings) {
+ForwardEulerSpatialOperator::ForwardEulerSpatialOperator(
+    const Settings& settings,
+    std::shared_ptr<BoundaryManager> boundary_manager)
+    : SpatialOperator(std::move(boundary_manager)) {
     viscosity_ = nullptr;
     if (settings.viscosity) {
         viscosity_ = std::make_shared<VNRArtificialViscosity>(settings);
     }
 }
 
-void ForwardEulerSpatialOperator::ComputeRHS(const DataLayer& layer,
-                                             double dx,
-                                             double gamma,
-                                             xt::xarray<Conservative>& rhs) const {
-    const int total_size = layer.GetTotalSize();
-    const int core_start = layer.GetCoreStart(0);
-    const int core_end = layer.GetCoreEndExclusive(0);
-    const int n_core = core_end - core_start;
+PrimitiveCell ForwardEulerSpatialOperator::LoadPrimitive(const xt::xtensor<double, 4>& W,
+                                                         const int i, const int j, const int k) {
+    PrimitiveCell w;
+    w.rho = W(var::u_rho, i, j, k);
+    w.u = W(var::u_u, i, j, k);
+    w.v = W(var::u_v, i, j, k);
+    w.w = W(var::u_w, i, j, k);
+    w.P = W(var::u_P, i, j, k);
+    return w;
+}
 
-    if (total_size < 3 || n_core < 2 || dx <= 0.0) {
-        rhs = xt::xarray<Conservative>::from_shape(
-            {static_cast<std::size_t>(std::max(total_size, 0))});
-        for (int j = 0; j < total_size; ++j) rhs(j) = Conservative{};
-        return;
+[[nodiscard]] const xt::xtensor<double, 1>&
+ForwardEulerSpatialOperator::InvMetric(const DataLayer& layer, const Axis axis) const {
+    if (axis == Axis::X) return layer.InvDx();
+    if (axis == Axis::Y) return layer.InvDy();
+    return layer.InvDz();
+}
+
+void ForwardEulerSpatialOperator::AccumulateAxis(const DataLayer& layer,
+                                                 const xt::xtensor<double, 4>& W,
+                                                 xt::xtensor<double, 4>& rhs,
+                                                 const double gamma,
+                                                 const Axis axis) const {
+    const AxisStride st = AxisStride::FromAxis(axis);
+    const auto& inv_h = InvMetric(layer, axis);
+
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
+
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                const int ip = i + st.di;
+                const int jp = j + st.dj;
+                const int kp = k + st.dk;
+
+                const PrimitiveCell w0 = LoadPrimitive(W, i, j, k);
+                const PrimitiveCell w1 = LoadPrimitive(W, ip, jp, kp);
+
+                const FluxCell F0 = EulerFlux(w0, gamma, axis);
+                const FluxCell F1 = EulerFlux(w1, gamma, axis);
+
+                const int idx = (axis == Axis::X) ? i : (axis == Axis::Y) ? j : k;
+                const double inv = inv_h(static_cast<std::size_t>(idx));
+
+                rhs(DataLayer::k_rho, i, j, k) += -(F1.mass - F0.mass) * inv;
+                rhs(DataLayer::k_rhoU, i, j, k) += -(F1.mom_x - F0.mom_x) * inv;
+                rhs(DataLayer::k_rhoV, i, j, k) += -(F1.mom_y - F0.mom_y) * inv;
+                rhs(DataLayer::k_rhoW, i, j, k) += -(F1.mom_z - F0.mom_z) * inv;
+                rhs(DataLayer::k_E, i, j, k) += -(F1.energy - F0.energy) * inv;
+            }
+        }
+    }
+}
+
+void ForwardEulerSpatialOperator::ComputeRHS(DataLayer& layer, Workspace& workspace, const double gamma,
+                                             const double dt) const {
+    if (!boundary_manager_) {
+        throw std::runtime_error("ForwardEulerSpatialOperator: boundary_manager_ is null");
     }
 
-    rhs = xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
-    for (int j = 0; j < total_size; ++j) rhs(j) = Conservative{};
+    const int ng = layer.GetPadding();
+    if (ng < 1) {
+        throw std::runtime_error("ForwardEulerSpatialOperator: requires at least 1 ghost cell (ng>=1)");
+    }
 
-    xt::xarray<double> q_face;
+    workspace.ResizeFrom(layer);
+
+    boundary_manager_->UpdateHalo(layer);
+    boundary_manager_->ApplyPhysicalBc(layer);
+
+    ConvertUtoW(layer.U(), workspace.W(), gamma,
+                0, layer.GetSx(),
+                0, layer.GetSy(),
+                0, layer.GetSz());
+
+    workspace.ZeroRhs();
+
+    auto& rhs = workspace.Rhs();
+    const auto& W = workspace.W();
+
+    AccumulateAxis(layer, W, rhs, gamma, Axis::X);
+    if (layer.GetDim() >= 2) AccumulateAxis(layer, W, rhs, gamma, Axis::Y);
+    if (layer.GetDim() >= 3) AccumulateAxis(layer, W, rhs, gamma, Axis::Z);
+
     if (viscosity_) {
-        viscosity_->ComputeInterfaceQ(layer, dx, q_face);
-    } else {
-        q_face = xt::zeros<double>({static_cast<std::size_t>(total_size - 1)});
-    }
-
-    xt::xarray<double> q_cell = xt::zeros<double>({static_cast<std::size_t>(total_size)});
-    for (int j = 1; j < total_size - 1; ++j) {
-        q_cell(j) = 0.5 * (q_face(j - 1) + q_face(j));
-    }
-
-    xt::xarray<Flux> fluxes =
-        xt::xarray<Flux>::from_shape({static_cast<std::size_t>(total_size)});
-
-    for (int j = 0; j < total_size; ++j) {
-        Primitive w = layer.GetPrimitive(j);
-        w.P += q_cell(j);
-        fluxes(j) = EulerFlux(w, gamma);
-    }
-
-    const double inv_dx = 1.0 / dx;
-
-    for (int j = core_start; j < core_end; ++j) {
-        const Flux dF = Flux::Diff(fluxes(j + 1), fluxes(j));
-
-        Conservative lj;
-        lj = -1 * dF * inv_dx;
-
-        rhs(j) = lj;
+        viscosity_->AddToRhs(layer, workspace.W(), gamma, dt, workspace.Rhs());
     }
 }

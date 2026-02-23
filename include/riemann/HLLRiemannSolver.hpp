@@ -1,33 +1,20 @@
 #ifndef HLLRIEMANNSOLVER_HPP
 #define HLLRIEMANNSOLVER_HPP
 
-#include "RiemannSolver.hpp"
+#include "riemann/RiemannSolver.hpp"
 
 /**
  * @class HLLRiemannSolver
- * @brief HLL (Harten–Lax–van Leer) approximate Riemann solver.
- *
- * Uses a two-wave approximation with estimates of the minimal and maximal
- * signal velocities. It is robust and diffusive and does not resolve
- * contact discontinuities exactly.
+ * @brief HLL approximate Riemann solver (two-wave model).
  */
-class HLLRiemannSolver : public RiemannSolver {
-   public:
-    /**
-     * @brief Default constructor.
-     */
+class HLLRiemannSolver final : public RiemannSolver {
+public:
     HLLRiemannSolver() = default;
 
-    /**
-     * @brief Computes the HLL numerical flux.
-     *
-     * @param left Left primitive state.
-     * @param right Right primitive state.
-     * @param gamma Ratio of specific heats.
-     * @return HLL flux at the interface.
-     */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
-                                   double gamma) const -> Flux override;
+    [[nodiscard]] auto ComputeFlux(const PrimitiveCell& left,
+                                   const PrimitiveCell& right,
+                                   double gamma,
+                                   Axis axis) const -> FluxCell override;
 };
 
 #endif  // HLLRIEMANNSOLVER_HPP

@@ -1,137 +1,176 @@
 #ifndef VARIABLES_HPP
 #define VARIABLES_HPP
 
-/**
- * @class Primitive
- * @brief Primitive (physical) state for the 1D/2D Euler equations.
- *
- *  - rho: density
- *  - u:   velocity in x-direction
- *  - v:   velocity in y-direction (used only in 2D; 0 in 1D)
- *  - P:   thermodynamic pressure
- */
-struct Primitive {
-    double rho;  ///< Density
-    double u;    ///< Velocity in x-direction
-    double v;    ///< Velocity in y-direction (0 in 1D)
-    double P;    ///< Thermodynamic pressure
+#include <cstddef>
+#include <cstdint>
+#include <xtensor.hpp>
 
-    Primitive();
-    Primitive(double rho_, double u_, double P_);
-    Primitive(double rho_, double u_, double v_, double P_);
+/**
+ * @file Variables.hpp
+ * @brief Minimal variable utilities for Euler equations (ideal gas), optimized for clarity.
+ *
+ * Conventions:
+ *  - Conservative field: U(var, i, j, k), var = (rho, rhoU, rhoV, rhoW, E)
+ *  - Primitive field:    W(var, i, j, k), var = (rho, u, v, w, P)
+ *
+ * This module provides:
+ *  - Cell-level conversion U -> W (ideal gas).
+ *  - Cell-level Euler flux from primitive variables.
+ *  - Field conversion U -> W over a region (no allocations inside).
+ */
+
+enum class Axis : std::uint8_t { X = 0, Y = 1, Z = 2 };
+
+/**
+ * @brief Integer stride (di,dj,dk) for stepping along a given axis.
+ *
+ * Axis::X -> (1,0,0), Axis::Y -> (0,1,0), Axis::Z -> (0,0,1)
+ */
+struct AxisStride final {
+    int di = 0;
+    int dj = 0;
+    int dk = 0;
+
+    [[nodiscard]] static constexpr AxisStride FromAxis(Axis axis) {
+        return axis == Axis::X
+                   ? AxisStride{.di = 1, .dj = 0, .dk = 0}
+                   : axis == Axis::Y
+                   ? AxisStride{.di = 0, .dj = 1, .dk = 0}
+                   : AxisStride{.di = 0, .dj = 0, .dk = 1};
+    }
+};
+
+namespace var {
+    // Conservative indices in U(var, i, j, k)
+    static constexpr std::size_t rho = 0;
+    static constexpr std::size_t rhoU = 1;
+    static constexpr std::size_t rhoV = 2;
+    static constexpr std::size_t rhoW = 3;
+    static constexpr std::size_t E = 4;
+
+    // Primitive indices in W(var, i, j, k)
+    static constexpr std::size_t u_rho = 0;
+    static constexpr std::size_t u_u = 1;
+    static constexpr std::size_t u_v = 2;
+    static constexpr std::size_t u_w = 3;
+    static constexpr std::size_t u_P = 4;
+
+    // Number of variables
+    static constexpr std::size_t nvar = 5;
+} // namespace var
+
+/**
+ * @brief Primitive state in one cell.
+ */
+struct PrimitiveCell final {
+    double rho = 0.0;
+    double u = 0.0;
+    double v = 0.0;
+    double w = 0.0;
+    double P = 0.0;
 };
 
 /**
- * @class Flux
- * @brief Numerical flux for the 1D/2D Euler equations.
- *
- *  - mass:       mass flux
- *  - momentum_x: x-momentum flux
- *  - momentum_y: y-momentum flux (transverse; 0 in 1D)
- *  - energy:     energy flux
+ * @brief Euler flux vector (5 components) at a face/cell.
+ * Order matches conservative variables: (mass, mom_x, mom_y, mom_z, energy).
  */
-struct Flux {
-    double mass;        ///< Mass flux
-    double momentum_x;  ///< x-Momentum flux (alias: momentum)
-    double momentum_y;  ///< y-Momentum flux (transverse advection in x-sweep)
-    double energy;      ///< Energy flux
-
-    // Legacy alias for backward compatibility with 1D code
-    double& momentum;   ///< Reference to momentum_x for 1D compatibility
-
-    Flux();
-    Flux(double m, double mu, double e);
-    Flux(double m, double mu_x, double mu_y, double e);
-
-    Flux(const Flux& other);
-    auto operator=(const Flux& other) -> Flux&;
-
-    static auto Diff(const Flux& Fplus, const Flux& Fminus) -> Flux;
+struct FluxCell final {
+    double mass = 0.0;
+    double mom_x = 0.0;
+    double mom_y = 0.0;
+    double mom_z = 0.0;
+    double energy = 0.0;
 };
 
 /**
- * @class Conservative
- * @brief Conservative state for the 1D/2D Euler equations.
- *
- *  - rho:  mass density
- *  - rhoU: x-momentum density
- *  - rhoV: y-momentum density (0 in 1D)
- *  - E:    total energy density
+ * @brief Convert conservative state U at (i,j,k) to primitive state W (ideal gas).
+ * @param U Conservative field U(var, i, j, k).
+ * @param i,j,k Cell indices.
+ * @param gamma Ratio of specific heats.
+ * @param rho_floor Minimum density used if rho <= 0 (safety).
+ * @param p_floor Minimum pressure used if computed P <= 0 (safety).
  */
-struct Conservative {
-    double rho;   ///< Mass density
-    double rhoU;  ///< x-Momentum density
-    double rhoV;  ///< y-Momentum density (0 in 1D)
-    double E;     ///< Total energy density
+[[nodiscard]] PrimitiveCell PrimitiveFromConservative(
+    const xt::xtensor<double, 4>& U,
+    int i, int j, int k,
+    double gamma,
+    double rho_floor = 1e-14,
+    double p_floor = 1e-14
+);
 
-    Conservative();
-    Conservative(double rho_, double rhoU_, double E_);
-    Conservative(double rho_, double rhoU_, double rhoV_, double E_);
-    auto operator=(const Flux& f) -> Conservative&;
+/**
+ * @brief Speed of sound for ideal gas from primitive state.
+ */
+[[nodiscard]] double SoundSpeed(const PrimitiveCell& w, double gamma, double p_floor = 1e-14);
+
+/**
+ * @brief Euler flux from primitive state along a given axis (ideal gas).
+ */
+[[nodiscard]] FluxCell EulerFlux(const PrimitiveCell& w, double gamma, Axis axis);
+
+/**
+ * @brief Convert U -> W over a rectangular region [i0,i1) x [j0,j1) x [k0,k1).
+ * @details No allocations inside; W must have shape (5, sx, sy, sz).
+ */
+void ConvertUtoW(
+    const xt::xtensor<double, 4>& U,
+    xt::xtensor<double, 4>& W,
+    double gamma,
+    int i0, int i1,
+    int j0, int j1,
+    int k0, int k1,
+    double rho_floor = 1e-14,
+    double p_floor = 1e-14
+);
+
+/**
+ * @brief Normal velocity component for a primitive state along the given axis.
+ */
+[[nodiscard]] double NormalVelocity(const PrimitiveCell& w, Axis axis);
+
+/**
+ * @brief Convert primitive to conservative components (rho, rhoU, rhoV, rhoW, E).
+ */
+void PrimitiveToConservative(const PrimitiveCell& w,
+                             double gamma,
+                             double& rho,
+                             double& rhoU,
+                             double& rhoV,
+                             double& rhoW,
+                             double& E);
+
+/**
+ * @brief Conservative state in one cell.
+ * Order matches U = (rho, rhoU, rhoV, rhoW, E).
+ */
+struct ConservativeCell final {
+    double rho  = 0.0;
+    double rhoU = 0.0;
+    double rhoV = 0.0;
+    double rhoW = 0.0;
+    double E    = 0.0;
+
+    // Lightweight arithmetic helpers (no allocations)
+    ConservativeCell& operator+=(const ConservativeCell& other);
+    ConservativeCell& operator-=(const ConservativeCell& other);
 };
 
-/**
- * @brief Computes the physical Euler flux in the x-direction for a primitive state.
- *
- * For the 2D Euler equations, the x-direction flux is:
- *  - mass flux       = rho * u
- *  - x-momentum flux = rho * u^2 + P
- *  - y-momentum flux = rho * u * v
- *  - energy flux     = u * (E + P)
- *
- * where E = P / (gamma - 1) + 0.5 * rho * (u^2 + v^2)
- */
-auto EulerFlux(const Primitive& state, double gamma) -> Flux;
+[[nodiscard]] ConservativeCell operator+(ConservativeCell a, const ConservativeCell& b);
+[[nodiscard]] ConservativeCell operator-(ConservativeCell a, const ConservativeCell& b);
+[[nodiscard]] ConservativeCell operator*(double s, ConservativeCell a);
+[[nodiscard]] ConservativeCell operator*(ConservativeCell a, double s);
 
 /**
- * @brief Computes the physical Euler flux in the y-direction for a primitive state.
- *
- * For the 2D Euler equations, the y-direction flux is:
- *  - mass flux       = rho * v
- *  - x-momentum flux = rho * u * v
- *  - y-momentum flux = rho * v^2 + P
- *  - energy flux     = v * (E + P)
+ * @brief Convert primitive state to conservative state (ideal gas).
  */
-auto EulerFluxY(const Primitive& state, double gamma) -> Flux;
+[[nodiscard]] ConservativeCell ConservativeFromPrimitive(const PrimitiveCell& w, double gamma);
 
-auto ToConservative(const Primitive& w, double gamma) -> Conservative;
-auto ToPrimitive(const Conservative& U, double gamma) -> Primitive;
-
-/// --- Small algebra helpers for Conservative ---
-
-auto operator+=(Conservative& a, const Conservative& b) -> Conservative&;
-auto operator-=(Conservative& a, const Conservative& b) -> Conservative&;
-auto operator+(Conservative a, const Conservative& b) -> Conservative;
-auto operator-(Conservative a, const Conservative& b) -> Conservative;
-auto operator*=(Conservative& a, double s) -> Conservative&;
-auto operator*(Conservative a, double s) -> Conservative;
-auto operator*(double s, Conservative a) -> Conservative;
-auto operator-=(Conservative& u, const Flux& f) -> Conservative&;
-auto operator-(Conservative u, const Flux& f) -> Conservative;
-auto operator+=(Conservative& u, const Flux& f) -> Conservative&;
-auto operator+(Conservative u, const Flux& f) -> Conservative;
-
-/// --- Small algebra helpers for Flux ---
-
-auto operator+=(Flux& a, const Flux& b) -> Flux&;
-auto operator-=(Flux& a, const Flux& b) -> Flux&;
-auto operator+(Flux a, const Flux& b) -> Flux;
-auto operator-(Flux a, const Flux& b) -> Flux;
-auto operator*=(Flux& a, double s) -> Flux&;
-auto operator*(Flux a, double s) -> Flux;
-auto operator*(double s, Flux a) -> Flux;
-auto operator+=(Flux& f, const Conservative& u) -> Flux&;
-auto operator+(Flux f, const Conservative& u) -> Flux;
-auto operator-(Flux f, const Conservative& u) -> Flux;
-
-/// --- Small algebra helpers for Primitive ---
-
-auto operator+=(Primitive& a, const Primitive& b) -> Primitive&;
-auto operator-=(Primitive& a, const Primitive& b) -> Primitive&;
-auto operator+(Primitive a, const Primitive& b) -> Primitive;
-auto operator-(Primitive a, const Primitive& b) -> Primitive;
-auto operator*=(Primitive& a, double s) -> Primitive&;
-auto operator*(Primitive a, double s) -> Primitive;
-auto operator*(double s, Primitive a) -> Primitive;
+/**
+ * @brief Convert conservative state to primitive state (ideal gas).
+ */
+[[nodiscard]] PrimitiveCell PrimitiveFromConservativeCell(const ConservativeCell& U,
+                                                         double gamma,
+                                                         double rho_floor = 1e-14,
+                                                         double p_floor = 1e-14);
 
 #endif  // VARIABLES_HPP

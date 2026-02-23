@@ -1,27 +1,23 @@
 #ifndef FORWARDEULERTIMEINTEGRATOR_HPP
 #define FORWARDEULERTIMEINTEGRATOR_HPP
 
-#include "TimeIntegrator.hpp"
+#include "time/TimeIntegrator.hpp"
 
 /**
  * @class ForwardEulerTimeIntegrator
- * @brief First-order explicit Euler time integration for FV systems.
+ * @brief First-order explicit Euler time integration for conservative FV systems.
  *
  * Implements:
- *
- *   U^{n+1} = U^n + dt * L(U^n),
- *
- * where L(U) is provided by a SpatialOperator. Positivity limiting
- * may be applied after the update.
+ *   U^{n+1} = U^n + dt * RHS(U^n)
  */
-class ForwardEulerTimeIntegrator : public TimeIntegrator {
+class ForwardEulerTimeIntegrator final : public TimeIntegrator {
 public:
-    ForwardEulerTimeIntegrator();
+    ForwardEulerTimeIntegrator() = default;
 
     void Advance(DataLayer& layer,
+                 Workspace& workspace,
                  double dt,
-                 double dx,
-                 const Settings& settings,
+                 double gamma,
                  const SpatialOperator& op) const override;
 };
 

@@ -1,27 +1,30 @@
 config:
-    run_cases: [lax_liu_3, lax_liu_12]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
-    
+    run_cases: [sod1_2d]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
+
     global:
-        solver: godunov
-        riemann_solver: hllc
-        reconstruction: P0
-        time_integrator: euler
-        left_boundary: free_stream
-        right_boundary: free_stream
-        bottom_boundary: free_stream
-        top_boundary: free_stream
+        solver: godunov-kolgan-rodionov
+        riemann_solver: exact
+        reconstruction: weno5
+        time_integrator: ssprk3
+        left_boundary: outlet
+        right_boundary: outlet
+        bottom_boundary: reflective
+        top_boundary: reflective
+        back_boundary: reflective
+        front_boundary: reflective
 
         global_limiter: false
         diffusion: false
-        viscosity: false
+        viscosity: true
 
         N: 200
-        Nx: 0      # 0 = use N
-        Ny: 0      # 0 = use N
-        cfl: 0.4
-        padding: 2
+        Nx: 200      # 0 = use N
+        Ny: 200      # 0 = use N
+        Nz: 1      # 0 = use N
+        cfl: 0.125
+        padding: 3
         gamma: 1.4
-        dim: 1
+        dim: 2
         L_x: 1
         L_y: 1
         L_z: 1
@@ -30,17 +33,18 @@ config:
 
         x0: 0.5
         y0: 0.5
-        analytical: true
+        z0: 0.5
+        analytical: false
 
         t_end: 0.25
         step_end: 0
 
-        log_every_steps: 50
+        log_every_steps: 10
         log_every_time: 0.0
 
-        output_every_steps: 50
+        output_every_steps: 20
         output_every_time: 0.0
-        
+
         output_formats: [vtk]
         output_dir: "../result"
 
@@ -76,12 +80,34 @@ config:
             x0: 0.5
             t_end: 0.012
 
+        sod4:
+            rho_L: 1.0
+            u_L: 0.0
+            P_L: 0.01
+            rho_R: 1.0
+            u_R: 0.0
+            P_R: 100.0
+
+            x0: 0.5
+            t_end: 0.035
+
+        sod5:
+            rho_L: 5.99924
+            u_L: 19.5975
+            P_L: 460.894
+            rho_R: 5.99242
+            u_R: -6.19633
+            P_R: 46.0950
+
+            x0: 0.5
+            t_end: 0.035
+
         # ==================== 2D Cases ====================
         
         # 2D Sod shock tube along x (sanity check - should match 1D Sod)
         sod1_2d:
             dim: 2
-            N: 200
+            N: 400
             ic_type: x_riemann
             rho_L: 1.0
             u_L: 0.0
@@ -95,12 +121,12 @@ config:
             y0: 0.5
             t_end: 0.25
             analytical: false
-            left_boundary: free_stream
-            right_boundary: free_stream
-            bottom_boundary: free_stream
-            top_boundary: free_stream
+            left_boundary: reflective
+            right_boundary: reflective
+            bottom_boundary: reflective
+            top_boundary: reflective
             output_formats: [vtk]
-            output_every_steps: 100
+            output_every_steps: 20
 
         # 2D Sod shock tube along y
         sod1_2d_y:
@@ -135,7 +161,7 @@ config:
             L_y: 1.0
             gamma: 1.4
             cfl: 0.4
-            t_end: 0.3
+            t_end: 1.5
             analytical: false
             
             # Q1 (top-right): x >= 0.5, y >= 0.5
@@ -159,12 +185,12 @@ config:
             v_Q4: 1.206
             P_Q4: 0.3
 
-            left_boundary: free_stream
-            right_boundary: free_stream
-            bottom_boundary: free_stream
-            top_boundary: free_stream
+            left_boundary: reflective
+            right_boundary: reflective
+            bottom_boundary: reflective
+            top_boundary: reflective
             output_formats: [vtk]
-            output_every_steps: 200
+            output_every_steps: 20
 
         # Lax-Liu Configuration 12 (2D Riemann problem)
         lax_liu_12:
@@ -201,9 +227,9 @@ config:
             v_Q4: 0.0
             P_Q4: 1.0
 
-            left_boundary: free_stream
-            right_boundary: free_stream
-            bottom_boundary: free_stream
-            top_boundary: free_stream
+            left_boundary: reflective
+            right_boundary: reflective
+            bottom_boundary: reflective
+            top_boundary: reflective
             output_formats: [vtk]
             output_every_steps: 200

@@ -2,23 +2,21 @@
 #define NONREFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class NonReflectiveBoundary
- * @brief Zero-gradient (extrapolation) boundary condition for 1D and 2D.
+ * @brief Placeholder non-reflective boundary condition for conservative Euler state U.
  *
- * Copies the nearest core cell state into all ghost cells, allowing
- * waves to exit the domain without reflection.
+ * Current implementation enforces a zero-gradient (outlet-like) condition by copying
+ * the nearest interior core layer into ghost layers along the selected axis.
  *
- * For 2D, fills ghost columns (axis=0) or ghost rows (axis=1) by
- * extrapolating from the nearest core cell along the boundary-normal direction.
+ * This is a simplified fallback; characteristic-based radiation conditions can be
+ * added later without changing the interface.
  */
-class NonReflectiveBoundary : public BoundaryCondition {
+class NonReflectiveBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, int axis, Side side) const override;
-
-private:
-    void Apply2D(DataLayer& layer, int axis, Side side) const;
+    void Apply(DataLayer& layer, Axis axis, Side side) const override;
 };
 
 #endif  // NONREFLECTIVEBOUNDARY_HPP

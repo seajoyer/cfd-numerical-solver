@@ -21,14 +21,19 @@ auto ConfigParser::ParseOutputFormats(const YAML::Node& node)
             std::string fmt = format_node.as<std::string>();
             // Convert to lowercase
             std::transform(fmt.begin(), fmt.end(), fmt.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) {
+                               return std::tolower(c);
+                           });
             formats.push_back(fmt);
         }
-    } else if (node.IsScalar()) {
+    }
+    else if (node.IsScalar()) {
         // Handle single string format: vtk
         std::string fmt = node.as<std::string>();
         std::transform(fmt.begin(), fmt.end(), fmt.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) {
+                           return std::tolower(c);
+                       });
         formats.push_back(fmt);
     }
 
@@ -49,7 +54,9 @@ auto ConfigParser::ParseOutputFormatsString(const std::string& formats_str)
         if (!format.empty()) {
             // Convert to lowercase
             std::transform(format.begin(), format.end(), format.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) {
+                               return std::tolower(c);
+                           });
             formats.push_back(format);
         }
     }
@@ -84,13 +91,16 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[])
                 "list-formats", "List all supported output formats");
 
             full_opts.add_options("Solver")
-                ("s,solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)",cxxopts::value<std::string>())
+                ("s,solver", "Solver type (analytical, godunov, godunov-kolgan, godunov-kolgan-rodionov)",
+                 cxxopts::value<std::string>())
                 ("riemann-solver", "Riemann solver (exact, hll, hllc, acoustic)", cxxopts::value<std::string>())
                 ("reconstruction", "Reconstruction scheme (P0, P1, ENO3, WENO5, etc.)", cxxopts::value<std::string>())
-                ("l,left-boundary",   "Left boundary condition",  cxxopts::value<std::string>())
-                ("r,right-boundary",  "Right boundary condition", cxxopts::value<std::string>())
-                ("t,top-boundary",    "Top boundary condition (2D)",  cxxopts::value<std::string>())
-                ("b,bottom-boundary", "bottom boundary condition (2D)", cxxopts::value<std::string>());
+                ("l,left-boundary", "Left boundary condition", cxxopts::value<std::string>())
+                ("r,right-boundary", "Right boundary condition", cxxopts::value<std::string>())
+                ("t,top-boundary", "Top boundary condition (2D)", cxxopts::value<std::string>())
+                ("b,bottom-boundary", "bottom boundary condition (2D)", cxxopts::value<std::string>())
+                ("f,front-boundary", "Front boundary condition (3D)", cxxopts::value<std::string>())
+                ("bc,back-boundary", "Back boundary condition (3D)", cxxopts::value<std::string>());
 
             full_opts.add_options("Grid")("N,N-cells", "Number of cells",
                                           cxxopts::value<int>())(
@@ -132,8 +142,8 @@ auto ConfigParser::ParseCommandLineForConfigAndHelp(int argc, char* argv[])
         }
 
         return true;
-
-    } catch (const cxxopts::exceptions::exception& e) {
+    }
+    catch (const cxxopts::exceptions::exception& e) {
         std::cerr << "CLI parsing error: " << e.what() << '\n';
         return false;
     }
@@ -147,7 +157,8 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
         if (config["config"]["global"]) {
             YAML::Node global_node = config["config"]["global"];
             LoadSettings(global_node, settings_);
-        } else {
+        }
+        else {
             std::cerr
                 << "Warning: No 'global' section found in config. Using defaults.\n";
         }
@@ -156,7 +167,8 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
         if (config["config"]["cases"]) {
             YAML::Node cases_node = config["config"]["cases"];
             LoadCases(cases_node, initial_conditions_);
-        } else {
+        }
+        else {
             std::cerr << "Error: No 'cases' section found in config.\n";
             return false;
         }
@@ -165,14 +177,16 @@ auto ConfigParser::ParseFile(const std::string& filename) -> bool {
         if (config["config"]["run_cases"]) {
             YAML::Node run_cases_node = config["config"]["run_cases"];
             LoadRunCases(run_cases_node, run_cases_);
-        } else {
+        }
+        else {
             // Default: run all cases
             run_cases_ = {"all"};
         }
 
         config_path_ = filename;
         return true;
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e) {
         std::cerr << "Error parsing YAML: " << e.what() << '\n';
         return false;
     }
@@ -203,19 +217,25 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
 
             ("t,top-boundary",    "Top boundary condition (2D)", cxxopts::value<std::string>())
             ("b,bottom-boundary", "Bottom boundary condition (2D)", cxxopts::value<std::string>())
+
+            ("f,front-boundary",    "Front boundary condition (3D)", cxxopts::value<std::string>())
+            ("bc,back-boundary", "Back boundary condition (3D)", cxxopts::value<std::string>())
         ;
 
         opts.add_options("Grid")
             ("N,N-cells", "Number of cells", cxxopts::value<int>())
-            ("d,dim", "Dimensions (1 or 2)", cxxopts::value<int>())
+            ("d,dim", "Dimensions (1, 2 or 3)", cxxopts::value<int>())
             ("x,Lx", "Domain length X", cxxopts::value<double>())
             ("y,Ly", "Domain length Y (for 2D simulations)", cxxopts::value<double>())
-            ("z,Lz", "Domain length Z (not yet supported)", cxxopts::value<double>())
+            ("z,Lz", "Domain length Z (for 3D simulations)", cxxopts::value<double>())
             ("p,padding", "Ghost cell padding", cxxopts::value<int>())
 
-            ("Nx", "Cells in x-direction (2D)", cxxopts::value<int>())
+            ("Nx", "Cells in x-direction (1D)", cxxopts::value<int>())
             ("Ny", "Cells in y-direction (2D)", cxxopts::value<int>())
+            ("Nz", "Cells in z-direction (3D)", cxxopts::value<int>())
+            ("x0", "Discontinuity z-position (1D)", cxxopts::value<double>())
             ("y0", "Discontinuity y-position (2D)", cxxopts::value<double>())
+            ("z0", "Discontinuity z-position (3D)", cxxopts::value<double>())
         ;
 
         opts.add_options("Physics")
@@ -231,7 +251,6 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         ;
 
         opts.add_options("Initial Conditions")
-            ("x0", "Discontinuity position", cxxopts::value<double>())
             ("a,analytical", "Enable analytical solution", cxxopts::value<bool>())
         ;
 
@@ -247,7 +266,7 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
 
         if (result.count("help")) {
             std::cout << opts.help() << '\n';
-            return std::nullopt;  // Signal that help was shown
+            return std::nullopt; // Signal that help was shown
         }
 
         // Handle listing flags
@@ -314,11 +333,17 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
 
         if (result.count("Nx")) cli_overrides_.Nx = result["Nx"].as<int>();
         if (result.count("Ny")) cli_overrides_.Ny = result["Ny"].as<int>();
+        if (result.count("Nz")) cli_overrides_.Nz = result["Nz"].as<int>();
         if (result.count("y0")) cli_overrides_.y0 = result["y0"].as<double>();
+        if (result.count("z0")) cli_overrides_.z0 = result["z0"].as<double>();
         if (result.count("bottom-boundary"))
             cli_overrides_.bottom_boundary = result["bottom-boundary"].as<std::string>();
         if (result.count("top-boundary"))
             cli_overrides_.top_boundary = result["top-boundary"].as<std::string>();
+        if (result.count("back-boundary"))
+            cli_overrides_.back_boundary = result["back-boundary"].as<std::string>();
+        if (result.count("front-boundary"))
+            cli_overrides_.front_boundary = result["front-boundary"].as<std::string>();
 
         // Execution options
         if (result.count("run-cases")) {
@@ -360,8 +385,8 @@ auto ConfigParser::ParseCommandLine(int argc, char* argv[]) -> std::optional<boo
         }
 
         return true;
-
-    } catch (const cxxopts::exceptions::exception& e) {
+    }
+    catch (const cxxopts::exceptions::exception& e) {
         std::cerr << "CLI parsing error: " << e.what() << '\n';
         return false;
     }
@@ -374,10 +399,10 @@ auto ConfigParser::Parse(const std::string& default_config, int argc, char* argv
 
     auto cli_result = ParseCommandLineForConfigAndHelp(argc, argv);
     if (!cli_result.has_value()) {
-        return std::nullopt;  // Help was shown
+        return std::nullopt; // Help was shown
     }
     if (!cli_result.value()) {
-        return false;  // CLI parsing error
+        return false; // CLI parsing error
     }
 
     // Now parse the config file (possibly overridden path)
@@ -389,7 +414,9 @@ auto ConfigParser::Parse(const std::string& default_config, int argc, char* argv
     return ParseCommandLine(argc, argv);
 }
 
-auto ConfigParser::GetSettings() const -> const Settings& { return settings_; }
+auto ConfigParser::GetSettings() const -> const Settings& {
+    return settings_;
+}
 
 auto ConfigParser::GetRunCases() const -> const std::vector<std::string>& {
     return run_cases_;
@@ -405,7 +432,7 @@ auto ConfigParser::GetInitialCondition(const std::string& case_name) const
     auto it = initial_conditions_.find(case_name);
     if (it == initial_conditions_.end()) {
         throw std::out_of_range("Initial condition '" + case_name +
-                                "' not found in configuration");
+            "' not found in configuration");
     }
     return it->second;
 }
@@ -430,31 +457,25 @@ auto ConfigParser::HasInitialCondition(const std::string& case_name) const -> bo
     return initial_conditions_.find(case_name) != initial_conditions_.end();
 }
 
-auto ConfigParser::GetConfigPath() const -> const std::string& { return config_path_; }
+auto ConfigParser::GetConfigPath() const -> const std::string& {
+    return config_path_;
+}
 
 void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     if (node["solver"]) settings.solver = node["solver"].as<std::string>();
     if (node["solver"]) settings.solver = utils::ToLower(settings.solver);
 
-    if (node["riemann_solver"])
-        settings.riemann_solver = node["riemann_solver"].as<std::string>();
-    if (node["riemann_solver"])
-        settings.riemann_solver = utils::ToLower(settings.riemann_solver);
+    if (node["riemann_solver"]) settings.riemann_solver = node["riemann_solver"].as<std::string>();
+    if (node["riemann_solver"]) settings.riemann_solver = utils::ToLower(settings.riemann_solver);
 
-    if (node["reconstruction"])
-        settings.reconstruction = node["reconstruction"].as<std::string>();
-    if (node["reconstruction"])
-        settings.reconstruction = utils::ToLower(settings.reconstruction);
+    if (node["reconstruction"]) settings.reconstruction = node["reconstruction"].as<std::string>();
+    if (node["reconstruction"]) settings.reconstruction = utils::ToLower(settings.reconstruction);
 
-    if (node["time_integrator"])
-        settings.time_integrator = node["time_integrator"].as<std::string>();
-    if (node["time_integrator"])
-        settings.time_integrator = utils::ToLower(settings.time_integrator);
+    if (node["time_integrator"]) settings.time_integrator = node["time_integrator"].as<std::string>();
+    if (node["time_integrator"]) settings.time_integrator = utils::ToLower(settings.time_integrator);
 
-    if (node["left_boundary"])
-        settings.left_boundary = node["left_boundary"].as<std::string>();
-    if (node["right_boundary"])
-        settings.right_boundary = node["right_boundary"].as<std::string>();
+    if (node["left_boundary"]) settings.left_boundary = node["left_boundary"].as<std::string>();
+    if (node["right_boundary"]) settings.right_boundary = node["right_boundary"].as<std::string>();
 
     if (node["N"]) settings.N = node["N"].as<int>();
     if (node["cfl"]) settings.cfl = node["cfl"].as<double>();
@@ -469,46 +490,44 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
 
     if (node["Q_user"]) settings.Q_user = node["Q_user"].as<double>();
 
-    if (node["x0"]) settings.x0 = node["x0"].as<double>();
     if (node["analytical"]) {
         auto analytical_str = node["analytical"].as<std::string>();
-        settings.analytical = (analytical_str == "true" || analytical_str == "True" ||
-                               analytical_str == "TRUE");
+        settings.analytical = analytical_str == "true" || analytical_str == "True" ||
+            analytical_str == "TRUE";
     }
     if (node["diffusion"]) {
         auto diffusion_str = node["diffusion"].as<std::string>();
-        settings.diffusion = (diffusion_str == "true" || diffusion_str == "True" ||
-                              diffusion_str == "TRUE");
+        settings.diffusion = diffusion_str == "true" || diffusion_str == "True" ||
+            diffusion_str == "TRUE";
     }
     if (node["viscosity"]) {
         auto viscosity_str = node["viscosity"].as<std::string>();
-        settings.viscosity = (viscosity_str == "true" || viscosity_str == "True" ||
-                              viscosity_str == "TRUE");
+        settings.viscosity = viscosity_str == "true" || viscosity_str == "True" ||
+            viscosity_str == "TRUE";
     }
     if (node["global_limiter"]) {
         auto global_limiter = node["global_limiter"].as<std::string>();
-        settings.global_limiter = (global_limiter == "true" || global_limiter == "True" ||
-                                   global_limiter == "TRUE");
+        settings.global_limiter = global_limiter == "true" || global_limiter == "True" ||
+            global_limiter == "TRUE";
     }
 
-    if (node["log_every_steps"])
-        settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
-    if (node["log_every_time"])
-        settings.log_every_time = node["log_every_time"].as<double>();
+    if (node["log_every_steps"]) settings.log_every_steps = node["log_every_steps"].as<std::size_t>();
+    if (node["log_every_time"]) settings.log_every_time = node["log_every_time"].as<double>();
 
-    if (node["output_every_steps"])
-        settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
-    if (node["output_every_time"])
-        settings.output_every_time = node["output_every_time"].as<double>();
+    if (node["output_every_steps"]) settings.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    if (node["output_every_time"]) settings.output_every_time = node["output_every_time"].as<double>();
 
     // Handle output_formats (can be string or list)
     if (node["output_formats"]) {
         settings.output_formats = ParseOutputFormats(node["output_formats"]);
-    } else if (node["output_format"]) {
+    }
+    else if (node["output_format"]) {
         // Backward compatibility: support old single format option
         std::string fmt = node["output_format"].as<std::string>();
         std::transform(fmt.begin(), fmt.end(), fmt.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) {
+                           return std::tolower(c);
+                       });
         settings.output_formats = {fmt};
     }
 
@@ -516,11 +535,14 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
 
     if (node["Nx"]) settings.Nx = node["Nx"].as<int>();
     if (node["Ny"]) settings.Ny = node["Ny"].as<int>();
-    if (node["bottom_boundary"])
-        settings.bottom_boundary = node["bottom_boundary"].as<std::string>();
-    if (node["top_boundary"])
-        settings.top_boundary = node["top_boundary"].as<std::string>();
+    if (node["Nz"]) settings.Nz = node["Nz"].as<int>();
+    if (node["bottom_boundary"]) settings.bottom_boundary = node["bottom_boundary"].as<std::string>();
+    if (node["top_boundary"]) settings.top_boundary = node["top_boundary"].as<std::string>();
+    if (node["back_boundary"]) settings.back_boundary = node["back_boundary"].as<std::string>();
+    if (node["front_boundary"]) settings.front_boundary = node["front_boundary"].as<std::string>();
+    if (node["x0"]) settings.x0 = node["x0"].as<double>();
     if (node["y0"]) settings.y0 = node["y0"].as<double>();
+    if (node["z0"]) settings.z0 = node["z0"].as<double>();
 }
 
 void ConfigParser::LoadCases(
@@ -543,26 +565,58 @@ void ConfigParser::LoadCases(
         if (case_data["v_R"]) ic.v_R = case_data["v_R"].as<double>();
         if (case_data["ic_type"]) ic.ic_type = case_data["ic_type"].as<std::string>();
 
+        if (case_data["w_L"]) ic.w_L = case_data["w_L"].as<double>();
+        if (case_data["w_R"]) ic.w_R = case_data["w_R"].as<double>();
+        if (case_data["ic_type"]) ic.ic_type = case_data["ic_type"].as<std::string>();
+
         // Quadrant IC fields
         if (case_data["rho_Q1"]) ic.rho_Q1 = case_data["rho_Q1"].as<double>();
         if (case_data["u_Q1"]) ic.u_Q1 = case_data["u_Q1"].as<double>();
         if (case_data["v_Q1"]) ic.v_Q1 = case_data["v_Q1"].as<double>();
+        if (case_data["w_Q1"]) ic.v_Q1 = case_data["v_Q1"].as<double>();
         if (case_data["P_Q1"]) ic.P_Q1 = case_data["P_Q1"].as<double>();
 
         if (case_data["rho_Q2"]) ic.rho_Q2 = case_data["rho_Q2"].as<double>();
         if (case_data["u_Q2"]) ic.u_Q2 = case_data["u_Q2"].as<double>();
         if (case_data["v_Q2"]) ic.v_Q2 = case_data["v_Q2"].as<double>();
+        if (case_data["w_Q2"]) ic.v_Q2 = case_data["v_Q2"].as<double>();
         if (case_data["P_Q2"]) ic.P_Q2 = case_data["P_Q2"].as<double>();
 
         if (case_data["rho_Q3"]) ic.rho_Q3 = case_data["rho_Q3"].as<double>();
         if (case_data["u_Q3"]) ic.u_Q3 = case_data["u_Q3"].as<double>();
         if (case_data["v_Q3"]) ic.v_Q3 = case_data["v_Q3"].as<double>();
+        if (case_data["w_Q3"]) ic.v_Q3 = case_data["v_Q3"].as<double>();
         if (case_data["P_Q3"]) ic.P_Q3 = case_data["P_Q3"].as<double>();
 
         if (case_data["rho_Q4"]) ic.rho_Q4 = case_data["rho_Q4"].as<double>();
         if (case_data["u_Q4"]) ic.u_Q4 = case_data["u_Q4"].as<double>();
         if (case_data["v_Q4"]) ic.v_Q4 = case_data["v_Q4"].as<double>();
+        if (case_data["w_Q4"]) ic.v_Q4 = case_data["v_Q4"].as<double>();
         if (case_data["P_Q4"]) ic.P_Q4 = case_data["P_Q4"].as<double>();
+
+        if (case_data["rho_Q5"]) ic.rho_Q5 = case_data["rho_Q5"].as<double>();
+        if (case_data["u_Q5"]) ic.u_Q5 = case_data["u_Q5"].as<double>();
+        if (case_data["v_Q5"]) ic.v_Q5 = case_data["v_Q5"].as<double>();
+        if (case_data["w_Q5"]) ic.v_Q5 = case_data["v_Q5"].as<double>();
+        if (case_data["P_Q5"]) ic.P_Q5 = case_data["P_Q5"].as<double>();
+
+        if (case_data["rho_Q6"]) ic.rho_Q6 = case_data["rho_Q6"].as<double>();
+        if (case_data["u_Q6"]) ic.u_Q6 = case_data["u_Q6"].as<double>();
+        if (case_data["v_Q6"]) ic.v_Q6 = case_data["v_Q6"].as<double>();
+        if (case_data["w_Q6"]) ic.v_Q6 = case_data["v_Q6"].as<double>();
+        if (case_data["P_Q6"]) ic.P_Q6 = case_data["P_Q6"].as<double>();
+
+        if (case_data["rho_Q7"]) ic.rho_Q7 = case_data["rho_Q7"].as<double>();
+        if (case_data["u_Q7"]) ic.u_Q7 = case_data["u_Q7"].as<double>();
+        if (case_data["v_Q7"]) ic.v_Q7 = case_data["v_Q7"].as<double>();
+        if (case_data["w_Q7"]) ic.v_Q7 = case_data["v_Q7"].as<double>();
+        if (case_data["P_Q7"]) ic.P_Q7 = case_data["P_Q7"].as<double>();
+
+        if (case_data["rho_Q8"]) ic.rho_Q8 = case_data["rho_Q8"].as<double>();
+        if (case_data["u_Q8"]) ic.u_Q8 = case_data["u_Q8"].as<double>();
+        if (case_data["v_Q8"]) ic.v_Q8 = case_data["v_Q8"].as<double>();
+        if (case_data["w_Q8"]) ic.v_Q8 = case_data["v_Q8"].as<double>();
+        if (case_data["P_Q8"]) ic.P_Q8 = case_data["P_Q8"].as<double>();
 
         // Load case-specific overrides
         LoadCaseOverrides(case_data, ic.overrides);
@@ -585,12 +639,6 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
         auto recon = node["reconstruction"].as<std::string>();
         overrides.reconstruction = utils::ToLower(recon);
     }
-    if (node["left_boundary"]) {
-        overrides.left_boundary = node["left_boundary"].as<std::string>();
-    }
-    if (node["right_boundary"]) {
-        overrides.right_boundary = node["right_boundary"].as<std::string>();
-    }
 
     // Grid Configuration
     if (node["N"]) overrides.N = node["N"].as<int>();
@@ -607,10 +655,12 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
 
     // Initial Conditions
     if (node["x0"]) overrides.x0 = node["x0"].as<double>();
+    if (node["y0"]) overrides.y0 = node["y0"].as<double>();
+    if (node["z0"]) overrides.z0 = node["z0"].as<double>();
     if (node["analytical"]) {
         auto analytical_str = node["analytical"].as<std::string>();
-        overrides.analytical = (analytical_str == "true" || analytical_str == "True" ||
-                                analytical_str == "TRUE");
+        overrides.analytical = analytical_str == "true" || analytical_str == "True" ||
+            analytical_str == "TRUE";
     }
 
     // Time Control
@@ -618,24 +668,23 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
     if (node["step_end"]) overrides.step_end = node["step_end"].as<std::size_t>();
 
     // Logging Configuration
-    if (node["log_every_steps"])
-        overrides.log_every_steps = node["log_every_steps"].as<std::size_t>();
-    if (node["log_every_time"])
-        overrides.log_every_time = node["log_every_time"].as<double>();
+    if (node["log_every_steps"]) overrides.log_every_steps = node["log_every_steps"].as<std::size_t>();
+    if (node["log_every_time"]) overrides.log_every_time = node["log_every_time"].as<double>();
 
     // Output Configuration
-    if (node["output_every_steps"])
-        overrides.output_every_steps = node["output_every_steps"].as<std::size_t>();
-    if (node["output_every_time"])
-        overrides.output_every_time = node["output_every_time"].as<double>();
+    if (node["output_every_steps"]) overrides.output_every_steps = node["output_every_steps"].as<std::size_t>();
+    if (node["output_every_time"]) overrides.output_every_time = node["output_every_time"].as<double>();
 
     // Handle output_formats (can be string or list)
     if (node["output_formats"]) {
         overrides.output_formats = ParseOutputFormats(node["output_formats"]);
-    } else if (node["output_format"]) {
+    }
+    else if (node["output_format"]) {
         std::string fmt = node["output_format"].as<std::string>();
         std::transform(fmt.begin(), fmt.end(), fmt.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) {
+                           return std::tolower(c);
+                       });
         overrides.output_formats = std::vector<std::string>{fmt};
     }
 
@@ -643,11 +692,16 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
 
     if (node["Nx"]) overrides.Nx = node["Nx"].as<int>();
     if (node["Ny"]) overrides.Ny = node["Ny"].as<int>();
-    if (node["bottom_boundary"])
-        overrides.bottom_boundary = node["bottom_boundary"].as<std::string>();
-    if (node["top_boundary"])
-        overrides.top_boundary = node["top_boundary"].as<std::string>();
-    if (node["y0"]) overrides.y0 = node["y0"].as<double>();
+    if (node["Nz"]) overrides.Nz = node["Nz"].as<int>();
+
+    if (node["left_boundary"]) overrides.left_boundary = node["left_boundary"].as<std::string>();
+    if (node["right_boundary"]) overrides.right_boundary = node["right_boundary"].as<std::string>();
+
+    if (node["bottom_boundary"]) overrides.bottom_boundary = node["bottom_boundary"].as<std::string>();
+    if (node["top_boundary"]) overrides.top_boundary = node["top_boundary"].as<std::string>();
+
+    if (node["back_boundary"]) overrides.back_boundary = node["back_boundary"].as<std::string>();
+    if (node["front_boundary"]) overrides.front_boundary = node["front_boundary"].as<std::string>();
 }
 
 void ConfigParser::LoadRunCases(const YAML::Node& node,
@@ -658,10 +712,12 @@ void ConfigParser::LoadRunCases(const YAML::Node& node,
         for (const auto& case_node : node) {
             run_cases.push_back(case_node.as<std::string>());
         }
-    } else if (node.IsScalar()) {
+    }
+    else if (node.IsScalar()) {
         // Single case or "all"
         run_cases.push_back(node.as<std::string>());
-    } else {
+    }
+    else {
         std::cerr
             << "Warning: run_cases should be a list or scalar. Defaulting to 'all'.\n";
         run_cases.emplace_back("all");
@@ -684,7 +740,7 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "        - P0 (piecewise constant, first-order)\n";
     std::cout << "        - P1 (piecewise linear with slope limiting, second-order)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, "
-                 "ENO5)\n";
+        "ENO5)\n";
     std::cout
         << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
 
@@ -694,7 +750,7 @@ void ConfigParser::PrintSolversList() const {
     std::cout << "      Reconstructions:\n";
     std::cout << "        - P1 (piecewise linear with slope limiting, MUSCL-Hancock)\n";
     std::cout << "        - ENO<N> (Essentially Non-Oscillatory, N = order, e.g., ENO3, "
-                 "ENO5)\n";
+        "ENO5)\n";
     std::cout
         << "        - WENO<N> (Weighted ENO, N = 3, 5, â€¦; e.g., WENO3, WENO5, â€¦)\n\n";
 
@@ -773,9 +829,9 @@ void ConfigParser::PrintCasesList() const {
 
         std::cout << "  " << case_name << ":\n";
         std::cout << "      Left state:   rho_L = " << ic.rho_L << ",  u_L = " << ic.u_L
-                  << ",  P_L = " << ic.P_L << "\n";
+            << ",  P_L = " << ic.P_L << "\n";
         std::cout << "      Right state:  rho_R = " << ic.rho_R << ",  u_R = " << ic.u_R
-                  << ",  P_R = " << ic.P_R << "\n";
+            << ",  P_R = " << ic.P_R << "\n";
 
         // Show case-specific overrides if any
         bool has_overrides = false;
@@ -862,7 +918,7 @@ void ConfigParser::PrintOutputFormatsList() const {
     std::cout
         << "      Memory note: GIF stores all frames in memory until finalization.\n";
     std::cout << "      For long simulations, consider reducing output frequency or "
-                 "resolution.\n\n";
+        "resolution.\n\n";
 
     std::cout << "Multiple formats can be specified:\n";
     std::cout << "  YAML:  output_formats: [vtk, png1920x1080, gif]\n";

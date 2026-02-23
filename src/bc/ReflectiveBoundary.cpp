@@ -1,103 +1,53 @@
 #include "bc/ReflectiveBoundary.hpp"
 
-#include "data/DataLayer.hpp"
 
-void ReflectiveBoundary::Apply(DataLayer& layer, int axis, Side side) const {
-    if (layer.GetDim() >= 2) {
-        Apply2D(layer, axis, side);
-        return;
-    }
+void ReflectiveBoundary::Apply(DataLayer& layer, const Axis axis, const Side side) const {
+    const int ng = layer.GetPadding();
+    if (ng == 0) return;
 
-    // --- Original 1D logic ---
-    const int pad = layer.GetPadding();
-    const int core_start = layer.GetCoreStart();
-    const int core_end = layer.GetCoreEndExclusive();
+    auto& U = layer.U();
 
-    if (side == Side::kLeft) {
-        for (int g = 0; g < pad; ++g) {
-            int dst = pad - 1 - g;
-            int src = core_start + g;
-            layer.rho(dst) = layer.rho(src);
-            layer.u(dst)   = -layer.u(src);  // reflect normal velocity
-            layer.P(dst)   = layer.P(src);
-            layer.p(dst)   = -layer.p(src);
-            layer.e(dst)   = layer.e(src);
-            layer.U(dst)   = layer.U(src);
-            layer.V(dst)   = layer.V(src);
-            layer.m(dst)   = layer.m(src);
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
+
+    for (int g = 0; g < ng; ++g) {
+        if (axis == Axis::X) {
+            const int dst_i = (side == Side::Left) ? (i0 - 1 - g) : (i1 + g);
+            const int src_i = (side == Side::Left) ? (i0 + g) : (i1 - 1 - g);
+
+            // Copy full conservative state (all 5 vars) for the plane i=dst_i
+            xt::view(U, xt::all(), dst_i, xt::all(), xt::all()) =
+                xt::view(U, xt::all(), src_i, xt::all(), xt::all());
+
+            // Reflect normal momentum: rhoU -> -rhoU
+            xt::view(U, DataLayer::k_rhoU, dst_i, xt::all(), xt::all()) *= -1.0;
+            continue;
         }
-    } else {
-        for (int g = 0; g < pad; ++g) {
-            int dst = core_end + g;
-            int src = core_end - 1 - g;
-            layer.rho(dst) = layer.rho(src);
-            layer.u(dst)   = -layer.u(src);
-            layer.P(dst)   = layer.P(src);
-            layer.p(dst)   = -layer.p(src);
-            layer.e(dst)   = layer.e(src);
-            layer.U(dst)   = layer.U(src);
-            layer.V(dst)   = layer.V(src);
-            layer.m(dst)   = layer.m(src);
-        }
-    }
-}
 
-void ReflectiveBoundary::Apply2D(DataLayer& layer, int axis, Side side) const {
-    const int pad = layer.GetPadding();
-    const int cs_x = layer.GetCoreStart(0);
-    const int ce_x = layer.GetCoreEndExclusive(0);
-    const int cs_y = layer.GetCoreStart(1);
-    const int ce_y = layer.GetCoreEndExclusive(1);
-    const int tx = layer.GetTotalSize(0);
-    const int ty = layer.GetTotalSize(1);
+        if (axis == Axis::Y) {
+            const int dst_j = (side == Side::Left) ? (j0 - 1 - g) : (j1 + g);
+            const int src_j = (side == Side::Left) ? (j0 + g) : (j1 - 1 - g);
 
-    if (axis == 0) {
-        // X-axis reflective: mirror across x-boundary, reflect u, keep v
-        for (int j = 0; j < ty; ++j) {
-            for (int g = 0; g < pad; ++g) {
-                int dst, src;
-                if (side == Side::kLeft) {
-                    dst = pad - 1 - g;
-                    src = cs_x + g;
-                } else {
-                    dst = ce_x + g;
-                    src = ce_x - 1 - g;
-                }
-                layer.rho(dst, j) = layer.rho(src, j);
-                layer.u(dst, j)   = -layer.u(src, j);   // reflect x-velocity
-                layer.v(dst, j)   = layer.v(src, j);     // keep y-velocity
-                layer.P(dst, j)   = layer.P(src, j);
-                layer.p(dst, j)   = -layer.p(src, j);
-                layer.q(dst, j)   = layer.q(src, j);
-                layer.e(dst, j)   = layer.e(src, j);
-                layer.U(dst, j)   = layer.U(src, j);
-                layer.V(dst, j)   = layer.V(src, j);
-                layer.m(dst, j)   = layer.m(src, j);
-            }
+            xt::view(U, xt::all(), xt::all(), dst_j, xt::all()) =
+                xt::view(U, xt::all(), xt::all(), src_j, xt::all());
+
+            // Reflect normal momentum: rhoV -> -rhoV
+            xt::view(U, DataLayer::k_rhoV, xt::all(), dst_j, xt::all()) *= -1.0;
+            continue;
         }
-    } else {
-        // Y-axis reflective: mirror across y-boundary, reflect v, keep u
-        for (int i = 0; i < tx; ++i) {
-            for (int g = 0; g < pad; ++g) {
-                int dst, src;
-                if (side == Side::kLeft) {
-                    dst = pad - 1 - g;
-                    src = cs_y + g;
-                } else {
-                    dst = ce_y + g;
-                    src = ce_y - 1 - g;
-                }
-                layer.rho(i, dst) = layer.rho(i, src);
-                layer.u(i, dst)   = layer.u(i, src);     // keep x-velocity
-                layer.v(i, dst)   = -layer.v(i, src);    // reflect y-velocity
-                layer.P(i, dst)   = layer.P(i, src);
-                layer.p(i, dst)   = layer.p(i, src);
-                layer.q(i, dst)   = -layer.q(i, src);
-                layer.e(i, dst)   = layer.e(i, src);
-                layer.U(i, dst)   = layer.U(i, src);
-                layer.V(i, dst)   = layer.V(i, src);
-                layer.m(i, dst)   = layer.m(i, src);
-            }
-        }
+
+        // Axis::Z
+        const int dst_k = (side == Side::Left) ? (k0 - 1 - g) : (k1 + g);
+        const int src_k = (side == Side::Left) ? (k0 + g) : (k1 - 1 - g);
+
+        xt::view(U, xt::all(), xt::all(), xt::all(), dst_k) =
+            xt::view(U, xt::all(), xt::all(), xt::all(), src_k);
+
+        // Reflect normal momentum: rhoW -> -rhoW
+        xt::view(U, DataLayer::k_rhoW, xt::all(), xt::all(), dst_k) *= -1.0;
     }
 }

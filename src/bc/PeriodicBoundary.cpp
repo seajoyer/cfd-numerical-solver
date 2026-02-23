@@ -1,122 +1,49 @@
 #include "bc/PeriodicBoundary.hpp"
 
-#include <xtensor/views/xview.hpp>
-
 #include "data/DataLayer.hpp"
 
-void PeriodicBoundary::Apply(DataLayer& layer, int axis, Side side) const {
-    if (layer.GetDim() >= 2) {
-        // 2D periodic: copy from opposite edge of core domain
-        const int pad = layer.GetPadding();
-        const int cs_x = layer.GetCoreStart(0);
-        const int ce_x = layer.GetCoreEndExclusive(0);
-        const int cs_y = layer.GetCoreStart(1);
-        const int ce_y = layer.GetCoreEndExclusive(1);
-        const int tx = layer.GetTotalSize(0);
-        const int ty = layer.GetTotalSize(1);
 
-        if (axis == 0) {
-            // X-axis periodic: left ghosts ← right core edge, right ghosts ← left core edge
-            for (int j = 0; j < ty; ++j) {
-                for (int g = 0; g < pad; ++g) {
-                    int dst, src;
-                    if (side == Side::kLeft) {
-                        dst = g;
-                        src = ce_x - pad + g;  // rightmost 'pad' core cells
-                    } else {
-                        dst = ce_x + g;
-                        src = cs_x + g;         // leftmost 'pad' core cells
-                    }
-                    layer.rho(dst, j) = layer.rho(src, j);
-                    layer.u(dst, j)   = layer.u(src, j);
-                    layer.v(dst, j)   = layer.v(src, j);
-                    layer.P(dst, j)   = layer.P(src, j);
-                    layer.p(dst, j)   = layer.p(src, j);
-                    layer.q(dst, j)   = layer.q(src, j);
-                    layer.e(dst, j)   = layer.e(src, j);
-                    layer.U(dst, j)   = layer.U(src, j);
-                    layer.V(dst, j)   = layer.V(src, j);
-                    layer.m(dst, j)   = layer.m(src, j);
-                }
-            }
-        } else {
-            // Y-axis periodic: bottom ghosts ← top core edge, top ghosts ← bottom core edge
-            for (int i = 0; i < tx; ++i) {
-                for (int g = 0; g < pad; ++g) {
-                    int dst, src;
-                    if (side == Side::kLeft) {
-                        dst = g;
-                        src = ce_y - pad + g;
-                    } else {
-                        dst = ce_y + g;
-                        src = cs_y + g;
-                    }
-                    layer.rho(i, dst) = layer.rho(i, src);
-                    layer.u(i, dst)   = layer.u(i, src);
-                    layer.v(i, dst)   = layer.v(i, src);
-                    layer.P(i, dst)   = layer.P(i, src);
-                    layer.p(i, dst)   = layer.p(i, src);
-                    layer.q(i, dst)   = layer.q(i, src);
-                    layer.e(i, dst)   = layer.e(i, src);
-                    layer.U(i, dst)   = layer.U(i, src);
-                    layer.V(i, dst)   = layer.V(i, src);
-                    layer.m(i, dst)   = layer.m(i, src);
-                }
-            }
+void PeriodicBoundary::Apply(DataLayer& layer, const Axis axis, const Side side) const {
+    const int ng = layer.GetPadding();
+    if (ng == 0) return;
+
+    const int dim = layer.GetDim();
+    if (axis == Axis::Y && dim < 2) return;
+    if (axis == Axis::Z && dim < 3) return;
+
+    auto& U = layer.U();
+
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
+
+    for (int g = 0; g < ng; ++g) {
+        if (axis == Axis::X) {
+            const int dst_i = (side == Side::Left) ? (i0 - 1 - g) : (i1 + g);
+            const int src_i = (side == Side::Left) ? (i1 - 1 - g) : (i0 + g);
+
+            xt::view(U, xt::all(), dst_i, xt::all(), xt::all()) =
+                xt::view(U, xt::all(), src_i, xt::all(), xt::all());
+            continue;
         }
-        return;
-    }
 
-    // --- Original 1D logic ---
-    (void)axis;
+        if (axis == Axis::Y) {
+            const int dst_j = (side == Side::Left) ? (j0 - 1 - g) : (j1 + g);
+            const int src_j = (side == Side::Left) ? (j1 - 1 - g) : (j0 + g);
 
-    const int pad = layer.GetPadding();
-    const int core_start = layer.GetPadding();
-    const int core_end = layer.GetCoreEndExclusive();
+            xt::view(U, xt::all(), xt::all(), dst_j, xt::all()) =
+                xt::view(U, xt::all(), xt::all(), src_j, xt::all());
+            continue;
+        }
 
-    if (side == Side::kLeft) {
-        auto l_copy = xt::view(layer.rho, xt::range(core_end - pad, core_end));
-        auto u_copy = xt::view(layer.u, xt::range(core_end - pad, core_end));
-        auto P_copy = xt::view(layer.P, xt::range(core_end - pad, core_end));
-        auto p_copy = xt::view(layer.p, xt::range(core_end - pad, core_end));
-        auto e_copy = xt::view(layer.e, xt::range(core_end - pad, core_end));
-        auto ue_copy = xt::view(layer.U, xt::range(core_end - pad, core_end));
-        auto v_copy = xt::view(layer.V, xt::range(core_end - pad, core_end));
-        auto m_copy = xt::view(layer.m, xt::range(core_end - pad, core_end));
-        auto xb_copy = xt::view(layer.xb, xt::range(core_end - pad, core_end));
-        auto xc_copy = xt::view(layer.xc, xt::range(core_end - pad, core_end));
+        // Axis::Z
+        const int dst_k = (side == Side::Left) ? (k0 - 1 - g) : (k1 + g);
+        const int src_k = (side == Side::Left) ? (k1 - 1 - g) : (k0 + g);
 
-        xt::view(layer.rho, xt::range(0, pad)) = l_copy;
-        xt::view(layer.u, xt::range(0, pad)) = u_copy;
-        xt::view(layer.P, xt::range(0, pad)) = P_copy;
-        xt::view(layer.p, xt::range(0, pad)) = p_copy;
-        xt::view(layer.e, xt::range(0, pad)) = e_copy;
-        xt::view(layer.U, xt::range(0, pad)) = ue_copy;
-        xt::view(layer.V, xt::range(0, pad)) = v_copy;
-        xt::view(layer.m, xt::range(0, pad)) = m_copy;
-        xt::view(layer.xb, xt::range(0, pad)) = xb_copy;
-        xt::view(layer.xc, xt::range(0, pad)) = xc_copy;
-    } else {
-        auto copy_from_l = xt::view(layer.rho, xt::range(core_start, core_start + pad));
-        auto copy_from_u = xt::view(layer.u, xt::range(core_start, core_start + pad));
-        auto copy_from_P = xt::view(layer.P, xt::range(core_start, core_start + pad));
-        auto copy_from_p = xt::view(layer.p, xt::range(core_start, core_start + pad));
-        auto copy_from_e = xt::view(layer.e, xt::range(core_start, core_start + pad));
-        auto copy_from_ue = xt::view(layer.U, xt::range(core_start, core_start + pad));
-        auto copy_from_v = xt::view(layer.V, xt::range(core_start, core_start + pad));
-        auto copy_from_m = xt::view(layer.m, xt::range(core_start, core_start + pad));
-        auto copy_from_xb = xt::view(layer.xb, xt::range(core_start, core_start + pad));
-        auto copy_from_xc = xt::view(layer.xc, xt::range(core_start, core_start + pad));
-
-        xt::view(layer.rho, xt::range(core_end, core_end + pad)) = copy_from_l;
-        xt::view(layer.u, xt::range(core_end, core_end + pad)) = copy_from_u;
-        xt::view(layer.P, xt::range(core_end, core_end + pad)) = copy_from_P;
-        xt::view(layer.p, xt::range(core_end, core_end + pad)) = copy_from_p;
-        xt::view(layer.e, xt::range(core_end, core_end + pad)) = copy_from_e;
-        xt::view(layer.U, xt::range(core_end, core_end + pad)) = copy_from_ue;
-        xt::view(layer.V, xt::range(core_end, core_end + pad)) = copy_from_v;
-        xt::view(layer.m, xt::range(core_end, core_end + pad)) = copy_from_m;
-        xt::view(layer.xb, xt::range(core_end, core_end + pad)) = copy_from_xb;
-        xt::view(layer.xc, xt::range(core_end, core_end + pad)) = copy_from_xc;
+        xt::view(U, xt::all(), xt::all(), xt::all(), dst_k) =
+            xt::view(U, xt::all(), xt::all(), xt::all(), src_k);
     }
 }

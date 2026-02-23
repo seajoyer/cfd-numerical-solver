@@ -1,51 +1,48 @@
 #ifndef BACKWARDEULERSPATIALOPERATOR_HPP
 #define BACKWARDEULERSPATIALOPERATOR_HPP
 
+#include <memory>
+
 #include "spatial/SpatialOperator.hpp"
-#include "viscosity/VNRArtificialViscosity.hpp"
+#include "config/Settings.hpp"
+#include "data/Variables.hpp"
+
+class ArtificialViscosity;
 
 /**
  * @class BackwardEulerSpatialOperator
- * @brief Backward-Euler-style spatial operator for MacCormack corrector.
+ * @brief Backward-difference flux-divergence operator for MacCormack corrector.
  *
- * Implements the backward-difference form
+ * Computes per axis:
+ *   L(U) = - (F_i - F_{i-1}) / dx
+ * where F_i is the physical Euler flux evaluated at cell centers (from primitives).
  *
- *   L_j(U) = - ( F_j - F_{j-1} ) / dx,
+ * Contract:
+ *  - Applies halo + physical BC internally (BoundaryManager).
+ *  - Converts U -> W once per call using Workspace.
+ *  - Writes RHS into workspace.Rhs().
  *
- * where F_j is the physical Euler flux evaluated at cell centers.
- * Ghost cells are assumed to be already filled by boundary conditions.
+ * Artificial viscosity is not wired yet (viscosity_ stays null).
  */
-class BackwardEulerSpatialOperator : public SpatialOperator {
+class BackwardEulerSpatialOperator final : public SpatialOperator {
 public:
-    BackwardEulerSpatialOperator() = default;
+    explicit BackwardEulerSpatialOperator(const Settings& settings,
+                                          std::shared_ptr<BoundaryManager> boundary_manager);
 
-    /**
-     * @brief Constructs operator with artificial viscosity model.
-     *
-     * @param settings Global settings used to construct viscosity model.
-     */
-    explicit BackwardEulerSpatialOperator(const Settings& settings);
-
-    ~BackwardEulerSpatialOperator() override = default;
-
-    /**
-     * @brief Computes backward-difference RHS using cell-center Euler fluxes.
-     *
-     * On core cells j = [core_start, core_end):
-     *
-     *   rhs_j.rho  = - (F_j.mass     - F_{j-1}.mass)     / dx
-     *   rhs_j.rhoU = - (F_j.momentum - F_{j-1}.momentum) / dx
-     *   rhs_j.E    = - (F_j.energy   - F_{j-1}.energy)   / dx
-     *
-     * Non-core entries in rhs are set to zero.
-     */
-    void ComputeRHS(const DataLayer& layer,
-                    double dx,
-                    double gamma,
-                    xt::xarray<Conservative>& rhs) const override;
+    void ComputeRHS(DataLayer& layer, Workspace& workspace, double gamma, double dt) const override;
 
 private:
-    std::shared_ptr<ArtificialViscosity> viscosity_;
+    std::shared_ptr<ArtificialViscosity> viscosity_; // TODO: wire later
+
+    void AccumulateAxis(const DataLayer& layer,
+                        const xt::xtensor<double, 4>& W,
+                        xt::xtensor<double, 4>& rhs,
+                        double gamma,
+                        Axis axis) const;
+
+    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const DataLayer& layer, Axis axis) const;
+
+    static PrimitiveCell LoadPrimitive(const xt::xtensor<double, 4>& W, int i, int j, int k);
 };
 
 #endif  // BACKWARDEULERSPATIALOPERATOR_HPP

@@ -2,45 +2,27 @@
 #define OUTLETBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
+#include "data/DataLayer.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class OutletBoundary
- * @brief Implements outlet (outflow) boundary conditions.
+ * @brief Outlet (zero-gradient / Neumann) boundary condition for conservative state U.
  *
- * This boundary condition allows flow to freely exit the computational
- * domain without reflection or artificial pressure buildup. It enforces
- * a zero-gradient (Neumann) condition by copying the nearest interior
- * cell values into the ghost cells.
+ * The outlet condition copies the nearest interior (core) layer into ghost layers
+ * along the selected axis, enforcing zero normal gradient at the boundary.
  *
- * Physically, it assumes that disturbances leaving the domain do not
- * affect the interior flow — the state at the outlet is determined
- * solely by upstream dynamics.
- *
- * In 1D:
- *  - Left side (Side::Min): ghost cells copy from the first physical cell.
- *  - Right side (Side::Max): ghost cells copy from the last physical cell.
- *
- *
- * @see InletBoundary
- * @see FreeStreamBoundary
- * @see NonReflectingBoundary
+ * Works only with conservative state U(var,i,j,k).
  */
-class OutletBoundary : public BoundaryCondition {
-   public:
+class OutletBoundary final : public BoundaryCondition {
+public:
     /**
-     * @brief Applies outlet boundary condition along the specified axis.
-     *
-     * Fills ghost cells by copying values from adjacent interior cells,
-     * thereby enforcing a zero spatial gradient at the boundary.
-     *
-     * @param layer Reference to the DataLayer being modified.
-     * @param axis Axis index (0 for 1D problems).
-     * @param side Which side to apply: Side::Min (left) or Side::Max (right).
-     *
-     * @note For multidimensional extensions, the same logic is applied
-     *       independently for each axis.
+     * @brief Apply outlet BC along the specified axis and side.
+     * @param layer Data layer to modify (ghost cells of U will be written).
+     * @param axis Axis (X/Y/Z).
+     * @param side Side (Left/Right).
      */
-    void Apply(DataLayer& layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, Axis axis, Side side) const override;
 };
 
 #endif  // OUTLETBOUNDARY_HPP

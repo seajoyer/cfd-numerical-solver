@@ -2,28 +2,30 @@
 #define FREESTREAMBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
+#include "bc/BoundaryFactory.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class FreeStreamBoundary
- * @brief Far-field boundary condition for 1D and 2D.
+ * @brief Conditional freestream boundary: inflow uses prescribed state, outflow uses zero-gradient.
  *
- * Supports both 1D and 2D data layouts.
- * For 2D, fills ghost columns (axis=0) or ghost rows (axis=1).
+ * The inflow/outflow decision is made from the local normal velocity component
+ * at the nearest interior core cell (computed from conservative state U).
+ *
+ * Works only with conservative state U(var,i,j,k).
  */
-class FreeStreamBoundary : public BoundaryCondition {
+class FreeStreamBoundary final : public BoundaryCondition {
 public:
-    FreeStreamBoundary(double rho_inf, double u_inf, double p_inf);
-    FreeStreamBoundary(double rho_inf, double u_inf, double v_inf, double p_inf);
+    /**
+     * @brief Constructs boundary condition with a prescribed freestream conservative state.
+     * @param freestream_U Conservative state imposed during inflow.
+     */
+    explicit FreeStreamBoundary(const FarfieldConservative& freestream_U);
 
-    void Apply(DataLayer& layer, int axis, Side side) const override;
+    void Apply(DataLayer& layer, Axis axis, Side side) const override;
 
 private:
-    double rho_inf_;
-    double u_inf_;
-    double p_inf_;
-    double v_inf_;
-
-    void Apply2D(DataLayer& layer, int axis, Side side) const;
+    FarfieldConservative freestream_U_;
 };
 
 #endif  // FREESTREAMBOUNDARY_HPP

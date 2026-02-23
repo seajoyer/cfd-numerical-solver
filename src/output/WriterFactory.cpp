@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "output/GIFWriter.hpp"
-#include "output/PNGWriter.hpp"
+// #include "output/GIFWriter.hpp"
+// #include "output/PNGWriter.hpp"
 #include "output/VTKWriter.hpp"
 
 void WriterFactory::ParseResolution(const std::string& format_lower,
@@ -52,25 +52,25 @@ auto WriterFactory::Create(const std::string& output_format,
     }
 
     // Parse PNG format: "png" or "png<width>x<height>"
-    if (format_lower.substr(0, 3) == "png") {
-        int width = 0;
-        int height = 0;
-        ParseResolution(format_lower, "png", width, height);
-
-        // PNG writer doesn't need is_analytical flag - it handles both in same file
-        return std::make_unique<PNGWriter>(output_dir, width, height);
-    }
+    // if (format_lower.substr(0, 3) == "png") {
+    //     int width = 0;
+    //     int height = 0;
+    //     ParseResolution(format_lower, "png", width, height);
+    //
+    //     // PNG writer doesn't need is_analytical flag - it handles both in same file
+    //     return std::make_unique<PNGWriter>(output_dir, width, height);
+    // }
 
     // Parse GIF format: "gif" or "gif<width>x<height>"
-    if (format_lower.substr(0, 3) == "gif") {
-        int width = 0;
-        int height = 0;
-        ParseResolution(format_lower, "gif", width, height);
-
-        // GIF writer stores to the case directory directly (not a subdirectory)
-        // The output_dir passed here should be the case directory
-        return std::make_unique<GIFWriter>(output_dir, width, height);
-    }
+    // if (format_lower.substr(0, 3) == "gif") {
+    //     int width = 0;
+    //     int height = 0;
+    //     ParseResolution(format_lower, "gif", width, height);
+    //
+    //     // GIF writer stores to the case directory directly (not a subdirectory)
+    //     // The output_dir passed here should be the case directory
+    //     return std::make_unique<GIFWriter>(output_dir, width, height);
+    // }
 
     throw std::runtime_error("Unknown output format: " + output_format +
                              ". Supported formats: vtk, png[<width>x<height>], "

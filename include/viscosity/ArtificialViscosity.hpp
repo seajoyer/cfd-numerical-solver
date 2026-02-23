@@ -1,52 +1,46 @@
 #ifndef ARTIFICIALVISCOSITY_HPP
 #define ARTIFICIALVISCOSITY_HPP
 
-#include <xtensor.hpp>
-
-#include "config/Settings.hpp"
-
-struct DataLayer;
+#include "data/DataLayer.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class ArtificialViscosity
- * @brief Abstract interface for artificial viscosity models.
+ * @brief Interface for artificial viscosity models (2D/3D-ready).
  *
- * Artificial viscosity is modeled here as an additional scalar quantity
- * q_{j+1/2} defined on cell interfaces. Typical usage:
+ * Artificial viscosity adds a dissipative contribution to the conservative RHS:
+ *   rhs += L_visc(U)
  *
- *  - Compute q on all interfaces via ComputeInterfaceQ().
- *  - For each interface j+1/2, add q_{j+1/2} to the pressure of left/right
- *    reconstructed states before calling the Riemann solver:
+ * SpatialOperator is responsible for:
+ *  - halo + physical BC on conservative U
+ *  - converting U -> W into Workspace.W()
  *
- *      P_L_eff = P_L + q_{j+1/2},
- *      P_R_eff = P_R + q_{j+1/2}.
- *
- * This increases numerical dissipation in compressive regions (e.g. shocks)
- * while leaving expansion regions unaffected.
+ * Implementations should:
+ *  - read primitive field W(var,i,j,k) = (rho,u,v,w,P)
+ *  - use DataLayer metrics (inv_dx, inv_dy, inv_dz)
+ *  - avoid allocations in hot path (cache buffers internally if needed)
  */
 class ArtificialViscosity {
 public:
     virtual ~ArtificialViscosity() = default;
 
     /**
-     * @brief Computes artificial viscosity q on all cell interfaces.
+     * @brief Add viscosity contribution to RHS (in-place accumulation).
      *
-     * The implementation must fill the array `q` with size equal to the
-     * number of interfaces: n_interfaces = total_size - 1, where total_size
-     * is the linear size of 1D arrays in DataLayer (including ghosts).
-     *
-     * Interfaces are indexed as:
-     *  - interface i corresponds to the face between cells i and i+1.
-     *
-     * @param layer    Current solution state (primitive fields, geometry).
-     * @param dx       Spatial step size.
-     * @param q        Output array of length total_size - 1 with q_{i}.
-     *                 On entry it may have any shape; implementation should
-     *                 resize/assign it as needed.
+     * @param layer Conservative state + geometry metadata.
+     * @param W     Primitive field W(var,i,j,k) = (rho,u,v,w,P), including ghosts.
+     * @param gamma Ratio of specific heats.
+     * @param dt    Local time step (optional for some models).
+     * @param rhs   RHS buffer in conservative ordering (accumulated in-place).
      */
-    virtual void ComputeInterfaceQ(const DataLayer& layer,
-                                   double dx,
-                                   xt::xarray<double>& q) const = 0;
+    virtual void AddToRhs(const DataLayer& layer,
+                          const xt::xtensor<double, 4>& W,
+                          double gamma,
+                          double dt,
+                          xt::xtensor<double, 4>& rhs) const = 0;
+
+    /** @brief Minimal required padding (ghost cells) for this viscosity stencil. */
+    [[nodiscard]] virtual int GetRequiredPadding() const { return 1; }
 };
 
 #endif  // ARTIFICIALVISCOSITY_HPP

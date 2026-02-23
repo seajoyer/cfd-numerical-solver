@@ -1,68 +1,46 @@
+// GodunovSpatialOperator.hpp
 #ifndef GODUNOVSPATIALOPERATOR_HPP
 #define GODUNOVSPATIALOPERATOR_HPP
 
 #include <memory>
 
-#include "SpatialOperator.hpp"
-#include "viscosity/ArtificialViscosity.hpp"
+#include "spatial/SpatialOperator.hpp"
 #include "config/Settings.hpp"
-#include "reconstruction/Reconstruction.hpp"
-#include "riemann/RiemannSolver.hpp"
+
+class Reconstruction;
+class RiemannSolver;
+class ArtificialViscosity;
 
 /**
  * @class GodunovSpatialOperator
- * @brief First-order Godunov finite-volume spatial operator.
+ * @brief Godunov FV operator: reconstruction + Riemann solver, summed per axis.
  *
- * This operator:
- *  - reconstructs P0 (piecewise-constant) interface states,
- *  - evaluates numerical fluxes with a chosen Riemann solver,
- *  - assembles flux differences to compute dU/dt.
- *
- * It corresponds to the spatial part of the existing GodunovSolver,
- * but without any time integration or positivity limiting.
+ * Uses Workspace:
+ *  - Converts U -> W once per RHS evaluation.
+ *  - Computes flux divergence per axis and accumulates into workspace.Rhs().
  */
-class GodunovSpatialOperator : public SpatialOperator {
+class GodunovSpatialOperator final : public SpatialOperator {
 public:
-    /**
-     * @brief Constructs a Godunov spatial operator from Settings.
-     *
-     * Uses:
-     *  - settings.reconstruction to choose P0/P1/ENO/WENO (P0 by default),
-     *  - settings.riemann_solver to choose HLL/HLLC/Exact/Acoustic.
-     *
-     * @param settings Global simulation settings.
-     */
-    explicit GodunovSpatialOperator(const Settings& settings);
+    GodunovSpatialOperator(const Settings& settings,
+                           std::shared_ptr<BoundaryManager> boundary_manager);
 
-    /**
-     * @brief Computes dU/dt using a first-order Godunov flux difference.
-     *
-     * Uses the same reconstruction and Riemann solver selection
-     * as the current GodunovSolver, but operates purely on the
-     * provided conservative array U and fills rhs with
-     *
-     *     rhs_j = -(F_{j+1/2} - F_{j-1/2}) / dx.
-     */
-    void ComputeRHS(const DataLayer& layer,
-                    double dx,
-                    double gamma,
-                    xt::xarray<Conservative>& rhs) const override;
+    void ComputeRHS(DataLayer& layer, Workspace& workspace, double gamma, double dt) const override;
 
 private:
-    /** @brief Selected reconstruction strategy (P0/P1/ENO/WENO). */
     std::shared_ptr<Reconstruction> reconstruction_;
-
-    /** @brief Selected Riemann solver (HLL, HLLC, Exact, Acoustic). */
     std::shared_ptr<RiemannSolver> riemann_solver_;
-
-    /** @brief Von Neumann Richtmyer viscosity. */
     std::shared_ptr<ArtificialViscosity> viscosity_;
 
-    /** @brief Initializes reconstruction_ based on settings.reconstruction. */
     void InitializeReconstruction(const Settings& settings);
-
-    /** @brief Initializes riemann_solver_ based on settings.riemann_solver. */
     void InitializeRiemannSolver(const Settings& settings);
+
+    void AccumulateAxisFluxDivergence(const DataLayer& layer,
+                                  const xt::xtensor<double, 4>& W,
+                                  xt::xtensor<double, 4>& rhs,
+                                  double gamma,
+                                  Axis axis) const;
+
+    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const DataLayer& layer, Axis axis) const;
 };
 
 #endif  // GODUNOVSPATIALOPERATOR_HPP

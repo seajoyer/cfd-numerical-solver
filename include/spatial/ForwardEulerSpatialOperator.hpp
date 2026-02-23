@@ -4,41 +4,45 @@
 #include <memory>
 
 #include "spatial/SpatialOperator.hpp"
-#include "viscosity/ArtificialViscosity.hpp"
 #include "config/Settings.hpp"
+#include "data/Variables.hpp"
+
+class ArtificialViscosity;
 
 /**
  * @class ForwardEulerSpatialOperator
- * @brief Forward-difference RHS operator for MacCormack predictor with optional artificial viscosity.
+ * @brief Forward-difference flux-divergence operator for MacCormack predictor.
  *
- * Computes:
- *   L_j(U) = - (F_{j+1} - F_j) / dx,
- * where F_j is the physical Euler flux evaluated at cell centers.
+ * Computes per axis:
+ *   L(U) = - (F_{i+1} - F_i) / dx
+ * where F_i is the physical Euler flux evaluated at cell centers (from primitives).
  *
- * If viscosity is enabled, an effective pressure is used:
- *   P_eff(j) = P(j) + q_cell(j),
- * where q_cell is obtained from interface viscosity q_{j+1/2} by averaging.
+ * Contract:
+ *  - Applies halo + physical BC internally (BoundaryManager).
+ *  - Converts U -> W once per call using Workspace.
+ *  - Writes RHS into workspace.Rhs().
+ *
+ * Artificial viscosity is not wired yet (viscosity_ stays null).
  */
-class ForwardEulerSpatialOperator : public SpatialOperator {
+class ForwardEulerSpatialOperator final : public SpatialOperator {
 public:
-    ForwardEulerSpatialOperator() = default;
+    explicit ForwardEulerSpatialOperator(const Settings& settings,
+                                         std::shared_ptr<BoundaryManager> boundary_manager);
 
-    /**
-     * @brief Constructs operator with artificial viscosity model.
-     *
-     * @param settings Global settings used to construct viscosity model.
-     */
-    explicit ForwardEulerSpatialOperator(const Settings& settings);
-
-    ~ForwardEulerSpatialOperator() override = default;
-
-    void ComputeRHS(const DataLayer& layer,
-                    double dx,
-                    double gamma,
-                    xt::xarray<Conservative>& rhs) const override;
+    void ComputeRHS(DataLayer& layer, Workspace& workspace, double gamma, double dt) const override;
 
 private:
     std::shared_ptr<ArtificialViscosity> viscosity_;
+
+    void AccumulateAxis(const DataLayer& layer,
+                        const xt::xtensor<double, 4>& W,
+                        xt::xtensor<double, 4>& rhs,
+                        double gamma,
+                        Axis axis) const;
+
+    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const DataLayer& layer, Axis axis) const;
+
+    static PrimitiveCell LoadPrimitive(const xt::xtensor<double, 4>& W, int i, int j, int k);
 };
 
 #endif  // FORWARDEULERSPATIALOPERATOR_HPP

@@ -1,79 +1,87 @@
 #include "time/SSPRK3TimeIntegrator.hpp"
 
-#include "bc/BoundaryManager.hpp"
-#include "solver/EOS.hpp"
+#include "spatial/SpatialOperator.hpp"
 #include "solver/PositivityLimiter.hpp"
 
-SSPRK3TimeIntegrator::SSPRK3TimeIntegrator(std::shared_ptr<BoundaryManager> bm) : boundary_manager_(bm) {
-    rho_min_ = 1e-10;
-    p_min_ = 1e-10;
-}
-
 void SSPRK3TimeIntegrator::Advance(DataLayer& layer,
-                                   double dt,
-                                   double dx,
-                                   const Settings& settings,
+                                   Workspace& workspace,
+                                   const double dt,
+                                   const double gamma,
                                    const SpatialOperator& op) const {
-    const int total_size = layer.GetTotalSize();
-    if (total_size <= 0 || dt <= 0.0 || dx <= 0.0) {
+    if (dt <= 0.0) {
         return;
     }
 
-    const int core_start = layer.GetCoreStart(0);
-    const int core_end = layer.GetCoreEndExclusive(0);
-    const double gamma = settings.gamma;
+    workspace.ResizeFrom(layer);
 
-    xt::xarray<Conservative> U0 =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
-    xt::xarray<Conservative> U1 =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
-    xt::xarray<Conservative> U2 =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
-    xt::xarray<Conservative> rhs =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
+    auto& U = layer.U();
+    auto& rhs = workspace.Rhs();
 
-    for (int j = 0; j < total_size; ++j) {
-        Primitive w = layer.GetPrimitive(j);
-        U0(j) = EOS::PrimToCons(w, gamma);
-    }
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
 
-    op.ComputeRHS(layer, dx, gamma, rhs);
+    // Save U^n (simple + safe).
+    xt::xtensor<double, 4> U0 = xt::eval(U);
 
-    for (int j = 0; j < total_size; ++j) {
-        Primitive w = layer.GetPrimitive(j);
-        U0(j) = EOS::PrimToCons(w, gamma);
-        U1(j) = U0(j);
-        U1(j) += dt * rhs(j);
-    }
+    // ---------- Stage 1: U = U0 + dt * L(U0) ----------
+    op.ComputeRHS(layer, workspace, gamma, dt);
 
-    for (int j = core_start; j < core_end; ++j) {
-        StoreConservativeCell(U1(j), j, dx, settings, layer);
-    }
+    xt::view(U, xt::all(),
+             xt::range(i0, i1),
+             xt::range(j0, j1),
+             xt::range(k0, k1)) =
+        xt::view(U0, xt::all(),
+                 xt::range(i0, i1),
+                 xt::range(j0, j1),
+                 xt::range(k0, k1)) +
+        dt * xt::view(rhs, xt::all(),
+                      xt::range(i0, i1),
+                      xt::range(j0, j1),
+                      xt::range(k0, k1));
 
-    boundary_manager_->ApplyAll(layer);
-    op.ComputeRHS(layer, dx, gamma, rhs);
+    // ---------- Stage 2: U = 3/4 U0 + 1/4 (U + dt*L(U)) ----------
+    op.ComputeRHS(layer, workspace, gamma, dt);
 
-    for (int j = 0; j < total_size; ++j) {
-        Conservative tmp = U1(j);
-        tmp += dt * rhs(j);
+    xt::view(U, xt::all(),
+             xt::range(i0, i1),
+             xt::range(j0, j1),
+             xt::range(k0, k1)) =
+        3.0 / 4.0 * xt::view(U0, xt::all(),
+                             xt::range(i0, i1),
+                             xt::range(j0, j1),
+                             xt::range(k0, k1)) +
+        1.0 / 4.0 * (xt::view(U, xt::all(),
+                              xt::range(i0, i1),
+                              xt::range(j0, j1),
+                              xt::range(k0, k1)) +
+            dt * xt::view(rhs, xt::all(),
+                          xt::range(i0, i1),
+                          xt::range(j0, j1),
+                          xt::range(k0, k1)));
 
-        U2(j) = 3.0 / 4.0 * U0(j) + 1.0 / 4.0 * tmp;
-    }
+    // ---------- Stage 3: U = 1/3 U0 + 2/3 (U + dt*L(U)) ----------
+    op.ComputeRHS(layer, workspace, gamma, dt);
 
-    for (int j = core_start; j < core_end; ++j) {
-        StoreConservativeCell(U2(j), j, dx, settings, layer);
-    }
+    xt::view(U, xt::all(),
+             xt::range(i0, i1),
+             xt::range(j0, j1),
+             xt::range(k0, k1)) =
+        1.0 / 3.0 * xt::view(U0, xt::all(),
+                             xt::range(i0, i1),
+                             xt::range(j0, j1),
+                             xt::range(k0, k1)) +
+        2.0 / 3.0 * (xt::view(U, xt::all(),
+                              xt::range(i0, i1),
+                              xt::range(j0, j1),
+                              xt::range(k0, k1)) +
+            dt * xt::view(rhs, xt::all(),
+                          xt::range(i0, i1),
+                          xt::range(j0, j1),
+                          xt::range(k0, k1)));
 
-    boundary_manager_->ApplyAll(layer);
-    op.ComputeRHS(layer, dx, gamma, rhs);
-
-    for (int j = core_start; j < core_end; ++j) {
-        Conservative tmp = U2(j);
-        tmp += dt * rhs(j);
-
-        Conservative U_new = 1.0 / 3.0 * U0(j) + 2.0 / 3.0 * tmp;
-
-        PositivityLimiter::Apply(U_new, gamma, rho_min_, p_min_);
-        StoreConservativeCell(U_new, j, dx, settings, layer);
-    }
+    PositivityLimiter::Apply(layer, gamma, rho_min_, p_min_);
 }

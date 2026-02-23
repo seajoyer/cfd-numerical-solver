@@ -5,33 +5,22 @@
 
 /**
  * @class P0Reconstruction
- * @brief Piecewise-constant reconstruction (Godunov's original scheme).
+ * @brief Piecewise-constant reconstruction (first order).
  *
- * For each interface between cell i and cell i+1, this scheme assigns
- *  - left state  = cell-average in cell i,
- *  - right state = cell-average in cell i+1.
- *
- * This yields a first-order accurate Godunov method in space.
+ * For each face:
+ *  - WL = W in left cell
+ *  - WR = W in right cell
  */
-class P0Reconstruction : public Reconstruction {
+class P0Reconstruction final : public Reconstruction {
 public:
     P0Reconstruction() = default;
     ~P0Reconstruction() override = default;
 
-    /**
-     * @brief Computes left/right primitive states at all interfaces.
-     *
-     * For a 1D layout with total_size cells (including ghosts), there are
-     * total_size - 1 interfaces. Interface i takes the primitive state from
-     * cell i on the left and from cell i+1 on the right.
-     *
-     * @param layer        DataLayer with primitive fields.
-     * @param left_states  Output: left primitive states at all interfaces.
-     * @param right_states Output: right primitive states at all interfaces.
-     */
-    void ReconstructStates(const DataLayer& layer,
-                           xt::xarray<Primitive>& left_states,
-                           xt::xarray<Primitive>& right_states) const override;
+    void ReconstructFace(const xt::xtensor<double, 4>& W,
+                         Axis axis,
+                         int i, int j, int k,
+                         PrimitiveCell& WL,
+                         PrimitiveCell& WR) const override;
 };
 
 #endif  // P0RECONSTRUCTION_HPP

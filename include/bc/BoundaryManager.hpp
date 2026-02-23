@@ -3,60 +3,62 @@
 
 #include <memory>
 #include <vector>
+#include <cstdint>
 
-struct DataLayer;
+#include "data/DataLayer.hpp"
+#include "data/Variables.hpp"
+
 class BoundaryCondition;
 
-struct AxisBc {
+/**
+ * @struct AxisBc
+ * @brief Boundary condition pair for one axis (left/right side).
+ */
+struct AxisBc final {
     std::shared_ptr<BoundaryCondition> left_bc;
     std::shared_ptr<BoundaryCondition> right_bc;
 };
 
 /**
  * @class BoundaryManager
- * @brief Manages and applies boundary conditions for each spatial axis.
+ * @brief Manages halo update (stub for MPI) and physical boundary conditions.
  *
- * This class holds pairs of boundary condition objects for each dimension
- * (left and right sides) and provides a simple interface to apply
- * them all at once to a DataLayer.
- *
- * It allows flexible configuration of boundary types for each axis
- * without hardcoding logic into the solver.
- *
- * @note BoundaryManager enables extension to 2D/3D cases by maintaining
- *       independent boundary pairs for each coordinate direction.
+ * Contract:
+ *  - UpdateHalo() handles internal subdomain interfaces (MPI later). For now: no-op.
+ *  - ApplyPhysicalBc() applies only physical BC on global external boundaries,
+ *    as indicated by DataLayer boundary flags.
  */
-class BoundaryManager {
-   public:
-    /**
-     * @brief Constructs BoundaryManager for a given dimensionality.
-     *
-     * @param dim Number of spatial dimensions (1, 2, or 3).
-     */
-    explicit BoundaryManager(int dim);
+class BoundaryManager final {
+public:
+    /** @brief Constructs boundary manager for three axes. */
+    BoundaryManager();
 
     /**
-     * @brief Assigns boundary conditions for a specific axis.
-     *
-     * @param axis Index of spatial axis (0 for X, 1 for Y, 2 for Z).
-     * @param left_bc Pointer to boundary condition for the lower side (Side::kLeft).
-     * @param right_bc Pointer to boundary condition for the upper side (Side::kRight).
-     *
-     * @note Passing nullptr disables the corresponding boundary.
+     * @brief Assign boundary conditions for an axis.
+     * @param axis Axis (X/Y/Z).
+     * @param left_bc Boundary at lower/min side.
+     * @param right_bc Boundary at upper/max side.
      */
-    void Set(int axis, std::shared_ptr<BoundaryCondition> left_bc,
+    void Set(Axis axis,
+             std::shared_ptr<BoundaryCondition> left_bc,
              std::shared_ptr<BoundaryCondition> right_bc);
 
     /**
-     * @brief Applies all configured boundary conditions to the given DataLayer.
-     *
-     * Iterates over all axes and applies each pair (left/right) in order.
-     *
-     * @param layer Reference to the DataLayer whose ghost zones should be updated.
+     * @brief Halo exchange/update for internal interfaces (MPI later).
+     * @details For now: no-op.
      */
-    void ApplyAll(DataLayer& layer) const;
+    void UpdateHalo(DataLayer& layer) const;
 
-   private:
+    /**
+     * @brief Apply physical boundary conditions on global external boundaries.
+     * @details Uses DataLayer::IsGlobalBoundary(axis, side) to decide whether to apply.
+     */
+    void ApplyPhysicalBc(DataLayer& layer) const;
+
+    /** @brief Get boundary pair for an axis. */
+    [[nodiscard]] const AxisBc& Get(Axis axis) const;
+
+private:
     std::vector<AxisBc> axes_;
 };
 

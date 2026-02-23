@@ -1,83 +1,83 @@
-#ifndef GODUNOVKOLGANRADIONOVSPATIALOPERATOR
-#define GODUNOVKOLGANRADIONOVSPATIALOPERATOR
+#ifndef GODUNOVKOLGANRODIONOVSPATIALOPERATOR_HPP
+#define GODUNOVKOLGANRODIONOVSPATIALOPERATOR_HPP
 
 #include <memory>
 
-#include "SpatialOperator.hpp"
 #include "config/Settings.hpp"
-#include "reconstruction/Reconstruction.hpp"
-#include "riemann/RiemannSolver.hpp"
-#include "viscosity/ArtificialViscosity.hpp"
-#include "viscosity/VNRArtificialViscosity.hpp"
+#include "spatial/SpatialOperator.hpp"
+#include "data/Variables.hpp"
+
+class Reconstruction;
+class RiemannSolver;
+class ArtificialViscosity;
 
 /**
  * @class GodunovKolganRodionovSpatialOperator
- * @brief Second-order Godunov-Kolgan-Rodionov spatial operator.
+ * @brief Second-order Godunov–Kolgan–Rodionov (MUSCL–Hancock) spatial operator (axis-aligned).
  *
- * This operator:
- *  - performs piecewise-linear (or higher-order ENO/WENO) reconstruction
- *    of primitive variables,
- *  - advances reconstructed edge values by half a time step (predictor),
- *  - builds half-time interface states and calls a Riemann solver,
- *  - assembles the resulting flux differences into dU/dt.
+ * Pipeline (per ComputeRHS):
+ *  1) UpdateHalo(U) -> ApplyPhysicalBc(U)
+ *  2) ConvertUtoW(U -> workspace.W) on full padded domain
+ *  3) rhs = 0
+ *  4) For each axis:
+ *      - reconstruct face states (WL/WR)
+ *      - predictor: evolve each cell’s left/right edge conservative states by dt/2 using local flux difference
+ *      - solve Riemann on predicted interface states
+ *      - accumulate flux divergence into rhs
  *
- * Time integration (including the choice of dt) is handled by the
- * enclosing TimeIntegrator / FiniteVolumeSolver.
+ * dt is provided externally via SetLocalTimeStep(dt) (required).
  */
-class GodunovKolganRodionovSpatialOperator : public SpatialOperator {
+class GodunovKolganRodionovSpatialOperator final : public SpatialOperator {
 public:
-    /**
-     * @brief Constructs a Godunov-Kolgan-Rodionov spatial operator from Settings.
-     *
-     * Uses:
-     *  - settings.reconstruction to choose P1/ENO/WENO (forcing ≥ P1),
-     *  - settings.riemann_solver to choose HLL/HLLC/Exact.
-     *
-     * @param settings Global simulation settings.
-     */
-    explicit GodunovKolganRodionovSpatialOperator(const Settings& settings);
+    GodunovKolganRodionovSpatialOperator(const Settings& settings,
+                                         std::shared_ptr<BoundaryManager> boundary_manager);
 
-    /**
-     * @brief Computes dU/dt using a Godunov-Kolgan-Rodionov predictor and Riemann fluxes.
-     *
-     * The method internally uses a half-time predictor based on dt and dx
-     * (dt is provided by the TimeIntegrator via its calling pattern).
-     *
-     * @param layer Mesh and auxiliary data.
-     * @param dx    Cell size.
-     * @param gamma Ratio of specific heats.
-     * @param rhs   Output array for dU/dt.
-     */
-    void ComputeRHS(const DataLayer& layer,
-                    double dx,
-                    double gamma,
-                    xt::xarray<Conservative>& rhs) const override;
-
-    /**
-     * @brief Sets the local time step used for the half-step predictor.
-     *
-     * Many time integrators will call this before evaluating dU/dt
-     * if a predictor requires knowledge of the current dt.
-     *
-     * @param dt Time step size used inside the predictor.
-     */
-    void SetLocalTimeStep(double dt);
+    void ComputeRHS(DataLayer& layer, Workspace& workspace, double gamma, double dt) const override;
 
 private:
-    /** @brief Reconstruction strategy (typically P1, ENO, or WENO). */
     std::shared_ptr<Reconstruction> reconstruction_;
-
-    /** @brief Riemann solver. */
     std::shared_ptr<RiemannSolver> riemann_solver_;
-
-    /** @brief Von Neumann Richtmyer viscosity. */
-    std::shared_ptr<ArtificialViscosity> viscosity_;
-
-    /** @brief Local dt used for the half-time predictor. */
-    double dt_local_;
+    std::shared_ptr<ArtificialViscosity> viscosity_; // optional; may be null
 
     void InitializeReconstruction(const Settings& settings);
     void InitializeRiemannSolver(const Settings& settings);
+
+    void AccumulateAxis(DataLayer& layer,
+                        const xt::xtensor<double, 4>& W,
+                        xt::xtensor<double, 4>& rhs,
+                        double gamma,
+                        Axis axis,
+                        double dt) const;
+
+    [[nodiscard]] double InvMetricAt(const DataLayer& layer, Axis axis, int i, int j, int k) const;
+
+    static void ApplyPredictor(ConservativeCell& UL,
+                               ConservativeCell& UR,
+                               const FluxCell& FL,
+                               const FluxCell& FR,
+                               double half_dt_over_d);
+
+    void MapCellIndices(Axis axis, int s, int a, int b, int& i, int& j, int& k) const;
+
+    void ComputeStarForCell(const xt::xtensor<double, 4>& W,
+                            double gamma,
+                            Axis axis,
+                            const AxisStride& st,
+                            const DataLayer& layer,
+                            int ci, int cj, int ck,
+                            PrimitiveCell& WL_face,
+                            PrimitiveCell& WR_face,
+                            PrimitiveCell& WLm_face,
+                            PrimitiveCell& WRm_face,
+                            ConservativeCell& UL_star,
+                            ConservativeCell& UR_star,
+                            double dt) const;
+
+    static void AccumulateCellRhs(xt::xtensor<double, 4>& rhs,
+                                  int i, int j, int k,
+                                  double invd,
+                                  const FluxCell& Fp,
+                                  const FluxCell& Fm);
 };
 
-#endif  // GODUNOVKOLGANRADIONOVSPATIALOPERATOR
+#endif  // GODUNOVKOLGANRODIONOVSPATIALOPERATOR_HPP

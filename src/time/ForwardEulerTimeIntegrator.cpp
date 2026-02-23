@@ -1,44 +1,43 @@
 #include "time/ForwardEulerTimeIntegrator.hpp"
 
-#include "solver/EOS.hpp"
+#include "spatial/SpatialOperator.hpp"
 #include "solver/PositivityLimiter.hpp"
 
-ForwardEulerTimeIntegrator::ForwardEulerTimeIntegrator() {
-    rho_min_ = 1e-10;
-    p_min_ = 1e-10;
-}
-
 void ForwardEulerTimeIntegrator::Advance(DataLayer& layer,
-                                         double dt,
-                                         double dx,
-                                         const Settings& settings,
+                                         Workspace& workspace,
+                                         const double dt,
+                                         const double gamma,
                                          const SpatialOperator& op) const {
-    const int total_size = layer.GetTotalSize();
-    if (total_size <= 0 || dt <= 0.0 || dx <= 0.0) {
+    if (dt <= 0.0) {
         return;
     }
 
-    const int core_start = layer.GetCoreStart(0);
-    const int core_end = layer.GetCoreEndExclusive(0);
-    const double gamma = settings.gamma;
+    // Ensure workspace matches layer sizes (caller обычно делает это, но здесь безопасно)
+    workspace.ResizeFrom(layer);
 
-    xt::xarray<Conservative> U =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
-    xt::xarray<Conservative> rhs =
-        xt::xarray<Conservative>::from_shape({static_cast<std::size_t>(total_size)});
+    // Compute RHS into workspace.Rhs() (SpatialOperator handles halo+physical BC internally)
+    op.ComputeRHS(layer, workspace, gamma, dt);
 
-    for (int j = 0; j < total_size; ++j) {
-        Primitive w = layer.GetPrimitive(j);
-        U(j) = EOS::PrimToCons(w, gamma);
-    }
+    // Update U on core region: U_core += dt * rhs_core
+    auto& U = layer.U();
+    auto& rhs = workspace.Rhs();
 
-    op.ComputeRHS(layer, dx, gamma, rhs);
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
 
-    for (int j = core_start; j < core_end; ++j) {
-        Conservative U_new = U(j);
-        U_new += dt * rhs(j);
+    xt::view(U, xt::all(),
+             xt::range(i0, i1),
+             xt::range(j0, j1),
+             xt::range(k0, k1)) +=
+        dt * xt::view(rhs, xt::all(),
+                      xt::range(i0, i1),
+                      xt::range(j0, j1),
+                      xt::range(k0, k1));
 
-        PositivityLimiter::Apply(U_new, gamma, rho_min_, p_min_);
-        StoreConservativeCell(U_new, j, dx, settings, layer);
-    }
+    // Safety limiter on core cells (in-place on U)
+    PositivityLimiter::Apply(layer, gamma, rho_min_, p_min_);
 }

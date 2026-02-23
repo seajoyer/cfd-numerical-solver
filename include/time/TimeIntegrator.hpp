@@ -1,82 +1,48 @@
 #ifndef TIMEINTEGRATOR_HPP
 #define TIMEINTEGRATOR_HPP
 
-#include <xtensor.hpp>
-
-#include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
-#include "spatial/SpatialOperator.hpp"
+#include "data/Workspace.hpp"
+
+class SpatialOperator;
 
 /**
  * @class TimeIntegrator
- * @brief Abstract time integration scheme for semi-discrete FV systems.
+ * @brief Abstract explicit time integration scheme for semi-discrete FV systems.
  *
- * Given a semi-discrete system
+ * Integrators advance the conservative state U stored in DataLayer.
+ * They do NOT apply boundary conditions or halos; those are handled inside SpatialOperator.
  *
- *   dU/dt = L(U),
- *
- * this interface advances the conservative solution by a single time step
- * of size dt, using a provided SpatialOperator for repeated evaluations
- * of L(U).
- *
- * Implementations may internally:
- *  - extract U from DataLayer into xt::xarray<Conservative>,
- *  - perform one or more stages (Forward Euler, SSPRK2/3, MacCormack, ...),
- *  - apply local positivity limiters during or after stages,
- *  - write the final U^{n+1} back into DataLayer.
+ * Workspace is provided by the caller and reused to avoid allocations.
  */
 class TimeIntegrator {
 public:
     virtual ~TimeIntegrator() = default;
 
     /**
-     * @brief Advances the solution by a single time step dt.
+     * @brief Advances the solution by one time step dt.
      *
-     * The method operates in-place on the DataLayer:
-     *  - reads the current state from DataLayer,
-     *  - performs time integration using the spatial operator,
-     *  - writes the updated state back into DataLayer.
-     *
-     * @param layer    DataLayer containing the current state (modified in-place).
-     * @param dt       Time step to perform (assumed already CFL-limited).
-     * @param dx       Spatial step size.
-     * @param settings Global simulation settings (for gamma, etc.).
+     * @param layer Conservative state owner (updated in-place).
+     * @param workspace Scratch buffers (W, rhs).
+     * @param dt Time step size.
+     * @param gamma Ratio of specific heats.
+     * @param op Spatial operator providing RHS evaluations.
      */
     virtual void Advance(DataLayer& layer,
+                         Workspace& workspace,
                          double dt,
-                         double dx,
-                         const Settings& settings,
+                         double gamma,
                          const SpatialOperator& op) const = 0;
 
-    /**
-     * @brief Sets positivity thresholds used inside the integrator.
-     *
-     * Implementations may use these thresholds for PositivityLimiter
-     * calls at intermediate or final stages.
-     *
-     * @param rho_min Minimal allowed density.
-     * @param p_min   Minimal allowed pressure.
-     */
-    virtual void SetPositivityThresholds(double rho_min, double p_min);
+    /** @brief Sets positivity thresholds used by integrator post-update limiter. */
+    virtual void SetPositivityThresholds(double rho_min, double p_min) {
+        rho_min_ = rho_min;
+        p_min_ = p_min;
+    }
 
-    /**
-     * @brief Writes a conservative state back into the DataLayer.
-     *
-     * Converts (rho, rhoU, E) into primitive and auxiliary fields:
-     *  - rho, u, P
-     *  - p, V, U, e, m
-     *
-     * using EOS::Pressure and the same semantics as GodunovSolver.
-     */
-    void StoreConservativeCell(const Conservative& uc,
-                               int i,
-                               double dx,
-                               const Settings& settings,
-                               DataLayer& layer) const;
 protected:
-    double rho_min_{1e-6};
-    double p_min_{1e-6};
+    double rho_min_ = 1e-10;
+    double p_min_ = 1e-10;
 };
 
 #endif  // TIMEINTEGRATOR_HPP

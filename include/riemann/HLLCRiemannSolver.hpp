@@ -1,32 +1,23 @@
 #ifndef HLLCRIEMANNSOLVER_HPP
 #define HLLCRIEMANNSOLVER_HPP
 
-#include "RiemannSolver.hpp"
+#include "riemann/RiemannSolver.hpp"
 
 /**
  * @class HLLCRiemannSolver
- * @brief HLLC (HLL-Contact) approximate Riemann solver.
+ * @brief HLLC approximate Riemann solver (restores contact wave).
  *
- * Extends HLL by restoring the contact wave, providing better resolution
- * of contact discontinuities and shear layers while remaining robust.
+ * Computes numerical flux for Euler equations (ideal gas) at an interface aligned
+ * with a coordinate axis.
  */
-class HLLCRiemannSolver : public RiemannSolver {
-   public:
-    /**
-     * @brief Default constructor.
-     */
+class HLLCRiemannSolver final : public RiemannSolver {
+public:
     HLLCRiemannSolver() = default;
 
-    /**
-     * @brief Computes the HLLC numerical flux.
-     *
-     * @param left Left primitive state.
-     * @param right Right primitive state.
-     * @param gamma Ratio of specific heats.
-     * @return HLLC flux at the interface.
-     */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
-                                   double gamma) const -> Flux override;
+    [[nodiscard]] auto ComputeFlux(const PrimitiveCell& left,
+                                   const PrimitiveCell& right,
+                                   double gamma,
+                                   Axis axis) const -> FluxCell override;
 };
 
 #endif  // HLLCRIEMANNSOLVER_HPP

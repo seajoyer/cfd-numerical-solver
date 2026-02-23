@@ -23,13 +23,9 @@ add_executable(${NAME}
     src/Simulation.cpp
 
     src/solver/SolverFactory.cpp
-    src/solver/GodunovSolver.cpp
-    src/solver/GodunovKolganRodionovSolver.cpp
     src/solver/FiniteVolumeSolver.cpp
-    src/solver/MacCormackSolver.cpp
-    src/solver/AnalyticalSolver.cpp
+#    src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
-    src/solver/EOS.cpp
     src/solver/TimeStepCalculator.cpp
     src/solver/PositivityLimiter.cpp
 
@@ -37,12 +33,12 @@ add_executable(${NAME}
     src/time/MacCormackTimeIntegrator.cpp
     src/time/SSPRK3TimeIntegrator.cpp
     src/time/SSPRK2TimeIntegrator.cpp
-    src/time/TimeIntegrator.cpp
+    include/time/TimeIntegrator.hpp
 
-    src/limiter/GlobalLimiter.cpp
-    src/limiter/VacuumFixLimiter.cpp
+#    src/limiter/GlobalLimiter.cpp
+#    src/limiter/VacuumFixLimiter.cpp
 
-    src/filter/SolutionFilter.cpp
+#    src/filter/SolutionFilter.cpp
 
     src/viscosity/VNRArtificialViscosity.cpp
     include/viscosity/ArtificialViscosity.hpp
@@ -50,7 +46,6 @@ add_executable(${NAME}
     src/spatial/ForwardEulerSpatialOperator.cpp
     src/spatial/BackwardEulerSpatialOperator.cpp
     src/spatial/GodunovSpatialOperator.cpp
-    src/spatial/GodunovSpatialOperator2D.cpp
     src/spatial/GodunovKolganRodionovSpatialOperator.cpp
     include/spatial/SpatialOperator.hpp
 
@@ -70,11 +65,12 @@ add_executable(${NAME}
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
-    src/output/PNGWriter.cpp
-    src/output/GIFWriter.cpp
+#    src/output/PNGWriter.cpp
+#    src/output/GIFWriter.cpp
 
     src/data/DataLayer.cpp
     src/data/Variables.cpp
+    src/data/Workspace.cpp
 
     src/config/ConfigParser.cpp
     include/config/Settings.hpp

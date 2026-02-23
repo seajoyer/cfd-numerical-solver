@@ -1,18 +1,32 @@
 #include "reconstruction/P0Reconstruction.hpp"
 
-void P0Reconstruction::ReconstructStates(const DataLayer& layer,
-                                         xt::xarray<Primitive>& left_states,
-                                         xt::xarray<Primitive>& right_states) const {
-    const int total_size = layer.GetTotalSize();
-    const int n_interfaces = total_size > 0 ? total_size - 1 : 0;
-
-    left_states = xt::xarray<Primitive>::from_shape(
-        {static_cast<std::size_t>(n_interfaces)});
-    right_states = xt::xarray<Primitive>::from_shape(
-        {static_cast<std::size_t>(n_interfaces)});
-
-    for (int i = 0; i < n_interfaces; ++i) {
-        left_states(i) = layer.GetPrimitive(i);
-        right_states(i) = layer.GetPrimitive(i + 1);
+namespace {
+    PrimitiveCell LoadCellW(const xt::xtensor<double, 4>& W, const int i, const int j, const int k) {
+        PrimitiveCell w;
+        w.rho = W(var::u_rho, i, j, k);
+        w.u = W(var::u_u, i, j, k);
+        w.v = W(var::u_v, i, j, k);
+        w.w = W(var::u_w, i, j, k);
+        w.P = W(var::u_P, i, j, k);
+        return w;
     }
+} // namespace
+
+void P0Reconstruction::ReconstructFace(const xt::xtensor<double, 4>& W,
+                                       const Axis axis,
+                                       const int i, const int j, const int k,
+                                       PrimitiveCell& WL,
+                                       PrimitiveCell& WR) const {
+    WL = LoadCellW(W, i, j, k);
+
+    if (axis == Axis::X) {
+        WR = LoadCellW(W, i + 1, j, k);
+        return;
+    }
+    if (axis == Axis::Y) {
+        WR = LoadCellW(W, i, j + 1, k);
+        return;
+    }
+    // Axis::Z
+    WR = LoadCellW(W, i, j, k + 1);
 }

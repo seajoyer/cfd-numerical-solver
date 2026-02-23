@@ -5,43 +5,28 @@
 
 struct DataLayer;
 class BoundaryCondition;
+enum class Axis : std::uint8_t;
 
 /**
  * @class Solver
- * @brief Abstract base class for numerical solvers.
- *
- * This class defines the interface for time-stepping algorithms
- * used to advance the simulation state. Concrete implementations
- * (e.g., GodunovSolver) provide specific numerical schemes.
+ * @brief Abstract base class for explicit time-stepping solvers.
  */
 class Solver {
-   public:
+public:
     virtual ~Solver() = default;
 
     /**
-     * @brief Advances the simulation by one time step.
-     * @param layer Data layer containing current state (modified in-place)
-     * @param t_cur Current simulation time (will be updated)
-     * @return Actual time step taken (dt)
+     * @brief Advances simulation by one step.
+     * @param layer DataLayer (updated in-place).
+     * @param t_cur Current time (incremented by dt).
+     * @return dt actually taken, or 0.0 if step is skipped.
      */
     virtual auto Step(DataLayer& layer, double& t_cur) -> double = 0;
 
-    /**
-     * @brief Sets the CFL number for time step calculation.
-     * @param cfl CFL number
-     */
+    /** @brief Set CFL number. */
     virtual void SetCfl(double cfl) = 0;
 
-    /**
-     * @brief Adds boundary conditions for a specific axis.
-     * @param axis Spatial axis index (0=x, 1=y, 2=z)
-     * @param left_bc Boundary condition for left/lower boundary
-     * @param right_bc Boundary condition for right/upper boundary
-     */
-    virtual void AddBoundary(int axis, std::shared_ptr<BoundaryCondition> left_bc,
-                             std::shared_ptr<BoundaryCondition> right_bc) = 0;
-
-   protected:
+protected:
     double cfl_ = 0.5;
 };
 

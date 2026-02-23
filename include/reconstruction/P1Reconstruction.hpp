@@ -1,94 +1,51 @@
 #ifndef P1RECONSTRUCTION_HPP
 #define P1RECONSTRUCTION_HPP
 
+#include <cstdint>
+
 #include "reconstruction/Reconstruction.hpp"
 
 /**
  * @enum LimiterType
  * @brief Types of slope limiters for piecewise-linear reconstruction.
  */
-enum class LimiterType : std::uint8_t { kMinmod, kMc, kSuperbee };
+enum class LimiterType : std::uint8_t { kMinmod = 0, kMc = 1, kSuperbee = 2 };
 
 /**
  * @class P1Reconstruction
- * @brief Piecewise-linear reconstruction with slope limiters.
+ * @brief Piecewise-linear reconstruction with slope limiters (MUSCL-type).
  *
- * This scheme computes limited linear slopes for each primitive component
- * in each cell using a chosen limiter (minmod, MC, or Superbee) applied
- * to backward and forward differences. Interface states are then built as
+ * For a face between left cell (i,j,k) and right cell (+1 along axis):
+ *   WL = W_L + 0.5 * slope(L)
+ *   WR = W_R - 0.5 * slope(R)
  *
- *  w_L(i+1/2) = w_i   + 0.5 * slope_i
- *  w_R(i+1/2) = w_{i+1} - 0.5 * slope_{i+1}
+ * Slopes are computed component-wise using a limiter applied to backward and forward differences:
+ *   slope(i) = limiter( W(i) - W(i-1), W(i+1) - W(i) )
  *
- * where ghost cells provide the necessary neighbors near boundaries.
+ * Contract:
+ *  - No allocations in hot path.
+ *  - Uses only local stencil and ghost cells for boundary support.
  */
-class P1Reconstruction : public Reconstruction {
+class P1Reconstruction final : public Reconstruction {
 public:
     P1Reconstruction() = default;
     ~P1Reconstruction() override = default;
 
-    /**
-     * @brief Computes left/right primitive states at all interfaces.
-     *
-     * For a 1D layout with total_size cells (including ghosts), there are
-     * total_size - 1 interfaces. Slopes are first computed for every cell
-     * using a chosen limiter, then used to reconstruct interface states.
-     *
-     * @param layer        DataLayer with primitive fields.
-     * @param left_states  Output: left primitive states at all interfaces.
-     * @param right_states Output: right primitive states at all interfaces.
-     */
-    void ReconstructStates(const DataLayer& layer,
-                           xt::xarray<Primitive>& left_states,
-                           xt::xarray<Primitive>& right_states) const override;
+    void ReconstructFace(const xt::xtensor<double, 4>& W,
+                         Axis axis,
+                         int i, int j, int k,
+                         PrimitiveCell& WL,
+                         PrimitiveCell& WR) const override;
 
-    /**
-     * @brief Sets the slope limiter type.
-     *
-     * @param type LimiterType to use (kMinmod, kMc, kSuperbee).
-     */
     void SetLimiter(LimiterType type) { limiter_type_ = type; }
 
 private:
     LimiterType limiter_type_{LimiterType::kMinmod};
 
-    /**
-     * @brief Minmod limiter for two arguments.
-     *
-     * Returns 0 if a and b have opposite signs or either is zero,
-     * otherwise returns the argument with smaller magnitude.
-     *
-     * @param a First slope candidate.
-     * @param b Second slope candidate.
-     * @return Limited slope.
-     */
     static auto Minmod(double a, double b) -> double;
-
-    /**
-     * @brief Monotonized central (MC) limiter for two arguments.
-     *
-     * @param a First slope candidate.
-     * @param b Second slope candidate.
-     * @return Limited slope.
-     */
     static auto Mc(double a, double b) -> double;
-
-    /**
-     * @brief Superbee limiter for two arguments.
-     *
-     * @param a First slope candidate.
-     * @param b Second slope candidate.
-     * @return Limited slope.
-     */
     static auto Superbee(double a, double b) -> double;
 
-    /**
-     * @brief Applies the currently selected limiter to two slope candidates.
-     *
-     * @param a First slope candidate.
-     * @param b Second slope candidate.
-     * @return Limited slope.
-     */
     [[nodiscard]] auto ApplyLimiter(double a, double b) const -> double;
 };
 

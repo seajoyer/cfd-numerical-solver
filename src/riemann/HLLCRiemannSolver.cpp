@@ -3,78 +3,81 @@
 #include <algorithm>
 #include <cmath>
 
-#include "solver/EOS.hpp"
+auto HLLCRiemannSolver::ComputeFlux(const PrimitiveCell& left,
+                                    const PrimitiveCell& right,
+                                    const double gamma,
+                                    const Axis axis) const -> FluxCell {
+    // Split velocities into normal/tangential for the interface normal axis.
+    double un_l, ut1_l, ut2_l;
+    double un_r, ut1_r, ut2_r;
+    riemann::SplitVelocity(left, axis, un_l, ut1_l, ut2_l);
+    riemann::SplitVelocity(right, axis, un_r, ut1_r, ut2_r);
 
-auto HLLCRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
-                                    double gamma) const -> Flux {
-    const double rho_l = left.rho;
-    const double u_l = left.u;
-    const double p_l = left.P;
+    const double a_l = SoundSpeed(left, gamma);
+    const double a_r = SoundSpeed(right, gamma);
 
-    const double rho_r = right.rho;
-    const double u_r = right.u;
-    const double p_r = right.P;
+    // Davis wave speed estimates (simple and robust)
+    const double sL = std::min(un_l - a_l, un_r - a_r);
+    const double sR = std::max(un_l + a_l, un_r + a_r);
 
-    const double a_l = std::sqrt(gamma * p_l / rho_l);
-    const double a_r = std::sqrt(gamma * p_r / rho_r);
+    const FluxCell FL = EulerFlux(left, gamma, axis);
+    const FluxCell FR = EulerFlux(right, gamma, axis);
 
-    const Conservative ul = EOS::PrimToCons(left, gamma);
-    const Conservative ur = EOS::PrimToCons(right, gamma);
+    // Upwind selection if star region not needed.
+    if (sL >= 0.0) return FL;
+    if (sR <= 0.0) return FR;
 
-    const Flux fl = EulerFlux(left, gamma);
-    const Flux fr = EulerFlux(right, gamma);
+    // Conservative states (global ordering rho, rhoU, rhoV, rhoW, E)
+    double rhoL, rhoUL, rhoVL, rhoWL, EL;
+    double rhoR, rhoUR, rhoVR, rhoWR, ER;
+    PrimitiveToConservative(left, gamma, rhoL, rhoUL, rhoVL, rhoWL, EL);
+    PrimitiveToConservative(right, gamma, rhoR, rhoUR, rhoVR, rhoWR, ER);
 
-    const double sl = std::min(u_l - a_l, u_r - a_r);
-    const double sr = std::max(u_l + a_l, u_r + a_r);
+    // Contact wave speed S*
+    const double pL = left.P;
+    const double pR = right.P;
 
-    if (sl >= 0.0) {
-        return fl;
+    const double denom = rhoL * (sL - un_l) - rhoR * (sR - un_r);
+    const double sM =
+        (denom != 0.0)
+            ? (pR - pL + rhoL * un_l * (sL - un_l) - rhoR * un_r * (sR - un_r)) / denom
+            : 0.0;
+
+    // Left star state density
+    const double rhoStarL = rhoL * (sL - un_l) / (sL - sM);
+    // Right star state density
+    const double rhoStarR = rhoR * (sR - un_r) / (sR - sM);
+
+    // Total specific energy
+    const double eTotL = EL / rhoL;
+    const double eTotR = ER / rhoR;
+
+    // Star-region total energy density (Toro-style)
+    const double EStarL = rhoStarL * (eTotL + (sM - un_l) * (sM + pL / (rhoL * (sL - un_l))));
+    const double EStarR = rhoStarR * (eTotR + (sM - un_r) * (sM + pR / (rhoR * (sR - un_r))));
+
+    // Star momenta in global ordering: normal momentum uses sM; tangentials copied from each side.
+    double rhoUStarL, rhoVStarL, rhoWStarL;
+    double rhoUStarR, rhoVStarR, rhoWStarR;
+    riemann::ComposeMomentum(rhoStarL, sM, ut1_l, ut2_l, axis, rhoUStarL, rhoVStarL, rhoWStarL);
+    riemann::ComposeMomentum(rhoStarR, sM, ut1_r, ut2_r, axis, rhoUStarR, rhoVStarR, rhoWStarR);
+
+    // Flux selection with star correction
+    if (sM >= 0.0) {
+        FluxCell F = FL;
+        F.mass += sL * (rhoStarL - rhoL);
+        F.mom_x += sL * (rhoUStarL - rhoUL);
+        F.mom_y += sL * (rhoVStarL - rhoVL);
+        F.mom_z += sL * (rhoWStarL - rhoWL);
+        F.energy += sL * (EStarL - EL);
+        return F;
     }
 
-    if (sr <= 0.0) {
-        return fr;
-    }
-
-    if (sr - sl < 1e-14) {
-        return 0.5 * (fl + fr);
-    }
-
-    const double numerator =
-        p_r - p_l + rho_l * (sl - u_l) * u_l - rho_r * (sr - u_r) * u_r;
-    const double denominator = rho_l * (sl - u_l) - rho_r * (sr - u_r);
-
-    const double sm = numerator / denominator;
-
-    const double rho_l_star = rho_l * (sl - u_l) / (sl - sm);
-    const double rho_r_star = rho_r * (sr - u_r) / (sr - sm);
-
-    const double p_l_star = p_l + rho_l * (sl - u_l) * (sm - u_l);
-    const double p_r_star = p_r + rho_r * (sr - u_r) * (sm - u_r);
-
-    const double el = ul.E;
-    const double er = ur.E;
-
-    const double el_star = ((sl - u_l) * el - p_l * u_l + p_l_star * sm) / (sl - sm);
-    const double er_star = ((sr - u_r) * er - p_r * u_r + p_r_star * sm) / (sr - sm);
-
-    Conservative ul_star;
-    ul_star.rho = rho_l_star;
-    ul_star.rhoU = rho_l_star * sm;
-    ul_star.E = el_star;
-
-    Conservative ur_star;
-    ur_star.rho = rho_r_star;
-    ur_star.rhoU = rho_r_star * sm;
-    ur_star.E = er_star;
-
-    if (0.0 <= sl) {
-        return fl;
-    }
-    if (sl <= 0.0 && 0.0 <= sm) {
-        return fl + sl * (ul_star - ul);
-    }
-    if (sm <= 0.0 && 0.0 <= sr) {
-        return fr + sr * (ur_star - ur);
-    }
-    return fr;
+    FluxCell F = FR;
+    F.mass += sR * (rhoStarR - rhoR);
+    F.mom_x += sR * (rhoUStarR - rhoUR);
+    F.mom_y += sR * (rhoVStarR - rhoVR);
+    F.mom_z += sR * (rhoWStarR - rhoWR);
+    F.energy += sR * (EStarR - ER);
+    return F;
 }

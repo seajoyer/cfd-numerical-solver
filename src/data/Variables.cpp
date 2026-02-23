@@ -1,315 +1,216 @@
 #include "data/Variables.hpp"
 
-// ---------- Primitive ----------
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
 
-Primitive::Primitive() : rho(0.0), u(0.0), v(0.0), P(0.0) {}
+PrimitiveCell PrimitiveFromConservative(
+    const xt::xtensor<double, 4>& U,
+    const int i, const int j, const int k,
+    const double gamma,
+    const double rho_floor,
+    const double p_floor
+) {
+    PrimitiveCell w;
 
-Primitive::Primitive(double rho_, double u_, double P_)
-    : rho(rho_), u(u_), v(0.0), P(P_) {}
+    const double rho_in  = U(var::rho,  i, j, k);
+    const double rhoU_in = U(var::rhoU, i, j, k);
+    const double rhoV_in = U(var::rhoV, i, j, k);
+    const double rhoW_in = U(var::rhoW, i, j, k);
+    const double E_in    = U(var::E,    i, j, k);
 
-Primitive::Primitive(double rho_, double u_, double v_, double P_)
-    : rho(rho_), u(u_), v(v_), P(P_) {}
+    const double rho = (rho_in > rho_floor) ? rho_in : rho_floor;
+    const double inv_rho = 1.0 / rho;
 
-// ---------- Conservative ----------
+    const double u = rhoU_in * inv_rho;
+    const double v = rhoV_in * inv_rho;
+    const double wv = rhoW_in * inv_rho;
 
-Conservative::Conservative() : rho(0.0), rhoU(0.0), rhoV(0.0), E(0.0) {}
+    const double kinetic = 0.5 * rho * (u*u + v*v + wv*wv);
+    const double eint = E_in - kinetic;
+    const double P_raw = (gamma - 1.0) * eint;
+    const double P = (P_raw > p_floor) ? P_raw : p_floor;
 
-Conservative::Conservative(double rho_, double rhoU_, double E_)
-    : rho(rho_), rhoU(rhoU_), rhoV(0.0), E(E_) {}
+    w.rho = rho;
+    w.u = u;
+    w.v = v;
+    w.w = wv;
+    w.P = P;
+    return w;
+}
 
-Conservative::Conservative(double rho_, double rhoU_, double rhoV_, double E_)
-    : rho(rho_), rhoU(rhoU_), rhoV(rhoV_), E(E_) {}
+double SoundSpeed(const PrimitiveCell& w, const double gamma, const double p_floor) {
+    const double P = (w.P > p_floor) ? w.P : p_floor;
+    const double rho = (w.rho > 0.0) ? w.rho : 1e-14;
+    const double a2 = gamma * P / rho;
+    return std::sqrt(std::max(a2, 0.0));
+}
 
-auto Conservative::operator=(const Flux& f) -> Conservative& {
-    this->rho = f.mass;
-    this->rhoU = f.momentum_x;
-    this->rhoV = f.momentum_y;
-    this->E = f.energy;
+static double TotalEnergyFromPrimitive(const PrimitiveCell& w, const double gamma) {
+    const double kinetic = 0.5 * w.rho * (w.u*w.u + w.v*w.v + w.w*w.w);
+    return w.P / (gamma - 1.0) + kinetic;
+}
+
+FluxCell EulerFlux(const PrimitiveCell& w, const double gamma, const Axis axis) {
+    FluxCell f;
+    const double E = TotalEnergyFromPrimitive(w, gamma);
+
+    if (axis == Axis::X) {
+        f.mass   = w.rho * w.u;
+        f.mom_x  = w.rho * w.u * w.u + w.P;
+        f.mom_y  = w.rho * w.u * w.v;
+        f.mom_z  = w.rho * w.u * w.w;
+        f.energy = w.u * (E + w.P);
+        return f;
+    }
+
+    if (axis == Axis::Y) {
+        f.mass   = w.rho * w.v;
+        f.mom_x  = w.rho * w.u * w.v;
+        f.mom_y  = w.rho * w.v * w.v + w.P;
+        f.mom_z  = w.rho * w.v * w.w;
+        f.energy = w.v * (E + w.P);
+        return f;
+    }
+
+    // Axis::Z
+    f.mass   = w.rho * w.w;
+    f.mom_x  = w.rho * w.u * w.w;
+    f.mom_y  = w.rho * w.v * w.w;
+    f.mom_z  = w.rho * w.w * w.w + w.P;
+    f.energy = w.w * (E + w.P);
+    return f;
+}
+
+void ConvertUtoW(
+    const xt::xtensor<double, 4>& U,
+    xt::xtensor<double, 4>& W,
+    const double gamma,
+    const int i0, const int i1,
+    const int j0, const int j1,
+    const int k0, const int k1,
+    const double rho_floor,
+    const double p_floor
+) {
+    // Basic shape sanity: only check var dimension to avoid overhead.
+    if (U.shape().size() != 4 || W.shape().size() != 4) {
+        throw std::invalid_argument("ConvertUtoW expects 4D tensors");
+    }
+    if (U.shape()[0] != var::nvar || W.shape()[0] != var::nvar) {
+        throw std::invalid_argument("ConvertUtoW expects first dimension size = 5");
+    }
+
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                const PrimitiveCell w = PrimitiveFromConservative(U, i, j, k, gamma, rho_floor, p_floor);
+                W(var::u_rho, i, j, k) = w.rho;
+                W(var::u_u,   i, j, k) = w.u;
+                W(var::u_v,   i, j, k) = w.v;
+                W(var::u_w,   i, j, k) = w.w;
+                W(var::u_P,   i, j, k) = w.P;
+            }
+        }
+    }
+}
+
+double NormalVelocity(const PrimitiveCell& w, const Axis axis) {
+    if (axis == Axis::X) return w.u;
+    if (axis == Axis::Y) return w.v;
+    return w.w;
+}
+
+void PrimitiveToConservative(const PrimitiveCell& w,
+                             const double gamma,
+                             double& rho,
+                             double& rhoU,
+                             double& rhoV,
+                             double& rhoW,
+                             double& E) {
+    rho  = w.rho;
+    rhoU = w.rho * w.u;
+    rhoV = w.rho * w.v;
+    rhoW = w.rho * w.w;
+
+    const double kinetic = 0.5 * w.rho * (w.u*w.u + w.v*w.v + w.w*w.w);
+    E = w.P / (gamma - 1.0) + kinetic;
+}
+
+ConservativeCell& ConservativeCell::operator+=(const ConservativeCell& o) {
+    rho  += o.rho;
+    rhoU += o.rhoU;
+    rhoV += o.rhoV;
+    rhoW += o.rhoW;
+    E    += o.E;
     return *this;
 }
 
-// ---------- Flux ----------
-
-Flux::Flux() : mass(0.0), momentum_x(0.0), momentum_y(0.0), energy(0.0),
-               momentum(momentum_x) {}
-
-Flux::Flux(double m, double mu, double e)
-    : mass(m), momentum_x(mu), momentum_y(0.0), energy(e),
-      momentum(momentum_x) {}
-
-Flux::Flux(double m, double mu_x, double mu_y, double e)
-    : mass(m), momentum_x(mu_x), momentum_y(mu_y), energy(e),
-      momentum(momentum_x) {}
-
-Flux::Flux(const Flux& other)
-    : mass(other.mass), momentum_x(other.momentum_x),
-      momentum_y(other.momentum_y), energy(other.energy),
-      momentum(momentum_x) {}
-
-auto Flux::operator=(const Flux& other) -> Flux& {
-    if (this != &other) {
-        mass = other.mass;
-        momentum_x = other.momentum_x;
-        momentum_y = other.momentum_y;
-        energy = other.energy;
-    }
+ConservativeCell& ConservativeCell::operator-=(const ConservativeCell& o) {
+    rho  -= o.rho;
+    rhoU -= o.rhoU;
+    rhoV -= o.rhoV;
+    rhoW -= o.rhoW;
+    E    -= o.E;
     return *this;
 }
 
-auto Flux::Diff(const Flux& Fplus, const Flux& Fminus) -> Flux {
-    return Fplus - Fminus;
-}
-
-// ---------- Euler flux (x-direction) ----------
-
-auto EulerFlux(const Primitive& state, double gamma) -> Flux {
-    const double rho = state.rho;
-    const double u = state.u;
-    const double v = state.v;
-    const double P = state.P;
-
-    const double mass_flux = rho * u;
-    const double momentum_x_flux = rho * u * u + P;
-    const double momentum_y_flux = rho * u * v;
-
-    const double E = P / (gamma - 1.0) + 0.5 * rho * (u * u + v * v);
-    const double energy_flux = u * (E + P);
-
-    return {mass_flux, momentum_x_flux, momentum_y_flux, energy_flux};
-}
-
-// ---------- Euler flux (y-direction) ----------
-
-auto EulerFluxY(const Primitive& state, double gamma) -> Flux {
-    const double rho = state.rho;
-    const double u = state.u;
-    const double v = state.v;
-    const double P = state.P;
-
-    const double mass_flux = rho * v;
-    const double momentum_x_flux = rho * u * v;
-    const double momentum_y_flux = rho * v * v + P;
-
-    const double E = P / (gamma - 1.0) + 0.5 * rho * (u * u + v * v);
-    const double energy_flux = v * (E + P);
-
-    return {mass_flux, momentum_x_flux, momentum_y_flux, energy_flux};
-}
-
-// ---------- Primitive <-> Conservative conversions ----------
-
-auto ToConservative(const Primitive& w, double gamma) -> Conservative {
-    const double rho = w.rho;
-    const double u = w.u;
-    const double v = w.v;
-    const double P = w.P;
-
-    const double rhoU = rho * u;
-    const double rhoV = rho * v;
-    const double E = P / (gamma - 1.0) + 0.5 * rho * (u * u + v * v);
-
-    return {rho, rhoU, rhoV, E};
-}
-
-auto ToPrimitive(const Conservative& U, double gamma) -> Primitive {
-    const double rho = U.rho;
-    const double rhoU = U.rhoU;
-    const double rhoV = U.rhoV;
-    const double E = U.E;
-
-    if (rho <= 0.0) {
-        return {0.0, 0.0, 0.0, 0.0};
-    }
-
-    const double u = rhoU / rho;
-    const double v = rhoV / rho;
-    const double kinetic = 0.5 * rho * (u * u + v * v);
-    const double P = (gamma - 1.0) * (E - kinetic);
-
-    return {rho, u, v, P};
-}
-
-// ---------- Small algebra helpers for Conservative ----------
-
-auto operator+=(Conservative& a, const Conservative& b) -> Conservative& {
-    a.rho += b.rho;
-    a.rhoU += b.rhoU;
-    a.rhoV += b.rhoV;
-    a.E += b.E;
-    return a;
-}
-
-auto operator-=(Conservative& a, const Conservative& b) -> Conservative& {
-    a.rho -= b.rho;
-    a.rhoU -= b.rhoU;
-    a.rhoV -= b.rhoV;
-    a.E -= b.E;
-    return a;
-}
-
-auto operator+(Conservative a, const Conservative& b) -> Conservative {
+ConservativeCell operator+(ConservativeCell a, const ConservativeCell& b) {
     a += b;
     return a;
 }
 
-auto operator-(Conservative a, const Conservative& b) -> Conservative {
+ConservativeCell operator-(ConservativeCell a, const ConservativeCell& b) {
     a -= b;
     return a;
 }
 
-auto operator*=(Conservative& a, double s) -> Conservative& {
-    a.rho *= s;
+ConservativeCell operator*(const double s, ConservativeCell a) {
+    a.rho  *= s;
     a.rhoU *= s;
     a.rhoV *= s;
-    a.E *= s;
+    a.rhoW *= s;
+    a.E    *= s;
     return a;
 }
 
-auto operator*(Conservative a, double s) -> Conservative {
-    a *= s;
-    return a;
+ConservativeCell operator*(ConservativeCell a, const double s) {
+    return s * a;
 }
 
-auto operator*(double s, Conservative a) -> Conservative {
-    a *= s;
-    return a;
+ConservativeCell ConservativeFromPrimitive(const PrimitiveCell& w, const double gamma) {
+    ConservativeCell U;
+    U.rho  = w.rho;
+    U.rhoU = w.rho * w.u;
+    U.rhoV = w.rho * w.v;
+    U.rhoW = w.rho * w.w;
+
+    const double kinetic = 0.5 * w.rho * (w.u*w.u + w.v*w.v + w.w*w.w);
+    U.E = w.P / (gamma - 1.0) + kinetic;
+    return U;
 }
 
-auto operator-=(Conservative& u, const Flux& f) -> Conservative& {
-    u.rho -= f.mass;
-    u.rhoU -= f.momentum_x;
-    u.rhoV -= f.momentum_y;
-    u.E -= f.energy;
-    return u;
-}
+PrimitiveCell PrimitiveFromConservativeCell(const ConservativeCell& U,
+                                            const double gamma,
+                                            const double rho_floor,
+                                            const double p_floor) {
+    PrimitiveCell w;
 
-auto operator-(Conservative u, const Flux& f) -> Conservative {
-    u -= f;
-    return u;
-}
+    const double rho = (U.rho > rho_floor) ? U.rho : rho_floor;
+    const double inv_rho = 1.0 / rho;
 
-auto operator+=(Conservative& u, const Flux& f) -> Conservative& {
-    u.rho += f.mass;
-    u.rhoU += f.momentum_x;
-    u.rhoV += f.momentum_y;
-    u.E += f.energy;
-    return u;
-}
+    const double u = U.rhoU * inv_rho;
+    const double v = U.rhoV * inv_rho;
+    const double ww = U.rhoW * inv_rho;
 
-auto operator+(Conservative u, const Flux& f) -> Conservative {
-    u += f;
-    return u;
-}
+    const double kinetic = 0.5 * rho * (u*u + v*v + ww*ww);
+    const double eint = U.E - kinetic;
+    const double P_raw = (gamma - 1.0) * eint;
+    const double P = (P_raw > p_floor) ? P_raw : p_floor;
 
-// ---------- Small algebra helpers for Flux ----------
-
-auto operator+=(Flux& a, const Flux& b) -> Flux& {
-    a.mass += b.mass;
-    a.momentum_x += b.momentum_x;
-    a.momentum_y += b.momentum_y;
-    a.energy += b.energy;
-    return a;
-}
-
-auto operator-=(Flux& a, const Flux& b) -> Flux& {
-    a.mass -= b.mass;
-    a.momentum_x -= b.momentum_x;
-    a.momentum_y -= b.momentum_y;
-    a.energy -= b.energy;
-    return a;
-}
-
-auto operator+(Flux a, const Flux& b) -> Flux {
-    a += b;
-    return a;
-}
-
-auto operator-(Flux a, const Flux& b) -> Flux {
-    a -= b;
-    return a;
-}
-
-auto operator*=(Flux& a, double s) -> Flux& {
-    a.mass *= s;
-    a.momentum_x *= s;
-    a.momentum_y *= s;
-    a.energy *= s;
-    return a;
-}
-
-auto operator*(Flux a, double s) -> Flux {
-    a *= s;
-    return a;
-}
-
-auto operator*(double s, Flux a) -> Flux {
-    a *= s;
-    return a;
-}
-
-auto operator+=(Flux& f, const Conservative& u) -> Flux& {
-    f.mass += u.rho;
-    f.momentum_x += u.rhoU;
-    f.momentum_y += u.rhoV;
-    f.energy += u.E;
-    return f;
-}
-
-auto operator+(Flux f, const Conservative& u) -> Flux {
-    f += u;
-    return f;
-}
-
-auto operator-(Flux f, const Conservative& u) -> Flux {
-    f.mass -= u.rho;
-    f.momentum_x -= u.rhoU;
-    f.momentum_y -= u.rhoV;
-    f.energy -= u.E;
-    return f;
-}
-
-// ---------- Optional algebra for Primitive ----------
-
-auto operator+=(Primitive& a, const Primitive& b) -> Primitive& {
-    a.rho += b.rho;
-    a.u += b.u;
-    a.v += b.v;
-    a.P += b.P;
-    return a;
-}
-
-auto operator-=(Primitive& a, const Primitive& b) -> Primitive& {
-    a.rho -= b.rho;
-    a.u -= b.u;
-    a.v -= b.v;
-    a.P -= b.P;
-    return a;
-}
-
-auto operator+(Primitive a, const Primitive& b) -> Primitive {
-    a += b;
-    return a;
-}
-
-auto operator-(Primitive a, const Primitive& b) -> Primitive {
-    a -= b;
-    return a;
-}
-
-auto operator*=(Primitive& a, double s) -> Primitive& {
-    a.rho *= s;
-    a.u *= s;
-    a.v *= s;
-    a.P *= s;
-    return a;
-}
-
-auto operator*(Primitive a, double s) -> Primitive {
-    a *= s;
-    return a;
-}
-
-auto operator*(double s, Primitive a) -> Primitive {
-    a *= s;
-    return a;
+    w.rho = rho;
+    w.u = u;
+    w.v = v;
+    w.w = ww;
+    w.P = P;
+    return w;
 }

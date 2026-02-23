@@ -3,41 +3,45 @@
 #include <algorithm>
 #include <cmath>
 
-#include "solver/EOS.hpp"
 
-auto HLLRiemannSolver::ComputeFlux(const Primitive& left, const Primitive& right,
-                                   double gamma) const -> Flux {
-    const double rho_l = left.rho;
-    const double u_l = left.u;
-    const double p_l = left.P;
+auto HLLRiemannSolver::ComputeFlux(const PrimitiveCell& left,
+                                   const PrimitiveCell& right,
+                                   const double gamma,
+                                   const Axis axis) const -> FluxCell {
+    const double un_l = NormalVelocity(left, axis);
+    const double un_r = NormalVelocity(right, axis);
 
-    const double rho_r = right.rho;
-    const double u_r = right.u;
-    const double p_r = right.P;
+    const double a_l = SoundSpeed(left, gamma);
+    const double a_r = SoundSpeed(right, gamma);
 
-    const double a_l = std::sqrt(gamma * p_l / rho_l);
-    const double a_r = std::sqrt(gamma * p_r / rho_r);
+    // Davis (or Einfeldt-like) wave speed estimates
+    const double sL = std::min(un_l - a_l, un_r - a_r);
+    const double sR = std::max(un_l + a_l, un_r + a_r);
 
-    const Conservative ul = EOS::PrimToCons(left, gamma);
-    const Conservative ur = EOS::PrimToCons(right, gamma);
+    const FluxCell FL = EulerFlux(left, gamma, axis);
+    const FluxCell FR = EulerFlux(right, gamma, axis);
 
-    const Flux fl = EulerFlux(left, gamma);
-    const Flux fr = EulerFlux(right, gamma);
+    double rhoL, rhoUL, rhoVL, rhoWL, EL;
+    double rhoR, rhoUR, rhoVR, rhoWR, ER;
+    PrimitiveToConservative(left, gamma, rhoL, rhoUL, rhoVL, rhoWL, EL);
+    PrimitiveToConservative(right, gamma, rhoR, rhoUR, rhoVR, rhoWR, ER);
 
-    const double sl = std::min(u_l - a_l, u_r - a_r);
-    const double sr = std::max(u_l + a_l, u_r + a_r);
-
-    if (sl >= 0.0) {
-        return fl;
+    if (sL >= 0.0) {
+        return FL;
+    }
+    if (sR <= 0.0) {
+        return FR;
     }
 
-    if (sr <= 0.0) {
-        return fr;
-    }
+    // HLL flux
+    FluxCell F;
+    const double inv = 1.0 / (sR - sL);
 
-    const double inv_den = 1.0 / (sr - sl);
+    F.mass = (sR * FL.mass - sL * FR.mass + sL * sR * (rhoR - rhoL)) * inv;
+    F.mom_x = (sR * FL.mom_x - sL * FR.mom_x + sL * sR * (rhoUR - rhoUL)) * inv;
+    F.mom_y = (sR * FL.mom_y - sL * FR.mom_y + sL * sR * (rhoVR - rhoVL)) * inv;
+    F.mom_z = (sR * FL.mom_z - sL * FR.mom_z + sL * sR * (rhoWR - rhoWL)) * inv;
+    F.energy = (sR * FL.energy - sL * FR.energy + sL * sR * (ER - EL)) * inv;
 
-    Flux f = (sr * fl - sl * fr + sl * sr * (ur - ul)) * inv_den;
-
-    return f;
+    return F;
 }

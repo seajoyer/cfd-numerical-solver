@@ -1,76 +1,57 @@
 #ifndef EXACTIDEALGASRIEMANNSOLVER_HPP
 #define EXACTIDEALGASRIEMANNSOLVER_HPP
 
-#include "RiemannSolver.hpp"
+#include "riemann/RiemannSolver.hpp"
+
 /**
  * @class ExactIdealGasRiemannSolver
- * @brief Exact Riemann solver for the 1D ideal-gas Euler equations.
+ * @brief Exact Riemann solver for the 1D ideal-gas Euler equations, embedded in axis-aligned 3D flux.
  *
- * Computes the exact solution of the Riemann problem for a calorically
- * perfect ideal gas and evaluates the corresponding interface flux.
+ * Solves the exact 1D Riemann problem along the interface normal (Axis) for (rho, u_n, p),
+ * then reconstructs a 3D primitive state by taking tangential velocities from the appropriate side
+ * of the contact discontinuity.
  *
- * @note Intended mainly for validation and reference; more expensive
- *       than approximate solvers such as HLL/HLLC.
+ * Intended mainly for validation; more expensive than approximate solvers.
  */
-class ExactIdealGasRiemannSolver : public RiemannSolver {
-   public:
-    /**
-     * @brief Constructs the solver with xi = 0 and Q = 2.
-     */
+class ExactIdealGasRiemannSolver final : public RiemannSolver {
+public:
+    /** @brief Constructs the solver with xi = 0 and Q = 2. */
     ExactIdealGasRiemannSolver();
 
-    /**
-     * @brief Constructs the solver with specific xi and Q_user.
-     *
-     * @param xi Similarity coordinate (x - x0) / t.
-     * @param Q_user boundary for P_max / P_min.
-     */
-    ExactIdealGasRiemannSolver(const double xi, const double Q_user)
-        : xi_(xi), Q_user_(Q_user) {}
+    /** @brief Constructs the solver with specific xi and Q_user (PVRS switching threshold). */
+    ExactIdealGasRiemannSolver(double xi, double Q_user) : xi_(xi), Q_user_(Q_user) {}
 
-    /**
-     * @brief Sets the similarity coordinate xi used for sampling.
-     *
-     * For the Godunov method, xi = 0 corresponds to the cell interface.
-     *
-     * @param xi Similarity coordinate (x - x0) / t.
-     */
+    /** @brief Sets the similarity coordinate xi used for sampling (interface: xi = 0). */
     void SetXi(double xi);
 
-    /**
-     * @brief Sets the Q
-     * @param Q .
-     */
+    /** @brief Sets the pressure ratio threshold Q used in initial guess selection. */
     void SetQ(double Q);
 
     /**
-     * @brief Samples the exact Riemann solution at given xi.
+     * @brief Sample the exact solution at given xi and interface axis.
      *
-     * Uses the same internal exact solution as ComputeFlux.
-     *
-     * @param left Left primitive state.
-     * @param right Right primitive state.
+     * @param left  Left primitive state (rho,u,v,w,P).
+     * @param right Right primitive state (rho,u,v,w,P).
      * @param gamma Ratio of specific heats.
-     * @param xi Similarity coordinate (x - x0) / t.
-     * @return Primitive state of the exact solution at xi.
+     * @param xi    Similarity coordinate (x-x0)/t in the 1D normal direction.
+     * @param axis  Interface normal axis.
+     * @return PrimitiveCell sample (rho,u,v,w,P).
      */
-    [[nodiscard]] auto Sample(const Primitive& left, const Primitive& right, double gamma,
-                              double xi) const -> Primitive;
+    [[nodiscard]] PrimitiveCell Sample(const PrimitiveCell& left,
+                                       const PrimitiveCell& right,
+                                       double gamma,
+                                       double xi,
+                                       Axis axis) const;
 
-    /**
-     * @brief Computes the exact Riemann flux for ideal gas.
-     *
-     * @param left Left primitive state.
-     * @param right Right primitive state.
-     * @param gamma Ratio of specific heats.
-     * @return Exact flux at the interface.
-     */
-    [[nodiscard]] auto ComputeFlux(const Primitive& left, const Primitive& right,
-                                   double gamma) const -> Flux override;
+    /** @brief Compute the exact numerical flux at the interface (xi = xi_). */
+    [[nodiscard]] auto ComputeFlux(const PrimitiveCell& left,
+                                   const PrimitiveCell& right,
+                                   double gamma,
+                                   Axis axis) const -> FluxCell override;
 
-   private:
-    double xi_;
-    double Q_user_{2.};
+private:
+    double xi_ = 0.0;
+    double Q_user_ = 2.0;
 };
 
 #endif  // EXACTIDEALGASRIEMANNSOLVER_HPP

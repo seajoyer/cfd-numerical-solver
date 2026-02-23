@@ -2,142 +2,128 @@
 
 #include "data/DataLayer.hpp"
 
-FreeStreamBoundary::FreeStreamBoundary(double rho_inf, double u_inf, double p_inf)
-    : rho_inf_(rho_inf), u_inf_(u_inf), p_inf_(p_inf), v_inf_(0.0) {}
+namespace {
 
-FreeStreamBoundary::FreeStreamBoundary(double rho_inf, double u_inf, double v_inf, double p_inf)
-    : rho_inf_(rho_inf), u_inf_(u_inf), p_inf_(p_inf), v_inf_(v_inf) {}
+inline double NormalVelocityFromU(
+    const xt::xtensor<double, 4>& U, Axis axis,
+    int i, int j, int k,
+    double rho_floor = 1e-14
+) {
+    const double rho_in = U(DataLayer::k_rho, i, j, k);
+    const double rho = (rho_in > rho_floor) ? rho_in : rho_floor;
+    const double inv_rho = 1.0 / rho;
 
-void FreeStreamBoundary::Apply(DataLayer& layer, int axis, Side side) const {
-    if (layer.GetDim() >= 2) {
-        Apply2D(layer, axis, side);
+    if (axis == Axis::X) return U(DataLayer::k_rhoU, i, j, k) * inv_rho;
+    if (axis == Axis::Y) return U(DataLayer::k_rhoV, i, j, k) * inv_rho;
+    return U(DataLayer::k_rhoW, i, j, k) * inv_rho;  // Axis::Z
+}
+
+inline void SetPlaneToStateX(
+    xt::xtensor<double, 4>& U, int dst_i, const FarfieldConservative& s
+) {
+    xt::view(U, DataLayer::k_rho,  dst_i, xt::all(), xt::all()) = s.rho;
+    xt::view(U, DataLayer::k_rhoU, dst_i, xt::all(), xt::all()) = s.rhoU;
+    xt::view(U, DataLayer::k_rhoV, dst_i, xt::all(), xt::all()) = s.rhoV;
+    xt::view(U, DataLayer::k_rhoW, dst_i, xt::all(), xt::all()) = s.rhoW;
+    xt::view(U, DataLayer::k_E,    dst_i, xt::all(), xt::all()) = s.E;
+}
+
+inline void SetPlaneToStateY(
+    xt::xtensor<double, 4>& U, int dst_j, const FarfieldConservative& s
+) {
+    xt::view(U, DataLayer::k_rho,  xt::all(), dst_j, xt::all()) = s.rho;
+    xt::view(U, DataLayer::k_rhoU, xt::all(), dst_j, xt::all()) = s.rhoU;
+    xt::view(U, DataLayer::k_rhoV, xt::all(), dst_j, xt::all()) = s.rhoV;
+    xt::view(U, DataLayer::k_rhoW, xt::all(), dst_j, xt::all()) = s.rhoW;
+    xt::view(U, DataLayer::k_E,    xt::all(), dst_j, xt::all()) = s.E;
+}
+
+inline void SetPlaneToStateZ(
+    xt::xtensor<double, 4>& U, int dst_k, const FarfieldConservative& s
+) {
+    xt::view(U, DataLayer::k_rho,  xt::all(), xt::all(), dst_k) = s.rho;
+    xt::view(U, DataLayer::k_rhoU, xt::all(), xt::all(), dst_k) = s.rhoU;
+    xt::view(U, DataLayer::k_rhoV, xt::all(), xt::all(), dst_k) = s.rhoV;
+    xt::view(U, DataLayer::k_rhoW, xt::all(), xt::all(), dst_k) = s.rhoW;
+    xt::view(U, DataLayer::k_E,    xt::all(), xt::all(), dst_k) = s.E;
+}
+
+}  // namespace
+
+FreeStreamBoundary::FreeStreamBoundary(const FarfieldConservative& freestream_U)
+    : freestream_U_(freestream_U) {}
+
+void FreeStreamBoundary::Apply(DataLayer& layer, const Axis axis, const Side side) const {
+    const int ng = layer.GetPadding();
+    if (ng == 0) return;
+
+    const int dim = layer.GetDim();
+    if (axis == Axis::Y && dim < 2) return;
+    if (axis == Axis::Z && dim < 3) return;
+
+    auto& U = layer.U();
+
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
+
+    bool inward = false;
+
+    if (axis == Axis::X) {
+        const int ii = (side == Side::Left) ? i0 : (i1 - 1);
+        const double un = NormalVelocityFromU(U, axis, ii, j0, k0);
+        inward = (side == Side::Left) ? (un > 0.0) : (un < 0.0);
+
+        for (int g = 0; g < ng; ++g) {
+            const int dst_i = (side == Side::Left) ? (i0 - 1 - g) : (i1 + g);
+            const int src_i = (side == Side::Left) ? i0 : (i1 - 1);
+
+            if (inward) {
+                SetPlaneToStateX(U, dst_i, freestream_U_);
+            } else {
+                xt::view(U, xt::all(), dst_i, xt::all(), xt::all()) =
+                    xt::view(U, xt::all(), src_i, xt::all(), xt::all());
+            }
+        }
         return;
     }
 
-    // --- Original 1D logic (unchanged) ---
-    const int pad = layer.GetPadding();
-    const int core_start = layer.GetCoreStart();
-    const int core_end = layer.GetCoreEndExclusive();
+    if (axis == Axis::Y) {
+        const int jj = (side == Side::Left) ? j0 : (j1 - 1);
+        const double un = NormalVelocityFromU(U, axis, i0, jj, k0);
+        inward = (side == Side::Left) ? (un > 0.0) : (un < 0.0);
 
-    bool inward = false;
-    if (side == Side::kLeft) {
-        inward = (layer.u(core_start) > 0.0);
-    } else {
-        inward = (layer.u(core_end - 1) < 0.0);
+        for (int g = 0; g < ng; ++g) {
+            const int dst_j = (side == Side::Left) ? (j0 - 1 - g) : (j1 + g);
+            const int src_j = (side == Side::Left) ? j0 : (j1 - 1);
+
+            if (inward) {
+                SetPlaneToStateY(U, dst_j, freestream_U_);
+            } else {
+                xt::view(U, xt::all(), xt::all(), dst_j, xt::all()) =
+                    xt::view(U, xt::all(), xt::all(), src_j, xt::all());
+            }
+        }
+        return;
     }
 
-    if (side == Side::kLeft) {
-        for (int g = 0; g < pad; ++g) {
-            int dst = g;
-            int src = core_start;
-            if (inward) {
-                layer.rho(dst) = rho_inf_;
-                layer.u(dst)   = u_inf_;
-                layer.P(dst)   = p_inf_;
-            } else {
-                layer.rho(dst) = layer.rho(src);
-                layer.u(dst)   = layer.u(src);
-                layer.P(dst)   = layer.P(src);
-            }
-            layer.p(dst)  = layer.p(src);
-            layer.e(dst)  = layer.e(src);
-            layer.U(dst)  = layer.U(src);
-            layer.V(dst)  = layer.V(src);
-            layer.m(dst)  = layer.m(src);
-            layer.xb(dst) = layer.xb(src);
-            layer.xc(dst) = layer.xc(src);
-        }
-    } else {
-        for (int g = 0; g < pad; ++g) {
-            int dst = core_end + g;
-            int src = core_end - 1;
-            if (inward) {
-                layer.rho(dst) = rho_inf_;
-                layer.u(dst)   = u_inf_;
-                layer.P(dst)   = p_inf_;
-            } else {
-                layer.rho(dst) = layer.rho(src);
-                layer.u(dst)   = layer.u(src);
-                layer.P(dst)   = layer.P(src);
-            }
-            layer.p(dst)  = layer.p(src);
-            layer.e(dst)  = layer.e(src);
-            layer.U(dst)  = layer.U(src);
-            layer.V(dst)  = layer.V(src);
-            layer.m(dst)  = layer.m(src);
-            layer.xb(dst) = layer.xb(src);
-            layer.xc(dst) = layer.xc(src);
-        }
-    }
-}
+    // Axis::Z
+    const int kk = (side == Side::Left) ? k0 : (k1 - 1);
+    const double un = NormalVelocityFromU(U, axis, i0, j0, kk);
+    inward = (side == Side::Left) ? (un > 0.0) : (un < 0.0);
 
-void FreeStreamBoundary::Apply2D(DataLayer& layer, int axis, Side side) const {
-    const int pad = layer.GetPadding();
-    const int cs_x = layer.GetCoreStart(0);
-    const int ce_x = layer.GetCoreEndExclusive(0);
-    const int cs_y = layer.GetCoreStart(1);
-    const int ce_y = layer.GetCoreEndExclusive(1);
-    const int tx = layer.GetTotalSize(0);
-    const int ty = layer.GetTotalSize(1);
+    for (int g = 0; g < ng; ++g) {
+        const int dst_k = (side == Side::Left) ? (k0 - 1 - g) : (k1 + g);
+        const int src_k = (side == Side::Left) ? k0 : (k1 - 1);
 
-    if (axis == 0) {
-        // X-axis: fill ghost columns (left or right)
-        for (int j = 0; j < ty; ++j) {
-            int src_i = (side == Side::kLeft) ? cs_x : (ce_x - 1);
-            double normal_vel = layer.u(src_i, j);
-            bool inward = (side == Side::kLeft) ? (normal_vel > 0.0) : (normal_vel < 0.0);
-
-            for (int g = 0; g < pad; ++g) {
-                int dst_i = (side == Side::kLeft) ? g : (ce_x + g);
-
-                if (inward) {
-                    layer.rho(dst_i, j) = rho_inf_;
-                    layer.u(dst_i, j)   = u_inf_;
-                    layer.v(dst_i, j)   = v_inf_;
-                    layer.P(dst_i, j)   = p_inf_;
-                } else {
-                    layer.rho(dst_i, j) = layer.rho(src_i, j);
-                    layer.u(dst_i, j)   = layer.u(src_i, j);
-                    layer.v(dst_i, j)   = layer.v(src_i, j);
-                    layer.P(dst_i, j)   = layer.P(src_i, j);
-                }
-                // Copy auxiliary fields
-                layer.p(dst_i, j) = layer.p(src_i, j);
-                layer.q(dst_i, j) = layer.q(src_i, j);
-                layer.e(dst_i, j) = layer.e(src_i, j);
-                layer.U(dst_i, j) = layer.U(src_i, j);
-                layer.V(dst_i, j) = layer.V(src_i, j);
-                layer.m(dst_i, j) = layer.m(src_i, j);
-            }
-        }
-    } else {
-        // Y-axis: fill ghost rows (bottom or top)
-        for (int i = 0; i < tx; ++i) {
-            int src_j = (side == Side::kLeft) ? cs_y : (ce_y - 1);
-            double normal_vel = layer.v(i, src_j);
-            bool inward = (side == Side::kLeft) ? (normal_vel > 0.0) : (normal_vel < 0.0);
-
-            for (int g = 0; g < pad; ++g) {
-                int dst_j = (side == Side::kLeft) ? g : (ce_y + g);
-
-                if (inward) {
-                    layer.rho(i, dst_j) = rho_inf_;
-                    layer.u(i, dst_j)   = u_inf_;
-                    layer.v(i, dst_j)   = v_inf_;
-                    layer.P(i, dst_j)   = p_inf_;
-                } else {
-                    layer.rho(i, dst_j) = layer.rho(i, src_j);
-                    layer.u(i, dst_j)   = layer.u(i, src_j);
-                    layer.v(i, dst_j)   = layer.v(i, src_j);
-                    layer.P(i, dst_j)   = layer.P(i, src_j);
-                }
-                layer.p(i, dst_j) = layer.p(i, src_j);
-                layer.q(i, dst_j) = layer.q(i, src_j);
-                layer.e(i, dst_j) = layer.e(i, src_j);
-                layer.U(i, dst_j) = layer.U(i, src_j);
-                layer.V(i, dst_j) = layer.V(i, src_j);
-                layer.m(i, dst_j) = layer.m(i, src_j);
-            }
+        if (inward) {
+            SetPlaneToStateZ(U, dst_k, freestream_U_);
+        } else {
+            xt::view(U, xt::all(), xt::all(), xt::all(), dst_k) =
+                xt::view(U, xt::all(), xt::all(), xt::all(), src_k);
         }
     }
 }
