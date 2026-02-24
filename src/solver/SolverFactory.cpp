@@ -10,7 +10,7 @@
 
 #include "spatial/GodunovSpatialOperator.hpp"
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
-// #include "spatial/MacCormackSpatialOperator.hpp"
+#include "spatial/FLICSpatialOperator.hpp"
 
 #include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/SSPRK2TimeIntegrator.hpp"
@@ -72,6 +72,10 @@ static auto CreateSpatialOperator(const Settings& settings,
 
     if (solver_lower == "godunov-kolgan-rodionov") {
         return std::make_shared<GodunovKolganRodionovSpatialOperator>(settings, boundary_manager);
+    }
+
+    if (solver_lower == "flic") {
+        return std::make_shared<FLICSpatialOperator>(settings, boundary_manager);
     }
 
     throw std::runtime_error("Unknown solver type: " + settings.solver);

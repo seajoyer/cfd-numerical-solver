@@ -1,11 +1,11 @@
 config:
-    run_cases: [sod1_2d]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
+    run_cases: [sod1, sod2, sod3, sod4, sod5]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
 
     global:
-        solver: godunov-kolgan-rodionov
+        solver: flic
         riemann_solver: exact
         reconstruction: weno5
-        time_integrator: ssprk3
+        time_integrator: euler
         left_boundary: outlet
         right_boundary: outlet
         bottom_boundary: reflective
@@ -17,14 +17,14 @@ config:
         diffusion: false
         viscosity: true
 
-        N: 200
-        Nx: 200      # 0 = use N
-        Ny: 200      # 0 = use N
-        Nz: 1      # 0 = use N
+        N: 400
+        Nx: 400      # 0 = use N
+        Ny: 400      # 0 = use N
+        Nz: 1        # 0 = use N
         cfl: 0.125
         padding: 3
         gamma: 1.4
-        dim: 2
+        dim: 1
         L_x: 1
         L_y: 1
         L_z: 1
