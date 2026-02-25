@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "solver/Solver.hpp"
+#include "filter/SolutionFilter.hpp"
 #include "config/Settings.hpp"
 #include "bc/BoundaryManager.hpp"
 #include "spatial/SpatialOperator.hpp"
@@ -30,6 +31,7 @@ private:
 
     std::shared_ptr<SpatialOperator> spatial_operator_;
     std::shared_ptr<TimeIntegrator> time_integrator_;
+    std::unique_ptr<SolutionFilter> diffusion_;
 
     Workspace workspace_;
 

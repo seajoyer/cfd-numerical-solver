@@ -38,7 +38,7 @@ add_executable(${NAME}
 #    src/limiter/GlobalLimiter.cpp
 #    src/limiter/VacuumFixLimiter.cpp
 
-#    src/filter/SolutionFilter.cpp
+    src/filter/SolutionFilter.cpp
 
     src/viscosity/VNRArtificialViscosity.cpp
     include/viscosity/ArtificialViscosity.hpp

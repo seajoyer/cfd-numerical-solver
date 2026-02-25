@@ -44,10 +44,9 @@ void Simulation::CreateWriters() {
         if (f == "vtk") {
             std::ostringstream subdir;
             subdir << case_output_dir_ << "/vtk/"
-                << "dim_" << settings_.dim
-                << "__" << settings_.solver
+                << settings_.solver
                 << "__R_" << settings_.reconstruction
-                << "__grid_" << nx << "x" << ny << "x" << nz
+                << "__N_" << nx << "x" << ny << "x" << nz
                 << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
 
             vtk_writer_ = WriterFactory::Create("vtk", subdir.str(), false);

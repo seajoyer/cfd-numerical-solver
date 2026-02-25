@@ -16,6 +16,7 @@
 #include <stdexcept>
 
 #include "data/DataLayer.hpp"
+#include "utils/StringUtils.hpp"
 
 // PIMPL implementation
 class VTKWriter::Impl {
@@ -116,7 +117,7 @@ void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
         oss << output_dir_ << "/"
             << settings.solver << "__R_" << settings.reconstruction
             << "__N_" << settings.GetNx() << "x" << settings.GetNy() << "x" << settings.GetNz()
-            << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
+            << "__CFL_" << utils::DoubleWithoutDot(settings.cfl)
             << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
     const std::string filename = oss.str();
@@ -146,98 +147,81 @@ void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
     }
     grid->SetPoints(points);
 
-    const double gamma = settings.gamma;
+const double gamma = settings.gamma;
     const auto& U = layer.U();
 
-    auto add_scalar_field = [&](auto&& accessor, const char* name) {
-        auto array = vtkSmartPointer<vtkDoubleArray>::New();
-        array->SetName(name);
-        array->SetNumberOfComponents(1);
-        array->SetNumberOfTuples(num_points);
+    // Создаем массивы данных заранее
+    auto arr_rho = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_rho->SetName("density");
+    arr_rho->SetNumberOfComponents(1);
+    arr_rho->SetNumberOfTuples(num_points);
 
-        for (int k = 0; k < nz; ++k) {
-            for (int j = 0; j < ny; ++j) {
-                for (int i = 0; i < nx; ++i) {
-                    const int ii = cs_x + i;
-                    const int jj = cs_y + j;
-                    const int kk = cs_z + k;
+    auto arr_vel = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_vel->SetName("velocity");
+    arr_vel->SetNumberOfComponents(3);
+    arr_vel->SetNumberOfTuples(num_points);
 
-                    const double val = accessor(ii, jj, kk);
-                    const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
-                    array->SetValue(pid, val);
-                }
-            }
-        }
-        grid->GetPointData()->AddArray(array);
-    };
+    auto arr_p = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_p->SetName("pressure");
+    arr_p->SetNumberOfComponents(1);
+    arr_p->SetNumberOfTuples(num_points);
 
-    add_scalar_field([&](int i, int j, int k) {
-        return U(DataLayer::k_rho, i, j, k);
-    }, "density");
+    auto arr_e = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_e->SetName("conserved_energy");
+    arr_e->SetNumberOfComponents(1);
+    arr_e->SetNumberOfTuples(num_points);
 
-    add_scalar_field([&](int i, int j, int k) {
-        double rho, u, v, w, P;
-        ConservativeToPrimitive(U, i, j, k, gamma, rho, u, v, w, P);
-        return u;
-    }, "velocity_x");
+    auto arr_eint = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_eint->SetName("internal_energy");
+    arr_eint->SetNumberOfComponents(1);
+    arr_eint->SetNumberOfTuples(num_points);
 
-    add_scalar_field([&](int i, int j, int k) {
-        double rho, u, v, w, P;
-        ConservativeToPrimitive(U, i, j, k, gamma, rho, u, v, w, P);
-        return v;
-    }, "velocity_y");
-
-    add_scalar_field([&](int i, int j, int k) {
-        double rho, u, v, w, P;
-        ConservativeToPrimitive(U, i, j, k, gamma, rho, u, v, w, P);
-        return w;
-    }, "velocity_z");
-
-    add_scalar_field([&](int i, int j, int k) {
-        double rho, u, v, w, P;
-        ConservativeToPrimitive(U, i, j, k, gamma, rho, u, v, w, P);
-        return std::sqrt(u*u + v*v + w*w);
-    }, "velocity_magnitude");
-
-    add_scalar_field([&](int i, int j, int k) {
-        double rho, u, v, w, P;
-        ConservativeToPrimitive(U, i, j, k, gamma, rho, u, v, w, P);
-        return P;
-    }, "pressure");
-
-    add_scalar_field([&](int i, int j, int k) {
-        return U(DataLayer::k_E, i, j, k);
-    }, "energy");
-
-    vtkSmartPointer<vtkDoubleArray> velocity_vectors = vtkSmartPointer<vtkDoubleArray>::New();
-    velocity_vectors->SetName("velocity");
-    velocity_vectors->SetNumberOfComponents(3);
-    velocity_vectors->SetNumberOfTuples(num_points);
-
+    // Заполняем массивы за один проход по сетке
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
                 const int ii = cs_x + i;
                 const int jj = cs_y + j;
                 const int kk = cs_z + k;
+                const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
 
                 double rho, u, v, w, P;
                 ConservativeToPrimitive(U, ii, jj, kk, gamma, rho, u, v, w, P);
 
+                // Полная энергия
+                const double E = U(DataLayer::k_E, ii, jj, kk);
+
+                // Внутренняя энергия (объемная плотность)
+                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+                const double eint = E - kinetic;
+
+                arr_rho->SetValue(pid, rho);
+
                 double vec[3] = {u, v, w};
-                const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
-                velocity_vectors->SetTuple(pid, vec);
+                arr_vel->SetTuple(pid, vec);
+
+                arr_p->SetValue(pid, P);
+                arr_e->SetValue(pid, E);
+                arr_eint->SetValue(pid, eint / rho);
             }
         }
     }
-    grid->GetPointData()->AddArray(velocity_vectors);
 
+    // Добавляем готовые массивы в сетку
+    grid->GetPointData()->AddArray(arr_rho);
+    grid->GetPointData()->AddArray(arr_p);
+    grid->GetPointData()->AddArray(arr_eint);
+    grid->GetPointData()->AddArray(arr_e);
+    grid->GetPointData()->AddArray(arr_vel);
+
+    // Добавляем текущее время симуляции
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
     time_array->SetName("TimeValue");
     time_array->SetNumberOfComponents(1);
     time_array->InsertNextValue(time);
     grid->GetFieldData()->AddArray(time_array);
 
+    // Запись в файл
     vtkSmartPointer<vtkStructuredGridWriter> writer = vtkSmartPointer<vtkStructuredGridWriter>::New();
     writer->SetFileName(filename.c_str());
     writer->SetInputData(grid);

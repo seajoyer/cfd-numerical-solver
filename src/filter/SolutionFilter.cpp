@@ -1,55 +1,208 @@
 #include "filter/SolutionFilter.hpp"
 
-#include <vector>
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
 
-void SolutionFilter::Apply(DataLayer& layer) const
-{
-    const int total_size = layer.GetTotalSize();
-    if (total_size < 5) {
+SolutionFilter::SolutionFilter(const Settings& settings) {
+    (void)settings;
+
+    eps_diff_ = 0.05;
+    eps_anti_ = 0.03;
+    rho_floor_ = 1e-10;
+    p_floor_ = 1e-10;
+    enable_antidiffusion_ = true;
+}
+
+void SolutionFilter::ResizeFrom(const DataLayer& layer) const {
+    const int sx = layer.GetSx();
+    const int sy = layer.GetSy();
+    const int sz = layer.GetSz();
+
+    if (sx == sx_ && sy == sy_ && sz == sz_ && rho0_.size() > 0) {
         return;
     }
 
-    const int core_start = layer.GetCoreStart(0);
-    const int core_end = layer.GetCoreEndExclusive(0);
+    sx_ = sx;
+    sy_ = sy;
+    sz_ = sz;
 
-    constexpr double eps_diff = 0.05;
-    constexpr double eps_anti = 0.03;
+    rho0_ = xt::zeros<double>({static_cast<std::size_t>(sx_),
+                              static_cast<std::size_t>(sy_),
+                              static_cast<std::size_t>(sz_)});
+    p0_   = xt::zeros<double>(rho0_.shape());
+    rho1_ = xt::zeros<double>(rho0_.shape());
+    p1_   = xt::zeros<double>(rho0_.shape());
+}
 
-    std::vector<double> rho_f(total_size);
-    std::vector<double> P_f(total_size);
+void SolutionFilter::ExtractRhoP(const DataLayer& layer, const double gamma) const {
+    const auto& U = layer.U();
 
-    for (int j = core_start; j < core_end; ++j) {
-        rho_f[j] = layer.rho(j)
-            + eps_diff * (layer.rho(j + 1) - 2.0 * layer.rho(j) + layer.rho(j - 1));
+    for (int k = 0; k < sz_; ++k) {
+        for (int j = 0; j < sy_; ++j) {
+            for (int i = 0; i < sx_; ++i) {
+                const double rho_in = U(DataLayer::k_rho, i, j, k);
+                const double rho = (rho_in > rho_floor_) ? rho_in : rho_floor_;
+                const double inv_rho = 1.0 / rho;
 
-        P_f[j] = layer.P(j)
-            + eps_diff * (layer.P(j + 1) - 2.0 * layer.P(j) + layer.P(j - 1));
+                const double u = U(DataLayer::k_rhoU, i, j, k) * inv_rho;
+                const double v = U(DataLayer::k_rhoV, i, j, k) * inv_rho;
+                const double w = U(DataLayer::k_rhoW, i, j, k) * inv_rho;
+
+                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+                const double eint = U(DataLayer::k_E, i, j, k) - kinetic;
+                const double P_raw = (gamma - 1.0) * eint;
+                const double P = (P_raw > p_floor_) ? P_raw : p_floor_;
+
+                rho0_(i, j, k) = rho;
+                p0_(i, j, k) = P;
+
+                rho1_(i, j, k) = rho;
+                p1_(i, j, k) = P;
+            }
+        }
+    }
+}
+
+void SolutionFilter::ApplyAxis(const Axis axis) const {
+    const AxisStride st = AxisStride::FromAxis(axis);
+
+    const int i0 = 0;
+    const int i1 = sx_;
+    const int j0 = 0;
+    const int j1 = sy_;
+    const int k0 = 0;
+    const int k1 = sz_;
+
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                const int ip = i + st.di;
+                const int jp = j + st.dj;
+                const int kp = k + st.dk;
+
+                const int im = i - st.di;
+                const int jm = j - st.dj;
+                const int km = k - st.dk;
+
+                const bool ok =
+                    (ip >= 0 && ip < sx_ && jp >= 0 && jp < sy_ && kp >= 0 && kp < sz_) &&
+                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_);
+
+                if (!ok) {
+                    rho1_(i, j, k) = rho0_(i, j, k);
+                    p1_(i, j, k)   = p0_(i, j, k);
+                    continue;
+                }
+
+                rho1_(i, j, k) =
+                    rho0_(i, j, k) +
+                    eps_diff_ * (rho0_(ip, jp, kp) - 2.0 * rho0_(i, j, k) + rho0_(im, jm, km));
+
+                p1_(i, j, k) =
+                    p0_(i, j, k) +
+                    eps_diff_ * (p0_(ip, jp, kp) - 2.0 * p0_(i, j, k) + p0_(im, jm, km));
+            }
+        }
     }
 
-    for (int j = 0; j < core_start; ++j) {
-        rho_f[j] = layer.rho(j);
-        P_f[j] = layer.P(j);
-    }
-    for (int j = core_end; j < total_size; ++j)
-    {
-        rho_f[j] = layer.rho(j);
-        P_f[j] = layer.P(j);
+    if (!enable_antidiffusion_ || !(eps_anti_ > 0.0)) {
+        rho0_ = rho1_;
+        p0_ = p1_;
+        return;
     }
 
-    for (int j = core_start + 1; j < core_end - 1; ++j) {
-        layer.rho(j) = rho_f[j]
-            - eps_anti * (rho_f[j + 1] - 2.0 * rho_f[j] + rho_f[j - 1]);
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                const int ip = i + st.di;
+                const int jp = j + st.dj;
+                const int kp = k + st.dk;
 
-        layer.P(j) = P_f[j]
-            - eps_anti * (P_f[j + 1] - 2.0 * P_f[j] + P_f[j - 1]);
+                const int im = i - st.di;
+                const int jm = j - st.dj;
+                const int km = k - st.dk;
+
+                const bool ok =
+                    (ip >= 0 && ip < sx_ && jp >= 0 && jp < sy_ && kp >= 0 && kp < sz_) &&
+                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_);
+
+                if (!ok) {
+                    rho0_(i, j, k) = rho1_(i, j, k);
+                    p0_(i, j, k)   = p1_(i, j, k);
+                    continue;
+                }
+
+                rho0_(i, j, k) =
+                    rho1_(i, j, k) -
+                    eps_anti_ * (rho1_(ip, jp, kp) - 2.0 * rho1_(i, j, k) + rho1_(im, jm, km));
+
+                p0_(i, j, k) =
+                    p1_(i, j, k) -
+                    eps_anti_ * (p1_(ip, jp, kp) - 2.0 * p1_(i, j, k) + p1_(im, jm, km));
+            }
+        }
+    }
+}
+
+void SolutionFilter::WriteBackConservative(DataLayer& layer, const double gamma) const {
+    auto& U = layer.U();
+
+    const int i0 = layer.GetCoreStartX();
+    const int i1 = layer.GetCoreEndExclusiveX();
+    const int j0 = layer.GetCoreStartY();
+    const int j1 = layer.GetCoreEndExclusiveY();
+    const int k0 = layer.GetCoreStartZ();
+    const int k1 = layer.GetCoreEndExclusiveZ();
+
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                const double rho_old = U(DataLayer::k_rho, i, j, k);
+                const double rho = std::max(rho0_(i, j, k), rho_floor_);
+                const double P   = std::max(p0_(i, j, k), p_floor_);
+
+                const double rho_safe = (rho_old > rho_floor_) ? rho_old : rho_floor_;
+                const double inv_rho_old = 1.0 / rho_safe;
+
+                const double u = U(DataLayer::k_rhoU, i, j, k) * inv_rho_old;
+                const double v = U(DataLayer::k_rhoV, i, j, k) * inv_rho_old;
+                const double w = U(DataLayer::k_rhoW, i, j, k) * inv_rho_old;
+
+                U(DataLayer::k_rho,  i, j, k) = rho;
+                U(DataLayer::k_rhoU, i, j, k) = rho * u;
+                U(DataLayer::k_rhoV, i, j, k) = rho * v;
+                U(DataLayer::k_rhoW, i, j, k) = rho * w;
+
+                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+                const double E = P / (gamma - 1.0) + kinetic;
+                U(DataLayer::k_E, i, j, k) = E;
+            }
+        }
+    }
+}
+
+void SolutionFilter::Apply(DataLayer& layer, const double gamma) const {
+    const int ng = layer.GetPadding();
+    if (ng < 1) {
+        return;
     }
 
-    constexpr double rho_floor = 1e-10;
-    constexpr double p_floor = 1e-10;
+    ResizeFrom(layer);
+    ExtractRhoP(layer, gamma);
 
-    for (int j = core_start; j < core_end; ++j) {
-        layer.rho(j) = std::max(layer.rho(j), rho_floor);
-        layer.P(j) = std::max(layer.P(j), p_floor);
+    ApplyAxis(Axis::X);
+    if (layer.GetDim() >= 2) ApplyAxis(Axis::Y);
+    if (layer.GetDim() >= 3) ApplyAxis(Axis::Z);
+
+    for (int k = 0; k < sz_; ++k) {
+        for (int j = 0; j < sy_; ++j) {
+            for (int i = 0; i < sx_; ++i) {
+                rho0_(i, j, k) = std::max(rho0_(i, j, k), rho_floor_);
+                p0_(i, j, k)   = std::max(p0_(i, j, k), p_floor_);
+            }
+        }
     }
+
+    WriteBackConservative(layer, gamma);
 }

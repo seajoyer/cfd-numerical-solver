@@ -17,12 +17,10 @@ FiniteVolumeSolver::FiniteVolumeSolver(const Settings& settings,
         throw std::runtime_error("FiniteVolumeSolver: time_integrator is null");
     }
 
-    // Важно: boundary_manager НЕ передаем каждый шаг — он хранится внутри SpatialOperator.
-    // Нужен один из вариантов:
-    //  (A) SpatialOperator имеет SetBoundaryManager(shared_ptr<BoundaryManager>)
-    //  (B) BoundaryManager передается в ctor SpatialOperator
-    // Ниже — вариант (A). Если у тебя его нет, скажи — адаптирую под твой SpatialOperator.
-    // spatial_operator_->SetBoundaryManager(boundary_manager_);
+    diffusion_ = nullptr;
+    if (settings.diffusion) {
+        diffusion_ = std::make_unique<SolutionFilter>(settings_);
+    }
 
     time_integrator_->SetPositivityThresholds(rho_min_, p_min_);
 }
@@ -38,7 +36,6 @@ void FiniteVolumeSolver::EnsureWorkspaceSized(const DataLayer& layer) {
 auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
     EnsureWorkspaceSized(layer);
 
-    // dt из conservative U + метрик DataLayer (inv_dx/...)
     double dt = TimeStepCalculator::ComputeDt(layer, settings_.gamma, cfl_);
     if (dt <= 0.0) {
         return 0.0;
@@ -51,11 +48,11 @@ auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
         }
     }
 
-    // TimeIntegrator НЕ трогает BC/halo и не знает про оси.
-    // Он вызывает SpatialOperator::ComputeRhs, который внутри:
-    // UpdateHalo -> ApplyPhysicalBc -> U->W -> divergence per axis -> rhs
     time_integrator_->Advance(layer, workspace_, dt, settings_.gamma, *spatial_operator_);
 
+    if (diffusion_) {
+        diffusion_->Apply(layer, settings_.gamma);
+    }
     t_cur += dt;
     return dt;
 }
