@@ -1,24 +1,24 @@
 #include "output/VTKWriter.hpp"
 
 #include <vtkDoubleArray.h>
-#include <vtkPointData.h>
 #include <vtkFieldData.h>
+#include <vtkPointData.h>
 #include <vtkPoints.h>
 #include <vtkStructuredGrid.h>
 #include <vtkStructuredGridWriter.h>
 
-#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <iomanip>
-#include <iostream>
+#include <memory>
 #include <sstream>
+#include <format>
 #include <stdexcept>
 
 #include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 #include "utils/StringUtils.hpp"
 
-// PIMPL implementation
 class VTKWriter::Impl {
 public:
     vtkSmartPointer<vtkStructuredGrid> structured_grid;
@@ -30,9 +30,19 @@ public:
     }
 };
 
-VTKWriter::VTKWriter(const std::string& output_dir, bool is_analytical)
-    : output_dir_(output_dir), is_analytical_(is_analytical), pimpl_(std::make_unique<Impl>()) {
-    std::filesystem::create_directories(output_dir_);
+VTKWriter::VTKWriter(const std::string& output_dir, const bool is_analytical, const int rank, const int size)
+    : output_dir_(output_dir),
+      is_analytical_(is_analytical),
+      rank_(rank),
+      size_(size),
+      pimpl_(std::make_unique<Impl>()) {
+    if (size_ > 1) {
+        rank_output_dir_ = output_dir_ + "/" + std::format("rank_{:04d}", rank_);
+    } else {
+        rank_output_dir_ = output_dir_;
+    }
+
+    std::filesystem::create_directories(rank_output_dir_);
 }
 
 VTKWriter::~VTKWriter() = default;
@@ -45,14 +55,14 @@ auto VTKWriter::Finalize(const Settings&) -> std::string {
     return "";
 }
 
-auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settings) const
+auto VTKWriter::GenerateFilename(const int N, const std::size_t step, const Settings& settings) const
     -> std::string {
     std::ostringstream oss;
 
     if (is_analytical_) {
-        oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
+        oss << rank_output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     } else {
-        oss << output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
+        oss << rank_output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
             << "__N_" << N << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
             << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
@@ -60,24 +70,44 @@ auto VTKWriter::GenerateFilename(int N, std::size_t step, const Settings& settin
     return oss.str();
 }
 
-void VTKWriter::Write(const DataLayer& layer, const Settings& settings, std::size_t step,
-                      double time) const {
-    Write3D(layer, settings, step, time);
+void VTKWriter::Write(const DataLayer& layer,
+                      const Mesh& mesh,
+                      const Settings& settings,
+                      const std::size_t step,
+                      const double time) const {
+    Write3D(layer, mesh, settings, step, time);
 }
 
-void VTKWriter::Write(const DataLayer& layer, const DataLayer* analytical_layer,
-                      const Settings& settings, std::size_t step, double time) const {
-    Write(layer, settings, step, time);
+void VTKWriter::Write(const DataLayer& layer,
+                      const DataLayer* analytical_layer,
+                      const Mesh& mesh,
+                      const Mesh* analytical_mesh,
+                      const Settings& settings,
+                      const std::size_t step,
+                      const double time) const {
+    (void)analytical_layer;
+    (void)analytical_mesh;
+    Write(layer, mesh, settings, step, time);
 }
 
 static inline void ConservativeToPrimitive(
-    const xt::xtensor<double, 4>& U, int i, int j, int k, double gamma,
-    double& rho, double& u, double& v, double& w, double& P
+    const xt::xtensor<double, 4>& U,
+    const int i,
+    const int j,
+    const int k,
+    const double gamma,
+    double& rho,
+    double& u,
+    double& v,
+    double& w,
+    double& P
 ) {
     rho = U(DataLayer::k_rho, i, j, k);
     if (rho <= 0.0) {
         rho = 0.0;
-        u = v = w = 0.0;
+        u = 0.0;
+        v = 0.0;
+        w = 0.0;
         P = 0.0;
         return;
     }
@@ -88,19 +118,22 @@ static inline void ConservativeToPrimitive(
     w = U(DataLayer::k_rhoW, i, j, k) * inv_rho;
 
     const double E = U(DataLayer::k_E, i, j, k);
-    const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+    const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
     const double eint = E - kinetic;
     P = (gamma - 1.0) * eint;
 }
 
-void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
-                        std::size_t step, double time) const {
-    const int cs_x = layer.GetCoreStartX();
-    const int ce_x = layer.GetCoreEndExclusiveX();
-    const int cs_y = layer.GetCoreStartY();
-    const int ce_y = layer.GetCoreEndExclusiveY();
-    const int cs_z = layer.GetCoreStartZ();
-    const int ce_z = layer.GetCoreEndExclusiveZ();
+void VTKWriter::Write3D(const DataLayer& layer,
+                        const Mesh& mesh,
+                        const Settings& settings,
+                        const std::size_t step,
+                        const double time) const {
+    const int cs_x = mesh.GetCoreStartX();
+    const int ce_x = mesh.GetCoreEndExclusiveX();
+    const int cs_y = mesh.GetCoreStartY();
+    const int ce_y = mesh.GetCoreEndExclusiveY();
+    const int cs_z = mesh.GetCoreStartZ();
+    const int ce_z = mesh.GetCoreEndExclusiveZ();
 
     const int nx = ce_x - cs_x;
     const int ny = ce_y - cs_y;
@@ -113,14 +146,19 @@ void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
     std::ostringstream oss;
     if (is_analytical_) {
         oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    } else {
+    }
+    else {
         oss << output_dir_ << "/"
             << settings.solver << "__R_" << settings.reconstruction
             << "__N_" << settings.GetNx() << "x" << settings.GetNy() << "x" << settings.GetNz()
             << "__CFL_" << utils::DoubleWithoutDot(settings.cfl)
             << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
-    const std::string filename = oss.str();
+    const std::string filename =
+    is_analytical_
+        ? (rank_output_dir_ + "/step_" + (static_cast<std::ostringstream&&>(
+               std::ostringstream() << std::setw(4) << std::setfill('0') << step)).str() + ".vtk")
+        : GenerateFilename(settings.GetNx(), step, settings);
 
     vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
@@ -130,9 +168,9 @@ void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
     const vtkIdType num_points = static_cast<vtkIdType>(nx) * ny * nz;
     points->SetNumberOfPoints(num_points);
 
-    const auto& xc = layer.Xc();
-    const auto& yc = layer.Yc();
-    const auto& zc = layer.Zc();
+    const auto& xc = mesh.Xc();
+    const auto& yc = mesh.Yc();
+    const auto& zc = mesh.Zc();
 
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
@@ -140,17 +178,16 @@ void VTKWriter::Write3D(const DataLayer& layer, const Settings& settings,
                 const double x = xc(static_cast<std::size_t>(cs_x + i));
                 const double y = yc(static_cast<std::size_t>(cs_y + j));
                 const double z = zc(static_cast<std::size_t>(cs_z + k));
-                const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
+                const vtkIdType pid = i + j * nx + k * nx * ny;
                 points->SetPoint(pid, x, y, z);
             }
         }
     }
     grid->SetPoints(points);
 
-const double gamma = settings.gamma;
+    const double gamma = settings.gamma;
     const auto& U = layer.U();
 
-    // Создаем массивы данных заранее
     auto arr_rho = vtkSmartPointer<vtkDoubleArray>::New();
     arr_rho->SetName("density");
     arr_rho->SetNumberOfComponents(1);
@@ -176,7 +213,6 @@ const double gamma = settings.gamma;
     arr_eint->SetNumberOfComponents(1);
     arr_eint->SetNumberOfTuples(num_points);
 
-    // Заполняем массивы за один проход по сетке
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
@@ -185,15 +221,30 @@ const double gamma = settings.gamma;
                 const int kk = cs_z + k;
                 const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
 
-                double rho, u, v, w, P;
+                if (mesh.IsSolidCell(ii, jj, kk)) {
+                    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+                    arr_rho->SetValue(pid, nan);
+
+                    double vec[3] = {nan, nan, nan};
+                    arr_vel->SetTuple(pid, vec);
+
+                    arr_p->SetValue(pid, nan);
+                    arr_e->SetValue(pid, nan);
+                    arr_eint->SetValue(pid, nan);
+                    continue;
+                }
+
+                double rho = 0.0;
+                double u = 0.0;
+                double v = 0.0;
+                double w = 0.0;
+                double P = 0.0;
                 ConservativeToPrimitive(U, ii, jj, kk, gamma, rho, u, v, w, P);
 
-                // Полная энергия
                 const double E = U(DataLayer::k_E, ii, jj, kk);
-
-                // Внутренняя энергия (объемная плотность)
-                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
-                const double eint = E - kinetic;
+                const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
+                const double eint = rho > 0.0 ? (E - kinetic) / rho : 0.0;
 
                 arr_rho->SetValue(pid, rho);
 
@@ -202,26 +253,23 @@ const double gamma = settings.gamma;
 
                 arr_p->SetValue(pid, P);
                 arr_e->SetValue(pid, E);
-                arr_eint->SetValue(pid, eint / rho);
+                arr_eint->SetValue(pid, eint);
             }
         }
     }
 
-    // Добавляем готовые массивы в сетку
     grid->GetPointData()->AddArray(arr_rho);
     grid->GetPointData()->AddArray(arr_p);
     grid->GetPointData()->AddArray(arr_eint);
     grid->GetPointData()->AddArray(arr_e);
     grid->GetPointData()->AddArray(arr_vel);
 
-    // Добавляем текущее время симуляции
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
     time_array->SetName("TimeValue");
     time_array->SetNumberOfComponents(1);
     time_array->InsertNextValue(time);
     grid->GetFieldData()->AddArray(time_array);
 
-    // Запись в файл
     vtkSmartPointer<vtkStructuredGridWriter> writer = vtkSmartPointer<vtkStructuredGridWriter>::New();
     writer->SetFileName(filename.c_str());
     writer->SetInputData(grid);

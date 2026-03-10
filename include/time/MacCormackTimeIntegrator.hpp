@@ -3,15 +3,15 @@
 
 #include <memory>
 
-#include "time/TimeIntegrator.hpp"
-#include "spatial/ForwardEulerSpatialOperator.hpp"
 #include "spatial/BackwardEulerSpatialOperator.hpp"
+#include "spatial/ForwardEulerSpatialOperator.hpp"
+#include "time/TimeIntegrator.hpp"
 
 class BoundaryManager;
 
 /**
  * @class MacCormackTimeIntegrator
- * @brief Two-step predictor–corrector (MacCormack) for conservative FV systems.
+ * @brief Two-step predictor-corrector (MacCormack) for conservative FV systems.
  *
  * Predictor (forward difference):
  *   U* = U^n + dt * L_fwd(U^n)
@@ -21,7 +21,7 @@ class BoundaryManager;
  *
  * Notes:
  *  - Forward/Backward spatial operators apply halo + physical BC internally.
- *  - Updates only core cells.
+ *  - Updates only fluid core cells.
  *  - PositivityLimiter is applied after the final update.
  */
 class MacCormackTimeIntegrator final : public TimeIntegrator {
@@ -30,14 +30,13 @@ public:
                              std::shared_ptr<BoundaryManager> boundary_manager);
 
     void Advance(DataLayer& layer,
+                 const Mesh& mesh,
                  Workspace& workspace,
                  double dt,
                  double gamma,
                  const SpatialOperator& op) const override;
 
 private:
-    // We ignore 'op' and use dedicated directional operators for MacCormack.
-    // (Keeping the 'op' parameter for the common TimeIntegrator interface.)
     ForwardEulerSpatialOperator forward_op_;
     BackwardEulerSpatialOperator backward_op_;
 };

@@ -543,6 +543,13 @@ void ConfigParser::LoadSettings(const YAML::Node& node, Settings& settings) {
     if (node["x0"]) settings.x0 = node["x0"].as<double>();
     if (node["y0"]) settings.y0 = node["y0"].as<double>();
     if (node["z0"]) settings.z0 = node["z0"].as<double>();
+
+    if (node["immersed_enabled"]) settings.immersed_enabled = node["immersed_enabled"].as<bool>();
+    if (node["mpi_enabled"]) settings.mpi_enabled = node["mpi_enabled"].as<bool>();
+
+    if (node["immersed_objects"]) {
+        settings.immersed_objects = ParseImmersedObjects(node["immersed_objects"]);
+    }
 }
 
 void ConfigParser::LoadCases(
@@ -573,49 +580,49 @@ void ConfigParser::LoadCases(
         if (case_data["rho_Q1"]) ic.rho_Q1 = case_data["rho_Q1"].as<double>();
         if (case_data["u_Q1"]) ic.u_Q1 = case_data["u_Q1"].as<double>();
         if (case_data["v_Q1"]) ic.v_Q1 = case_data["v_Q1"].as<double>();
-        if (case_data["w_Q1"]) ic.v_Q1 = case_data["v_Q1"].as<double>();
+        if (case_data["w_Q1"]) ic.v_Q1 = case_data["w_Q1"].as<double>();
         if (case_data["P_Q1"]) ic.P_Q1 = case_data["P_Q1"].as<double>();
 
         if (case_data["rho_Q2"]) ic.rho_Q2 = case_data["rho_Q2"].as<double>();
         if (case_data["u_Q2"]) ic.u_Q2 = case_data["u_Q2"].as<double>();
         if (case_data["v_Q2"]) ic.v_Q2 = case_data["v_Q2"].as<double>();
-        if (case_data["w_Q2"]) ic.v_Q2 = case_data["v_Q2"].as<double>();
+        if (case_data["w_Q2"]) ic.v_Q2 = case_data["w_Q2"].as<double>();
         if (case_data["P_Q2"]) ic.P_Q2 = case_data["P_Q2"].as<double>();
 
         if (case_data["rho_Q3"]) ic.rho_Q3 = case_data["rho_Q3"].as<double>();
         if (case_data["u_Q3"]) ic.u_Q3 = case_data["u_Q3"].as<double>();
         if (case_data["v_Q3"]) ic.v_Q3 = case_data["v_Q3"].as<double>();
-        if (case_data["w_Q3"]) ic.v_Q3 = case_data["v_Q3"].as<double>();
+        if (case_data["w_Q3"]) ic.v_Q3 = case_data["w_Q3"].as<double>();
         if (case_data["P_Q3"]) ic.P_Q3 = case_data["P_Q3"].as<double>();
 
         if (case_data["rho_Q4"]) ic.rho_Q4 = case_data["rho_Q4"].as<double>();
         if (case_data["u_Q4"]) ic.u_Q4 = case_data["u_Q4"].as<double>();
         if (case_data["v_Q4"]) ic.v_Q4 = case_data["v_Q4"].as<double>();
-        if (case_data["w_Q4"]) ic.v_Q4 = case_data["v_Q4"].as<double>();
+        if (case_data["w_Q4"]) ic.v_Q4 = case_data["w_Q4"].as<double>();
         if (case_data["P_Q4"]) ic.P_Q4 = case_data["P_Q4"].as<double>();
 
         if (case_data["rho_Q5"]) ic.rho_Q5 = case_data["rho_Q5"].as<double>();
         if (case_data["u_Q5"]) ic.u_Q5 = case_data["u_Q5"].as<double>();
         if (case_data["v_Q5"]) ic.v_Q5 = case_data["v_Q5"].as<double>();
-        if (case_data["w_Q5"]) ic.v_Q5 = case_data["v_Q5"].as<double>();
+        if (case_data["w_Q5"]) ic.v_Q5 = case_data["w_Q5"].as<double>();
         if (case_data["P_Q5"]) ic.P_Q5 = case_data["P_Q5"].as<double>();
 
         if (case_data["rho_Q6"]) ic.rho_Q6 = case_data["rho_Q6"].as<double>();
         if (case_data["u_Q6"]) ic.u_Q6 = case_data["u_Q6"].as<double>();
         if (case_data["v_Q6"]) ic.v_Q6 = case_data["v_Q6"].as<double>();
-        if (case_data["w_Q6"]) ic.v_Q6 = case_data["v_Q6"].as<double>();
+        if (case_data["w_Q6"]) ic.v_Q6 = case_data["w_Q6"].as<double>();
         if (case_data["P_Q6"]) ic.P_Q6 = case_data["P_Q6"].as<double>();
 
         if (case_data["rho_Q7"]) ic.rho_Q7 = case_data["rho_Q7"].as<double>();
         if (case_data["u_Q7"]) ic.u_Q7 = case_data["u_Q7"].as<double>();
         if (case_data["v_Q7"]) ic.v_Q7 = case_data["v_Q7"].as<double>();
-        if (case_data["w_Q7"]) ic.v_Q7 = case_data["v_Q7"].as<double>();
+        if (case_data["w_Q7"]) ic.v_Q7 = case_data["w_Q7"].as<double>();
         if (case_data["P_Q7"]) ic.P_Q7 = case_data["P_Q7"].as<double>();
 
         if (case_data["rho_Q8"]) ic.rho_Q8 = case_data["rho_Q8"].as<double>();
         if (case_data["u_Q8"]) ic.u_Q8 = case_data["u_Q8"].as<double>();
         if (case_data["v_Q8"]) ic.v_Q8 = case_data["v_Q8"].as<double>();
-        if (case_data["w_Q8"]) ic.v_Q8 = case_data["v_Q8"].as<double>();
+        if (case_data["w_Q8"]) ic.v_Q8 = case_data["w_Q8"].as<double>();
         if (case_data["P_Q8"]) ic.P_Q8 = case_data["P_Q8"].as<double>();
 
         // Load case-specific overrides
@@ -702,6 +709,13 @@ void ConfigParser::LoadCaseOverrides(const YAML::Node& node, CaseSettings& overr
 
     if (node["back_boundary"]) overrides.back_boundary = node["back_boundary"].as<std::string>();
     if (node["front_boundary"]) overrides.front_boundary = node["front_boundary"].as<std::string>();
+
+    if (node["immersed_enabled"]) overrides.immersed_enabled = node["immersed_enabled"].as<bool>();
+    if (node["mpi_enabled"]) overrides.mpi_enabled = node["mpi_enabled"].as<bool>();
+
+    if (node["immersed_objects"]) {
+        overrides.immersed_objects = ParseImmersedObjects(node["immersed_objects"]);
+    }
 }
 
 void ConfigParser::LoadRunCases(const YAML::Node& node,
@@ -722,6 +736,39 @@ void ConfigParser::LoadRunCases(const YAML::Node& node,
             << "Warning: run_cases should be a list or scalar. Defaulting to 'all'.\n";
         run_cases.emplace_back("all");
     }
+}
+
+auto ConfigParser::ParseImmersedObjects(const YAML::Node& node)
+    -> std::vector<ImmersedObjectSettings> {
+    std::vector<ImmersedObjectSettings> objects;
+
+    if (!node || !node.IsSequence()) {
+        throw std::runtime_error("immersed_objects must be a YAML sequence");
+    }
+
+    for (const auto& item : node) {
+        ImmersedObjectSettings object;
+
+        if (!item["type"]) {
+            throw std::runtime_error("immersed_objects entry must contain 'type'");
+        }
+
+        object.type = item["type"].as<std::string>();
+
+        if (item["cx"]) object.cx = item["cx"].as<double>();
+        if (item["cy"]) object.cy = item["cy"].as<double>();
+        if (item["cz"]) object.cz = item["cz"].as<double>();
+
+        if (item["radius"]) object.radius = item["radius"].as<double>();
+
+        if (item["size_x"]) object.size_x = item["size_x"].as<double>();
+        if (item["size_y"]) object.size_y = item["size_y"].as<double>();
+        if (item["size_z"]) object.size_z = item["size_z"].as<double>();
+
+        objects.push_back(object);
+    }
+
+    return objects;
 }
 
 void ConfigParser::PrintSolversList() const {

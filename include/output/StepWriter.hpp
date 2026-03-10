@@ -3,9 +3,11 @@
 
 #include <cstddef>
 #include <string>
+
 #include "config/Settings.hpp"
 
-struct DataLayer;
+class DataLayer;
+class Mesh;
 
 /**
  * @class StepWriter
@@ -14,77 +16,73 @@ struct DataLayer;
  * This class defines a minimal I/O interface that allows saving
  * the state of the computational domain at each time step.
  *
- * Concrete implementations (e.g., VTKWriter, PNGWriter, GIFWriter) define 
- * specific file formats and data serialization strategies.
+ * Concrete implementations define specific file formats and data serialization
+ * strategies.
  *
- * Each writer is responsible for handling both 1D and 2D data internally
- * by checking layer.GetDim(). Writers that don't support 2D should log
- * a warning and skip gracefully.
- *
- * Writers that accumulate data over multiple steps (e.g., GIFWriter) should
- * override the Finalize() method to perform final output operations.
- *
- * @note StepWriter is used by Simulation to record results periodically
- *       without depending on the underlying file format.
+ * Writers that accumulate data over multiple steps should override Finalize().
  */
 class StepWriter {
-   public:
+public:
     virtual ~StepWriter() = default;
 
     /**
-     * @brief Write simulation data to disk (1D or 2D).
+     * @brief Write simulation data to disk.
      *
-     * Implementations must handle both 1D and 2D DataLayer layouts
-     * by checking layer.GetDim(). If a writer does not support 2D,
-     * it should log a warning and return gracefully.
-     * 
-     * @param layer The numerical solution data layer
-     * @param settings Solver settings for output file name construction
-     * @param step Current simulation step number
-     * @param time Current simulation time
+     * @param layer The numerical solution data layer.
+     * @param mesh Structured mesh with geometry and ranges.
+     * @param settings Solver settings for output file name construction.
+     * @param step Current simulation step number.
+     * @param time Current simulation time.
      */
-    virtual void Write(const DataLayer& layer, const Settings& settings, std::size_t step,
+    virtual void Write(const DataLayer& layer,
+                       const Mesh& mesh,
+                       const Settings& settings,
+                       std::size_t step,
                        double time) const = 0;
 
     /**
      * @brief Write simulation data with optional analytical comparison.
-     * 
-     * This overload allows writers to include analytical solution data
-     * for comparison plots (e.g., PNG writer, GIF writer).
+     *
      * Default implementation ignores analytical data and delegates to Write().
-     * 
-     * @param layer The numerical solution data layer
-     * @param analytical_layer Optional analytical solution data (may be nullptr)
-     * @param settings Solver settings for output file name construction
-     * @param step Current simulation step number
-     * @param time Current simulation time
+     *
+     * @param layer The numerical solution data layer.
+     * @param analytical_layer Optional analytical solution data.
+     * @param mesh Structured mesh for numerical solution.
+     * @param analytical_mesh Optional analytical mesh.
+     * @param settings Solver settings for output file name construction.
+     * @param step Current simulation step number.
+     * @param time Current simulation time.
      */
-    virtual void Write(const DataLayer& layer, const DataLayer* analytical_layer,
-                       const Settings& settings, std::size_t step, double time) const {
-        // Default implementation ignores analytical data
-        Write(layer, settings, step, time);
+    virtual void Write(const DataLayer& layer,
+                       const DataLayer* analytical_layer,
+                       const Mesh& mesh,
+                       const Mesh* analytical_mesh,
+                       const Settings& settings,
+                       std::size_t step,
+                       double time) const {
+        (void)analytical_layer;
+        (void)analytical_mesh;
+        Write(layer, mesh, settings, step, time);
     }
 
     /**
      * @brief Finalize output and write any accumulated data.
-     * 
-     * This method is called at the end of simulation to allow writers
-     * that accumulate data (like GIFWriter) to perform final output.
-     * Default implementation does nothing.
-     * 
-     * @param settings Solver settings for filename construction
-     * @return Path to the generated output file (empty string if not applicable)
+     *
+     * @param settings Solver settings for filename construction.
+     * @return Path to the generated output file.
      */
-    virtual auto Finalize(const Settings& settings) -> std::string { 
+    virtual auto Finalize(const Settings& settings) -> std::string {
         (void)settings;
-        return ""; 
+        return "";
     }
 
     /**
      * @brief Whether this writer requires Finalize() to be called.
-     * @return true if Finalize() should be called at end of simulation
+     * @return true if Finalize() should be called at end of simulation.
      */
-    [[nodiscard]] virtual auto RequiresFinalization() const -> bool { return false; }
+    [[nodiscard]] virtual auto RequiresFinalization() const -> bool {
+        return false;
+    }
 };
 
 #endif  // STEPWRITER_HPP

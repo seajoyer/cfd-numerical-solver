@@ -1,13 +1,14 @@
 #include "solver/FiniteVolumeSolver.hpp"
 
-#include "bc/BoundaryCondition.hpp"
-
 FiniteVolumeSolver::FiniteVolumeSolver(const Settings& settings,
+                                       Mesh mesh,
                                        std::shared_ptr<SpatialOperator> spatial_operator,
-                                       std::shared_ptr<TimeIntegrator> time_integrator)
-    : settings_(settings),
+                                       std::shared_ptr<TimeIntegrator> time_integrator,
+                                       const MPIContext* mpi_context) : settings_(settings),
+      mesh_(std::move(mesh)),
       spatial_operator_(std::move(spatial_operator)),
-      time_integrator_(std::move(time_integrator)) {
+      time_integrator_(std::move(time_integrator)),
+      mpi_context_(mpi_context) {
     cfl_ = settings_.cfl;
 
     if (!spatial_operator_) {
@@ -29,14 +30,35 @@ void FiniteVolumeSolver::SetCfl(const double cfl) {
     cfl_ = cfl;
 }
 
-void FiniteVolumeSolver::EnsureWorkspaceSized(const DataLayer& layer) {
-    workspace_.ResizeFrom(layer);
+const Mesh& FiniteVolumeSolver::GetMesh() const {
+    return mesh_;
+}
+
+Mesh& FiniteVolumeSolver::GetMesh() {
+    return mesh_;
+}
+
+void FiniteVolumeSolver::EnsureWorkspaceSized() {
+    workspace_.ResizeFrom(mesh_);
 }
 
 auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
-    EnsureWorkspaceSized(layer);
+    EnsureWorkspaceSized();
 
-    double dt = TimeStepCalculator::ComputeDt(layer, settings_.gamma, cfl_);
+    double dt_local = TimeStepCalculator::ComputeDt(layer, mesh_, settings_.gamma, cfl_);
+    double dt = dt_local;
+
+    if (mpi_context_) {
+        const double large_dt = 1e300;
+        if (dt_local <= 0.0) {
+            dt_local = large_dt;
+        }
+        dt = mpi_context_->GlobalMin(dt_local);
+        if (dt >= large_dt) {
+            dt = 0.0;
+        }
+    }
+
     if (dt <= 0.0) {
         return 0.0;
     }
@@ -48,11 +70,12 @@ auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
         }
     }
 
-    time_integrator_->Advance(layer, workspace_, dt, settings_.gamma, *spatial_operator_);
+    time_integrator_->Advance(layer, mesh_, workspace_, dt, settings_.gamma, *spatial_operator_);
 
     if (diffusion_) {
-        diffusion_->Apply(layer, settings_.gamma);
+        diffusion_->Apply(layer, mesh_, settings_.gamma);
     }
+
     t_cur += dt;
     return dt;
 }

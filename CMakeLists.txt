@@ -13,6 +13,8 @@ set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE ALWAYS)
 
 include(FetchContent)
 
+find_package(MPI REQUIRED)
+
 include(cmake/Dependencies.cmake)
 include(cmake/Documentation.cmake)
 
@@ -73,6 +75,15 @@ add_executable(${NAME}
     src/data/Variables.cpp
     src/data/Workspace.cpp
 
+    src/data/Mesh.cpp
+    include/data/geometry/GeometryPrimitive.hpp
+    src/data/geometry/CircleGeometry.cpp
+    src/data/geometry/RectangleGeometry.cpp
+
+    src/parallel/MPIContext.cpp
+    src/parallel/HaloExchange.cpp
+    src/parallel/DomainDecomposition.cpp
+
     src/config/ConfigParser.cpp
     include/config/Settings.hpp
     include/config/InitialConditions.hpp
@@ -80,14 +91,17 @@ add_executable(${NAME}
     src/bc/BoundaryFactory.cpp
     src/bc/BoundaryManager.cpp
     src/bc/FreeStreamBoundary.cpp
-    src/bc/InletBoundary.cpp
+#    src/bc/InletBoundary.cpp
     src/bc/OutletBoundary.cpp
-    src/bc/PeriodicBoundary.cpp
-    src/bc/ReflectiveBoundary.cpp
-    src/bc/NonReflectiveBoundary.cpp
-    src/bc/SymmetryBoundary.cpp
-    src/bc/WallBoundary.cpp
+#    src/bc/PeriodicBoundary.cpp
+#    src/bc/ReflectiveBoundary.cpp
+#    src/bc/NonReflectiveBoundary.cpp
+#    src/bc/SymmetryBoundary.cpp
+#    src/bc/WallBoundary.cpp
     include/bc/BoundaryCondition.hpp
+
+    include/bc/InternalBoundaryCondition.hpp
+    src/bc/SlipWallInternalBoundary.cpp
 
     src/utils/StringUtils.cpp
 )
@@ -113,4 +127,6 @@ target_link_libraries(${NAME}
         VTK::IOImage
         VTK::RenderingContextOpenGL2
         VTK::RenderingOpenGL2
+
+        MPI::MPI_CXX
 )

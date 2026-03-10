@@ -1,7 +1,6 @@
 #ifndef ARTIFICIALVISCOSITY_HPP
 #define ARTIFICIALVISCOSITY_HPP
 
-#include "data/DataLayer.hpp"
 #include "data/Variables.hpp"
 
 /**
@@ -17,9 +16,12 @@
  *
  * Implementations should:
  *  - read primitive field W(var,i,j,k) = (rho,u,v,w,P)
- *  - use DataLayer metrics (inv_dx, inv_dy, inv_dz)
+ *  - use Mesh metrics (inv_dx, inv_dy, inv_dz)
  *  - avoid allocations in hot path (cache buffers internally if needed)
  */
+class DataLayer;
+class Mesh;
+
 class ArtificialViscosity {
 public:
     virtual ~ArtificialViscosity() = default;
@@ -27,13 +29,15 @@ public:
     /**
      * @brief Add viscosity contribution to RHS (in-place accumulation).
      *
-     * @param layer Conservative state + geometry metadata.
+     * @param layer Conservative state.
+     * @param mesh  Structured mesh with geometry, metrics, and cell types.
      * @param W     Primitive field W(var,i,j,k) = (rho,u,v,w,P), including ghosts.
      * @param gamma Ratio of specific heats.
      * @param dt    Local time step (optional for some models).
      * @param rhs   RHS buffer in conservative ordering (accumulated in-place).
      */
     virtual void AddToRhs(const DataLayer& layer,
+                          const Mesh& mesh,
                           const xt::xtensor<double, 4>& W,
                           double gamma,
                           double dt,

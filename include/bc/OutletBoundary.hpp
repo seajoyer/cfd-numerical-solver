@@ -2,8 +2,6 @@
 #define OUTLETBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
 
 /**
  * @class OutletBoundary
@@ -19,10 +17,11 @@ public:
     /**
      * @brief Apply outlet BC along the specified axis and side.
      * @param layer Data layer to modify (ghost cells of U will be written).
+     * @param mesh Structured mesh with ranges and metadata.
      * @param axis Axis (X/Y/Z).
      * @param side Side (Left/Right).
      */
-    void Apply(DataLayer& layer, Axis axis, Side side) const override;
+    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
 };
 
 #endif  // OUTLETBOUNDARY_HPP

@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
+
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 
 SolutionFilter::SolutionFilter(const Settings& settings) {
     (void)settings;
@@ -14,10 +16,10 @@ SolutionFilter::SolutionFilter(const Settings& settings) {
     enable_antidiffusion_ = true;
 }
 
-void SolutionFilter::ResizeFrom(const DataLayer& layer) const {
-    const int sx = layer.GetSx();
-    const int sy = layer.GetSy();
-    const int sz = layer.GetSz();
+void SolutionFilter::ResizeFrom(const Mesh& mesh) const {
+    const int sx = mesh.GetSx();
+    const int sy = mesh.GetSy();
+    const int sz = mesh.GetSz();
 
     if (sx == sx_ && sy == sy_ && sz == sz_ && rho0_.size() > 0) {
         return;
@@ -27,32 +29,42 @@ void SolutionFilter::ResizeFrom(const DataLayer& layer) const {
     sy_ = sy;
     sz_ = sz;
 
-    rho0_ = xt::zeros<double>({static_cast<std::size_t>(sx_),
-                              static_cast<std::size_t>(sy_),
-                              static_cast<std::size_t>(sz_)});
-    p0_   = xt::zeros<double>(rho0_.shape());
+    rho0_ = xt::zeros<double>({
+        static_cast<std::size_t>(sx_),
+        static_cast<std::size_t>(sy_),
+        static_cast<std::size_t>(sz_)
+    });
+    p0_ = xt::zeros<double>(rho0_.shape());
     rho1_ = xt::zeros<double>(rho0_.shape());
-    p1_   = xt::zeros<double>(rho0_.shape());
+    p1_ = xt::zeros<double>(rho0_.shape());
 }
 
-void SolutionFilter::ExtractRhoP(const DataLayer& layer, const double gamma) const {
+void SolutionFilter::ExtractRhoP(const DataLayer& layer, const Mesh& mesh, const double gamma) const {
     const auto& U = layer.U();
 
     for (int k = 0; k < sz_; ++k) {
         for (int j = 0; j < sy_; ++j) {
             for (int i = 0; i < sx_; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    rho0_(i, j, k) = 0.0;
+                    p0_(i, j, k) = 0.0;
+                    rho1_(i, j, k) = 0.0;
+                    p1_(i, j, k) = 0.0;
+                    continue;
+                }
+
                 const double rho_in = U(DataLayer::k_rho, i, j, k);
-                const double rho = (rho_in > rho_floor_) ? rho_in : rho_floor_;
+                const double rho = rho_in > rho_floor_ ? rho_in : rho_floor_;
                 const double inv_rho = 1.0 / rho;
 
                 const double u = U(DataLayer::k_rhoU, i, j, k) * inv_rho;
                 const double v = U(DataLayer::k_rhoV, i, j, k) * inv_rho;
                 const double w = U(DataLayer::k_rhoW, i, j, k) * inv_rho;
 
-                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+                const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
                 const double eint = U(DataLayer::k_E, i, j, k) - kinetic;
                 const double P_raw = (gamma - 1.0) * eint;
-                const double P = (P_raw > p_floor_) ? P_raw : p_floor_;
+                const double P = P_raw > p_floor_ ? P_raw : p_floor_;
 
                 rho0_(i, j, k) = rho;
                 p0_(i, j, k) = P;
@@ -64,19 +76,18 @@ void SolutionFilter::ExtractRhoP(const DataLayer& layer, const double gamma) con
     }
 }
 
-void SolutionFilter::ApplyAxis(const Axis axis) const {
+void SolutionFilter::ApplyAxis(const Mesh& mesh, const Axis axis) const {
     const AxisStride st = AxisStride::FromAxis(axis);
 
-    const int i0 = 0;
-    const int i1 = sx_;
-    const int j0 = 0;
-    const int j1 = sy_;
-    const int k0 = 0;
-    const int k1 = sz_;
+    for (int k = 0; k < sz_; ++k) {
+        for (int j = 0; j < sy_; ++j) {
+            for (int i = 0; i < sx_; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    rho1_(i, j, k) = rho0_(i, j, k);
+                    p1_(i, j, k) = p0_(i, j, k);
+                    continue;
+                }
 
-    for (int k = k0; k < k1; ++k) {
-        for (int j = j0; j < j1; ++j) {
-            for (int i = i0; i < i1; ++i) {
                 const int ip = i + st.di;
                 const int jp = j + st.dj;
                 const int kp = k + st.dk;
@@ -87,11 +98,13 @@ void SolutionFilter::ApplyAxis(const Axis axis) const {
 
                 const bool ok =
                     (ip >= 0 && ip < sx_ && jp >= 0 && jp < sy_ && kp >= 0 && kp < sz_) &&
-                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_);
+                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_) &&
+                    mesh.IsFluidCell(ip, jp, kp) &&
+                    mesh.IsFluidCell(im, jm, km);
 
                 if (!ok) {
                     rho1_(i, j, k) = rho0_(i, j, k);
-                    p1_(i, j, k)   = p0_(i, j, k);
+                    p1_(i, j, k) = p0_(i, j, k);
                     continue;
                 }
 
@@ -112,9 +125,15 @@ void SolutionFilter::ApplyAxis(const Axis axis) const {
         return;
     }
 
-    for (int k = k0; k < k1; ++k) {
-        for (int j = j0; j < j1; ++j) {
-            for (int i = i0; i < i1; ++i) {
+    for (int k = 0; k < sz_; ++k) {
+        for (int j = 0; j < sy_; ++j) {
+            for (int i = 0; i < sx_; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    rho0_(i, j, k) = rho1_(i, j, k);
+                    p0_(i, j, k) = p1_(i, j, k);
+                    continue;
+                }
+
                 const int ip = i + st.di;
                 const int jp = j + st.dj;
                 const int kp = k + st.dk;
@@ -125,11 +144,13 @@ void SolutionFilter::ApplyAxis(const Axis axis) const {
 
                 const bool ok =
                     (ip >= 0 && ip < sx_ && jp >= 0 && jp < sy_ && kp >= 0 && kp < sz_) &&
-                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_);
+                    (im >= 0 && im < sx_ && jm >= 0 && jm < sy_ && km >= 0 && km < sz_) &&
+                    mesh.IsFluidCell(ip, jp, kp) &&
+                    mesh.IsFluidCell(im, jm, km);
 
                 if (!ok) {
                     rho0_(i, j, k) = rho1_(i, j, k);
-                    p0_(i, j, k)   = p1_(i, j, k);
+                    p0_(i, j, k) = p1_(i, j, k);
                     continue;
                 }
 
@@ -145,36 +166,40 @@ void SolutionFilter::ApplyAxis(const Axis axis) const {
     }
 }
 
-void SolutionFilter::WriteBackConservative(DataLayer& layer, const double gamma) const {
+void SolutionFilter::WriteBackConservative(DataLayer& layer, const Mesh& mesh, const double gamma) const {
     auto& U = layer.U();
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
     for (int k = k0; k < k1; ++k) {
         for (int j = j0; j < j1; ++j) {
             for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
+
                 const double rho_old = U(DataLayer::k_rho, i, j, k);
                 const double rho = std::max(rho0_(i, j, k), rho_floor_);
-                const double P   = std::max(p0_(i, j, k), p_floor_);
+                const double P = std::max(p0_(i, j, k), p_floor_);
 
-                const double rho_safe = (rho_old > rho_floor_) ? rho_old : rho_floor_;
+                const double rho_safe = rho_old > rho_floor_ ? rho_old : rho_floor_;
                 const double inv_rho_old = 1.0 / rho_safe;
 
                 const double u = U(DataLayer::k_rhoU, i, j, k) * inv_rho_old;
                 const double v = U(DataLayer::k_rhoV, i, j, k) * inv_rho_old;
                 const double w = U(DataLayer::k_rhoW, i, j, k) * inv_rho_old;
 
-                U(DataLayer::k_rho,  i, j, k) = rho;
+                U(DataLayer::k_rho, i, j, k) = rho;
                 U(DataLayer::k_rhoU, i, j, k) = rho * u;
                 U(DataLayer::k_rhoV, i, j, k) = rho * v;
                 U(DataLayer::k_rhoW, i, j, k) = rho * w;
 
-                const double kinetic = 0.5 * rho * (u*u + v*v + w*w);
+                const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
                 const double E = P / (gamma - 1.0) + kinetic;
                 U(DataLayer::k_E, i, j, k) = E;
             }
@@ -182,27 +207,34 @@ void SolutionFilter::WriteBackConservative(DataLayer& layer, const double gamma)
     }
 }
 
-void SolutionFilter::Apply(DataLayer& layer, const double gamma) const {
-    const int ng = layer.GetPadding();
+void SolutionFilter::Apply(DataLayer& layer, const Mesh& mesh, const double gamma) const {
+    const int ng = mesh.GetPadding();
     if (ng < 1) {
         return;
     }
 
-    ResizeFrom(layer);
-    ExtractRhoP(layer, gamma);
+    ResizeFrom(mesh);
+    ExtractRhoP(layer, mesh, gamma);
 
-    ApplyAxis(Axis::X);
-    if (layer.GetDim() >= 2) ApplyAxis(Axis::Y);
-    if (layer.GetDim() >= 3) ApplyAxis(Axis::Z);
+    ApplyAxis(mesh, Axis::X);
+    if (mesh.GetDim() >= 2) {
+        ApplyAxis(mesh, Axis::Y);
+    }
+    if (mesh.GetDim() >= 3) {
+        ApplyAxis(mesh, Axis::Z);
+    }
 
     for (int k = 0; k < sz_; ++k) {
         for (int j = 0; j < sy_; ++j) {
             for (int i = 0; i < sx_; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
                 rho0_(i, j, k) = std::max(rho0_(i, j, k), rho_floor_);
-                p0_(i, j, k)   = std::max(p0_(i, j, k), p_floor_);
+                p0_(i, j, k) = std::max(p0_(i, j, k), p_floor_);
             }
         }
     }
 
-    WriteBackConservative(layer, gamma);
+    WriteBackConservative(layer, mesh, gamma);
 }

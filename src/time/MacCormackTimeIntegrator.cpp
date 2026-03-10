@@ -1,5 +1,8 @@
 #include "time/MacCormackTimeIntegrator.hpp"
 
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
+#include "data/Workspace.hpp"
 #include "solver/PositivityLimiter.hpp"
 
 MacCormackTimeIntegrator::MacCormackTimeIntegrator(const Settings& settings,
@@ -8,6 +11,7 @@ MacCormackTimeIntegrator::MacCormackTimeIntegrator(const Settings& settings,
       backward_op_(settings, boundary_manager) {}
 
 void MacCormackTimeIntegrator::Advance(DataLayer& layer,
+                                       const Mesh& mesh,
                                        Workspace& workspace,
                                        const double dt,
                                        const double gamma,
@@ -18,60 +22,54 @@ void MacCormackTimeIntegrator::Advance(DataLayer& layer,
         return;
     }
 
-    workspace.ResizeFrom(layer);
+    workspace.ResizeFrom(mesh);
 
     auto& U = layer.U();
     auto& rhs = workspace.Rhs();
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    // Save U^n (simple and safe).
     xt::xtensor<double, 4> U0 = xt::eval(U);
 
-    // ---------- Predictor: U = U0 + dt * L_fwd(U0) ----------
-    forward_op_.ComputeRHS(layer, workspace, gamma, dt);
+    forward_op_.ComputeRHS(layer, mesh, workspace, gamma, dt);
 
-    xt::view(U, xt::all(),
-             xt::range(i0, i1),
-             xt::range(j0, j1),
-             xt::range(k0, k1)) =
-        xt::view(U0, xt::all(),
-                 xt::range(i0, i1),
-                 xt::range(j0, j1),
-                 xt::range(k0, k1)) +
-        dt * xt::view(rhs, xt::all(),
-                      xt::range(i0, i1),
-                      xt::range(j0, j1),
-                      xt::range(k0, k1));
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
 
-    // Save U* (predictor result) for the corrector formula.
+                for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
+                    U(v, i, j, k) = U0(v, i, j, k) + dt * rhs(v, i, j, k);
+                }
+            }
+        }
+    }
+
     xt::xtensor<double, 4> Upred = xt::eval(U);
 
-    // ---------- Corrector RHS: L_bwd(U*) computed at current layer.U() = U* ----------
-    backward_op_.ComputeRHS(layer, workspace, gamma, dt);
+    backward_op_.ComputeRHS(layer, mesh, workspace, gamma, dt);
 
-    // U^{n+1} = 0.5 * (U0 + Upred + dt*rhs)
-    xt::view(U, xt::all(),
-             xt::range(i0, i1),
-             xt::range(j0, j1),
-             xt::range(k0, k1)) =
-        0.5 * (xt::view(U0, xt::all(),
-                        xt::range(i0, i1),
-                        xt::range(j0, j1),
-                        xt::range(k0, k1)) +
-            xt::view(Upred, xt::all(),
-                     xt::range(i0, i1),
-                     xt::range(j0, j1),
-                     xt::range(k0, k1)) +
-            dt * xt::view(rhs, xt::all(),
-                          xt::range(i0, i1),
-                          xt::range(j0, j1),
-                          xt::range(k0, k1)));
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
 
-    PositivityLimiter::Apply(layer, gamma, rho_min_, p_min_);
+                for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
+                    U(v, i, j, k) =
+                        0.5 * (U0(v, i, j, k) + Upred(v, i, j, k) + dt * rhs(v, i, j, k));
+                }
+            }
+        }
+    }
+
+    PositivityLimiter::Apply(layer, mesh, gamma, rho_min_, p_min_);
 }

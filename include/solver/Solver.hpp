@@ -3,7 +3,7 @@
 
 #include <memory>
 
-struct DataLayer;
+class DataLayer;
 class BoundaryCondition;
 enum class Axis : std::uint8_t;
 

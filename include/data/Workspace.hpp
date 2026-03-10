@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <xtensor.hpp>
 
-class DataLayer;
+class Mesh;
 
 /**
  * @class Workspace
@@ -15,7 +15,7 @@ class DataLayer;
  *  - W   : primitive variables W(var,i,j,k) = (rho,u,v,w,P)
  *  - rhs : RHS in conservative form rhs(var,i,j,k)
  *
- * Shapes are always (5, sx, sy, sz) matching DataLayer total sizes (including ghosts).
+ * Shapes are always (5, sx, sy, sz) matching Mesh total sizes (including ghosts).
  * No other state (e.g., U_stage) is stored here.
  */
 class Workspace final {
@@ -26,10 +26,10 @@ public:
     Workspace() = default;
 
     /**
-     * @brief Resize buffers to match DataLayer total sizes (including ghosts).
+     * @brief Resize buffers to match Mesh total sizes (including ghosts).
      * @details Allocates only if shape changed. If shape unchanged, does nothing.
      */
-    void ResizeFrom(const DataLayer& layer);
+    void ResizeFrom(const Mesh& mesh);
 
     /** @brief Return primitive buffer W(var,i,j,k). */
     [[nodiscard]] xt::xtensor<double, 4>& W();

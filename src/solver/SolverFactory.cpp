@@ -7,16 +7,13 @@
 #include <string>
 
 #include "solver/FiniteVolumeSolver.hpp"
-
-#include "spatial/GodunovSpatialOperator.hpp"
-#include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
 #include "spatial/FLICSpatialOperator.hpp"
-
+#include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
+#include "spatial/GodunovSpatialOperator.hpp"
 #include "time/ForwardEulerTimeIntegrator.hpp"
+#include "time/MacCormackTimeIntegrator.hpp"
 #include "time/SSPRK2TimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
-#include "time/MacCormackTimeIntegrator.hpp"
-
 
 static std::string ToLowerCopy(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
@@ -28,7 +25,9 @@ static std::string ToLowerCopy(std::string s) {
 
 static void ValidateSolverReconstructionCompatibility(const std::string& solver_lower,
                                                       const std::string& reconstruction_lower) {
-    if (solver_lower == "analytical") return;
+    if (solver_lower == "analytical") {
+        return;
+    }
 
     if (solver_lower == "godunov") {
         if (reconstruction_lower.find("p0") == std::string::npos) {
@@ -49,14 +48,22 @@ static void ValidateSolverReconstructionCompatibility(const std::string& solver_
 }
 
 static auto CreateTimeIntegrator(const Settings& settings,
-                                 const std::shared_ptr<BoundaryManager>& boundary_manager) -> std::shared_ptr<
-    TimeIntegrator> {
+                                 const std::shared_ptr<BoundaryManager>& boundary_manager)
+    -> std::shared_ptr<TimeIntegrator> {
     const std::string ti = ToLowerCopy(settings.time_integrator);
 
-    if (ti == "euler") return std::make_shared<ForwardEulerTimeIntegrator>();
-    if (ti == "ssprk2") return std::make_shared<SSPRK2TimeIntegrator>();
-    if (ti == "ssprk3") return std::make_shared<SSPRK3TimeIntegrator>();
-    if (ti == "maccormack") return std::make_shared<MacCormackTimeIntegrator>(settings, boundary_manager);
+    if (ti == "euler") {
+        return std::make_shared<ForwardEulerTimeIntegrator>();
+    }
+    if (ti == "ssprk2") {
+        return std::make_shared<SSPRK2TimeIntegrator>();
+    }
+    if (ti == "ssprk3") {
+        return std::make_shared<SSPRK3TimeIntegrator>();
+    }
+    if (ti == "maccormack") {
+        return std::make_shared<MacCormackTimeIntegrator>(settings, boundary_manager);
+    }
 
     throw std::runtime_error("Unknown time integrator type: " + settings.time_integrator);
 }
@@ -87,8 +94,10 @@ void SolverFactory::AddBoundary(const Axis axis,
     boundary_manager_->Set(axis, std::move(left_bc), std::move(right_bc));
 }
 
-auto SolverFactory::Create(Settings& settings,
-                           const std::shared_ptr<BoundaryManager>& boundary_manager) -> std::unique_ptr<Solver> {
+auto SolverFactory::Create(const Settings& settings,
+                           Mesh mesh,
+                           const std::shared_ptr<BoundaryManager>& boundary_manager,
+                           const MPIContext* mpi_context) -> std::unique_ptr<Solver> {
     const std::string solver_lower = ToLowerCopy(settings.solver);
     const std::string recon_lower = ToLowerCopy(settings.reconstruction);
 
@@ -97,5 +106,10 @@ auto SolverFactory::Create(Settings& settings,
     auto spatial_operator = CreateSpatialOperator(settings, boundary_manager);
     auto time_integrator = CreateTimeIntegrator(settings, boundary_manager);
 
-    return std::make_unique<FiniteVolumeSolver>(settings, spatial_operator, time_integrator);
+    return std::make_unique<FiniteVolumeSolver>(settings,
+                                                std::move(mesh),
+                                                std::move(spatial_operator),
+                                                std::move(time_integrator),
+                                                mpi_context
+    );
 }

@@ -1,6 +1,5 @@
 #include "spatial/FLICSpatialOperator.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -18,52 +17,63 @@ FLICSpatialOperator::FLICSpatialOperator(const Settings& settings,
     }
 }
 
-
-[[nodiscard]] const xt::xtensor<double, 1>&
-FLICSpatialOperator::InvMetric(const DataLayer& layer, const Axis axis) const {
-    if (axis == Axis::X) return layer.InvDx();
-    if (axis == Axis::Y) return layer.InvDy();
-    return layer.InvDz();
+const xt::xtensor<double, 1>& FLICSpatialOperator::InvMetric(const Mesh& mesh, const Axis axis) const {
+    if (axis == Axis::X) {
+        return mesh.InvDx();
+    }
+    if (axis == Axis::Y) {
+        return mesh.InvDy();
+    }
+    return mesh.InvDz();
 }
 
-inline double FLICSpatialOperator::CellVelocityComponent(const xt::xtensor<double, 4>& U_star,
-                                                         const int i, const int j, const int k,
-                                                         const Axis axis,
-                                                         const double rho_floor) {
+double FLICSpatialOperator::CellVelocityComponent(const xt::xtensor<double, 4>& U_star,
+                                                  const int i,
+                                                  const int j,
+                                                  const int k,
+                                                  const Axis axis,
+                                                  const double rho_floor) {
     const double rho_in = U_star(DataLayer::k_rho, i, j, k);
-    const double rho = (rho_in > rho_floor) ? rho_in : rho_floor;
+    const double rho = rho_in > rho_floor ? rho_in : rho_floor;
 
-    if (axis == Axis::X) return U_star(DataLayer::k_rhoU, i, j, k) / rho;
-    if (axis == Axis::Y) return U_star(DataLayer::k_rhoV, i, j, k) / rho;
+    if (axis == Axis::X) {
+        return U_star(DataLayer::k_rhoU, i, j, k) / rho;
+    }
+    if (axis == Axis::Y) {
+        return U_star(DataLayer::k_rhoV, i, j, k) / rho;
+    }
     return U_star(DataLayer::k_rhoW, i, j, k) / rho;
 }
 
-void FLICSpatialOperator::ComputeLagrangianRhs(const DataLayer& layer,
+void FLICSpatialOperator::ComputeLagrangianRhs(const Mesh& mesh,
                                                const xt::xtensor<double, 4>& W,
-                                               const double /*gamma*/,
                                                xt::xtensor<double, 4>& rhs) const {
-    const auto& inv_dx = layer.InvDx();
-    const auto& inv_dy = layer.InvDy();
-    const auto& inv_dz = layer.InvDz();
+    const auto& inv_dx = mesh.InvDx();
+    const auto& inv_dy = mesh.InvDy();
+    const auto& inv_dz = mesh.InvDz();
 
     rhs.fill(0.0);
 
-    const int dim = layer.GetDim();
+    const int dim = mesh.GetDim();
     const int i0 = 1;
-    const int i1 = layer.GetSx() - 1;
+    const int i1 = mesh.GetSx() - 1;
     const int j0 = dim >= 2 ? 1 : 0;
-    const int j1 = dim >= 2 ? layer.GetSy() - 1 : 1;
+    const int j1 = dim >= 2 ? mesh.GetSy() - 1 : 1;
     const int k0 = dim >= 3 ? 1 : 0;
-    const int k1 = dim >= 3 ? layer.GetSz() - 1 : 1;
+    const int k1 = dim >= 3 ? mesh.GetSz() - 1 : 1;
 
     for (int i = i0; i < i1; ++i) {
         const double idx = inv_dx(std::size_t(i));
 
         for (int j = j0; j < j1; ++j) {
-            const double idy = (dim >= 2) ? inv_dy(std::size_t(j)) : 0.0;
+            const double idy = dim >= 2 ? inv_dy(std::size_t(j)) : 0.0;
 
             for (int k = k0; k < k1; ++k) {
-                const double idz = (dim >= 3) ? inv_dz(std::size_t(k)) : 0.0;
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
+
+                const double idz = dim >= 3 ? inv_dz(std::size_t(k)) : 0.0;
 
                 const double dPdx = 0.5 * (W(var::u_P, i + 1, j, k) - W(var::u_P, i - 1, j, k)) * idx;
                 rhs(DataLayer::k_rhoU, i, j, k) -= dPdx;
@@ -99,13 +109,14 @@ void FLICSpatialOperator::ComputeLagrangianRhs(const DataLayer& layer,
 }
 
 void FLICSpatialOperator::BuildUStar(const DataLayer& layer,
+                                     const Mesh& mesh,
                                      const xt::xtensor<double, 4>& U,
                                      const xt::xtensor<double, 4>& rhs_lag,
                                      const double dt,
                                      xt::xtensor<double, 4>& U_star) const {
-    const int sx = layer.GetSx();
-    const int sy = layer.GetSy();
-    const int sz = layer.GetSz();
+    const int sx = mesh.GetSx();
+    const int sy = mesh.GetSy();
+    const int sz = mesh.GetSz();
 
     for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
         for (int i = 0; i < sx; ++i) {
@@ -118,19 +129,19 @@ void FLICSpatialOperator::BuildUStar(const DataLayer& layer,
     }
 }
 
-void FLICSpatialOperator::AccumulateAxisAdvection(const DataLayer& layer,
+void FLICSpatialOperator::AccumulateAxisAdvection(const Mesh& mesh,
                                                   const xt::xtensor<double, 4>& U_star,
                                                   xt::xtensor<double, 4>& rhs,
                                                   const Axis axis) const {
     const AxisStride st = AxisStride::FromAxis(axis);
-    const auto& inv_h = InvMetric(layer, axis);
+    const auto& inv_h = InvMetric(mesh, axis);
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
     const int i_start = i0 - st.di;
     const int j_start = j0 - st.dj;
@@ -147,19 +158,19 @@ void FLICSpatialOperator::AccumulateAxisAdvection(const DataLayer& layer,
                 const double uR = CellVelocityComponent(U_star, ip, jp, kp, axis);
                 const double u_face = 0.5 * (uL + uR);
 
-                const int up_i = (u_face >= 0.0) ? i : ip;
-                const int up_j = (u_face >= 0.0) ? j : jp;
-                const int up_k = (u_face >= 0.0) ? k : kp;
+                const int up_i = u_face >= 0.0 ? i : ip;
+                const int up_j = u_face >= 0.0 ? j : jp;
+                const int up_k = u_face >= 0.0 ? k : kp;
 
                 for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
                     const double flux = u_face * U_star(v, up_i, up_j, up_k);
 
-                    if (i >= i0 && j >= j0 && k >= k0) {
+                    if (i >= i0 && j >= j0 && k >= k0 && mesh.IsFluidCell(i, j, k)) {
                         const double invL = inv_h((axis == Axis::X) ? i : (axis == Axis::Y) ? j : k);
                         rhs(v, i, j, k) -= flux * invL;
                     }
 
-                    if (ip < i1 && jp < j1 && kp < k1) {
+                    if (ip < i1 && jp < j1 && kp < k1 && mesh.IsFluidCell(ip, jp, kp)) {
                         const double invR = inv_h((axis == Axis::X) ? ip : (axis == Axis::Y) ? jp : kp);
                         rhs(v, ip, jp, kp) += flux * invR;
                     }
@@ -169,15 +180,20 @@ void FLICSpatialOperator::AccumulateAxisAdvection(const DataLayer& layer,
     }
 }
 
-void FLICSpatialOperator::ComputeEulerianAdvectionRhs(const DataLayer& layer,
+void FLICSpatialOperator::ComputeEulerianAdvectionRhs(const Mesh& mesh,
                                                       const xt::xtensor<double, 4>& U_star,
                                                       xt::xtensor<double, 4>& rhs) const {
-    AccumulateAxisAdvection(layer, U_star, rhs, Axis::X);
-    if (layer.GetDim() >= 2) AccumulateAxisAdvection(layer, U_star, rhs, Axis::Y);
-    if (layer.GetDim() >= 3) AccumulateAxisAdvection(layer, U_star, rhs, Axis::Z);
+    AccumulateAxisAdvection(mesh, U_star, rhs, Axis::X);
+    if (mesh.GetDim() >= 2) {
+        AccumulateAxisAdvection(mesh, U_star, rhs, Axis::Y);
+    }
+    if (mesh.GetDim() >= 3) {
+        AccumulateAxisAdvection(mesh, U_star, rhs, Axis::Z);
+    }
 }
 
 void FLICSpatialOperator::ComputeRHS(DataLayer& layer,
+                                     const Mesh& mesh,
                                      Workspace& workspace,
                                      const double gamma,
                                      const double dt) const {
@@ -188,42 +204,42 @@ void FLICSpatialOperator::ComputeRHS(DataLayer& layer,
         throw std::runtime_error("FLICSpatialOperator: dt must be > 0");
     }
 
-    const int ng = layer.GetPadding();
+    const int ng = mesh.GetPadding();
     if (ng < 1) {
         throw std::runtime_error("FLICSpatialOperator: requires at least 1 ghost cell (ng>=1)");
     }
 
-    workspace.ResizeFrom(layer);
+    workspace.ResizeFrom(mesh);
 
-    boundary_manager_->UpdateHalo(layer);
-    boundary_manager_->ApplyPhysicalBc(layer);
+    boundary_manager_->UpdateHalo(layer, mesh);
+    boundary_manager_->ApplyPhysicalBc(layer, mesh);
 
     ConvertUtoW(layer.U(), workspace.W(), gamma,
-                0, layer.GetSx(),
-                0, layer.GetSy(),
-                0, layer.GetSz());
+                0, mesh.GetSx(),
+                0, mesh.GetSy(),
+                0, mesh.GetSz());
 
     workspace.ZeroRhs();
     auto& rhs = workspace.Rhs();
 
-    ComputeLagrangianRhs(layer, workspace.W(), gamma, rhs);
+    ComputeLagrangianRhs(mesh, workspace.W(), rhs);
 
     xt::xtensor<double, 4> U_star = xt::empty_like(layer.U());
-    BuildUStar(layer, layer.U(), rhs, dt, U_star);
+    BuildUStar(layer, mesh, layer.U(), rhs, dt, U_star);
 
     xt::xtensor<double, 4> U_saved = xt::eval(layer.U());
 
     layer.U() = U_star;
-    boundary_manager_->UpdateHalo(layer);
-    boundary_manager_->ApplyPhysicalBc(layer);
+    boundary_manager_->UpdateHalo(layer, mesh);
+    boundary_manager_->ApplyPhysicalBc(layer, mesh);
 
     const auto& U_star_bc = layer.U();
 
-    ComputeEulerianAdvectionRhs(layer, U_star_bc, rhs);
+    ComputeEulerianAdvectionRhs(mesh, U_star_bc, rhs);
 
     layer.U() = U_saved;
 
     if (viscosity_) {
-        viscosity_->AddToRhs(layer, workspace.W(), gamma, dt, rhs);
+        viscosity_->AddToRhs(layer, mesh, workspace.W(), gamma, dt, rhs);
     }
 }

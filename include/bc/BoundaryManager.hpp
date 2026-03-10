@@ -1,13 +1,16 @@
 #ifndef BOUNDARYMANAGER_HPP
 #define BOUNDARYMANAGER_HPP
 
+#include <cstdint>
 #include <memory>
 #include <vector>
-#include <cstdint>
-
-#include "data/DataLayer.hpp"
+#include "parallel/HaloExchange.hpp"
 #include "data/Variables.hpp"
 
+
+
+class DataLayer;
+class Mesh;
 class BoundaryCondition;
 
 /**
@@ -26,12 +29,12 @@ struct AxisBc final {
  * Contract:
  *  - UpdateHalo() handles internal subdomain interfaces (MPI later). For now: no-op.
  *  - ApplyPhysicalBc() applies only physical BC on global external boundaries,
- *    as indicated by DataLayer boundary flags.
+ *    as indicated by Mesh boundary flags.
  */
 class BoundaryManager final {
 public:
     /** @brief Constructs boundary manager for three axes. */
-    BoundaryManager();
+    explicit BoundaryManager(std::shared_ptr<HaloExchange> halo_exchange = nullptr);
 
     /**
      * @brief Assign boundary conditions for an axis.
@@ -47,19 +50,20 @@ public:
      * @brief Halo exchange/update for internal interfaces (MPI later).
      * @details For now: no-op.
      */
-    void UpdateHalo(DataLayer& layer) const;
+    void UpdateHalo(DataLayer& layer, const Mesh& mesh) const;
 
     /**
      * @brief Apply physical boundary conditions on global external boundaries.
-     * @details Uses DataLayer::IsGlobalBoundary(axis, side) to decide whether to apply.
+     * @details Uses Mesh::IsGlobalBoundary(axis, side) to decide whether to apply.
      */
-    void ApplyPhysicalBc(DataLayer& layer) const;
+    void ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const;
 
     /** @brief Get boundary pair for an axis. */
     [[nodiscard]] const AxisBc& Get(Axis axis) const;
 
 private:
     std::vector<AxisBc> axes_;
+    std::shared_ptr<HaloExchange> halo_exchange_;
 };
 
 #endif  // BOUNDARYMANAGER_HPP

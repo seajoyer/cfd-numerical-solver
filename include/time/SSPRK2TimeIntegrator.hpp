@@ -13,7 +13,7 @@
  *
  * Notes:
  *  - SpatialOperator handles halo + physical BC internally.
- *  - This integrator updates only core cells; ghost cells are not evolved.
+ *  - This integrator updates only fluid core cells.
  *  - PositivityLimiter is applied after the final stage.
  */
 class SSPRK2TimeIntegrator final : public TimeIntegrator {
@@ -21,6 +21,7 @@ public:
     SSPRK2TimeIntegrator() = default;
 
     void Advance(DataLayer& layer,
+                 const Mesh& mesh,
                  Workspace& workspace,
                  double dt,
                  double gamma,

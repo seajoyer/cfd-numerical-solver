@@ -1,5 +1,7 @@
 #include "viscosity/VNRArtificialViscosity.hpp"
 
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 
 VNRArtificialViscosity::VNRArtificialViscosity(const Settings& settings,
                                                const double C1,
@@ -7,7 +9,9 @@ VNRArtificialViscosity::VNRArtificialViscosity(const Settings& settings,
     : C1_(C1), C2_(C2), settings_(settings) {}
 
 PrimitiveCell VNRArtificialViscosity::LoadPrimitive(const xt::xtensor<double, 4>& W,
-                                                    const int i, const int j, const int k) {
+                                                    const int i,
+                                                    const int j,
+                                                    const int k) {
     PrimitiveCell w;
     w.rho = W(var::u_rho, i, j, k);
     w.u = W(var::u_u, i, j, k);
@@ -17,10 +21,10 @@ PrimitiveCell VNRArtificialViscosity::LoadPrimitive(const xt::xtensor<double, 4>
     return w;
 }
 
-void VNRArtificialViscosity::ResizeFrom(const DataLayer& layer) const {
-    const int sx = layer.GetSx();
-    const int sy = layer.GetSy();
-    const int sz = layer.GetSz();
+void VNRArtificialViscosity::ResizeFrom(const Mesh& mesh) const {
+    const int sx = mesh.GetSx();
+    const int sy = mesh.GetSy();
+    const int sz = mesh.GetSz();
 
     const bool ok =
         (sx == sx_) && (sy == sy_) && (sz == sz_) &&
@@ -45,49 +49,62 @@ void VNRArtificialViscosity::ResizeFrom(const DataLayer& layer) const {
     qz_ = xt::zeros<double>({Sx, Sy, (Sz > 0 ? Sz - 1 : 0)});
 }
 
-[[nodiscard]] xt::xtensor<double, 3>& VNRArtificialViscosity::QFace(const Axis axis) const {
-    if (axis == Axis::X) return qx_;
-    if (axis == Axis::Y) return qy_;
+xt::xtensor<double, 3>& VNRArtificialViscosity::QFace(const Axis axis) const {
+    if (axis == Axis::X) {
+        return qx_;
+    }
+    if (axis == Axis::Y) {
+        return qy_;
+    }
     return qz_;
 }
 
-[[nodiscard]] const xt::xtensor<double, 1>&
-VNRArtificialViscosity::InvMetric(const DataLayer& layer, const Axis axis) const {
-    if (axis == Axis::X) return layer.InvDx();
-    if (axis == Axis::Y) return layer.InvDy();
-    return layer.InvDz();
+const xt::xtensor<double, 1>& VNRArtificialViscosity::InvMetric(const Mesh& mesh, const Axis axis) const {
+    if (axis == Axis::X) {
+        return mesh.InvDx();
+    }
+    if (axis == Axis::Y) {
+        return mesh.InvDy();
+    }
+    return mesh.InvDz();
 }
 
-[[nodiscard]] std::size_t VNRArtificialViscosity::MomVarIndex(const Axis axis) {
-    if (axis == Axis::X) return DataLayer::k_rhoU;
-    if (axis == Axis::Y) return DataLayer::k_rhoV;
+std::size_t VNRArtificialViscosity::MomVarIndex(const Axis axis) {
+    if (axis == Axis::X) {
+        return DataLayer::k_rhoU;
+    }
+    if (axis == Axis::Y) {
+        return DataLayer::k_rhoV;
+    }
     return DataLayer::k_rhoW;
 }
 
-[[nodiscard]] std::size_t VNRArtificialViscosity::VelVarIndex(const Axis axis) {
-    if (axis == Axis::X) return var::u_u;
-    if (axis == Axis::Y) return var::u_v;
+std::size_t VNRArtificialViscosity::VelVarIndex(const Axis axis) {
+    if (axis == Axis::X) {
+        return var::u_u;
+    }
+    if (axis == Axis::Y) {
+        return var::u_v;
+    }
     return var::u_w;
 }
 
-void VNRArtificialViscosity::ComputeQFaces(const DataLayer& layer,
+void VNRArtificialViscosity::ComputeQFaces(const Mesh& mesh,
                                            const xt::xtensor<double, 4>& W,
                                            const double gamma,
                                            const Axis axis) const {
-    (void)layer;
-
     auto& qface = QFace(axis);
     qface.fill(0.0);
 
     const AxisStride st = AxisStride::FromAxis(axis);
 
-    const int sx = layer.GetSx();
-    const int sy = layer.GetSy();
-    const int sz = layer.GetSz();
+    const int sx = mesh.GetSx();
+    const int sy = mesh.GetSy();
+    const int sz = mesh.GetSz();
 
-    const int fx = (axis == Axis::X) ? (sx - 1) : sx;
-    const int fy = (axis == Axis::Y) ? (sy - 1) : sy;
-    const int fz = (axis == Axis::Z) ? (sz - 1) : sz;
+    const int fx = axis == Axis::X ? (sx - 1) : sx;
+    const int fy = axis == Axis::Y ? (sy - 1) : sy;
+    const int fz = axis == Axis::Z ? (sz - 1) : sz;
 
     for (int k = 0; k < fz; ++k) {
         for (int j = 0; j < fy; ++j) {
@@ -99,15 +116,18 @@ void VNRArtificialViscosity::ComputeQFaces(const DataLayer& layer,
                 const PrimitiveCell wl = LoadPrimitive(W, i, j, k);
                 const PrimitiveCell wr = LoadPrimitive(W, ir, jr, kr);
 
-                const double un_l = (axis == Axis::X) ? wl.u : (axis == Axis::Y) ? wl.v : wl.w;
-                const double un_r = (axis == Axis::X) ? wr.u : (axis == Axis::Y) ? wr.v : wr.w;
+                const double un_l = axis == Axis::X ? wl.u : (axis == Axis::Y ? wl.v : wl.w);
+                const double un_r = axis == Axis::X ? wr.u : (axis == Axis::Y ? wr.v : wr.w);
                 const double du = un_r - un_l;
 
-                // Only act in compression: du < 0
-                if (du >= 0.0) continue;
+                if (du >= 0.0) {
+                    continue;
+                }
 
                 const double rho_bar = 0.5 * (wl.rho + wr.rho);
-                if (!(rho_bar > 0.0) || !std::isfinite(rho_bar)) continue;
+                if (!(rho_bar > 0.0) || !std::isfinite(rho_bar)) {
+                    continue;
+                }
 
                 const double c_l = SoundSpeed(wl, gamma);
                 const double c_r = SoundSpeed(wr, gamma);
@@ -126,33 +146,35 @@ void VNRArtificialViscosity::ComputeQFaces(const DataLayer& layer,
     }
 }
 
-void VNRArtificialViscosity::AddAxisContribution(const DataLayer& layer,
+void VNRArtificialViscosity::AddAxisContribution(const Mesh& mesh,
                                                  const xt::xtensor<double, 4>& W,
                                                  xt::xtensor<double, 4>& rhs,
                                                  const Axis axis) const {
     const AxisStride st = AxisStride::FromAxis(axis);
-    const auto& inv_h = InvMetric(layer, axis);
+    const auto& inv_h = InvMetric(mesh, axis);
     const auto& qface = QFace(axis);
 
     const std::size_t mom = MomVarIndex(axis);
     const std::size_t vvel = VelVarIndex(axis);
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
     for (int k = k0; k < k1; ++k) {
         for (int j = j0; j < j1; ++j) {
             for (int i = i0; i < i1; ++i) {
-                // plus face indexed by left cell (i,j,k)
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
+
                 const double q_plus = qface(static_cast<std::size_t>(i),
                                             static_cast<std::size_t>(j),
                                             static_cast<std::size_t>(k));
 
-                // minus face indexed by left cell (i,j,k) - stride
                 const int im = i - st.di;
                 const int jm = j - st.dj;
                 const int km = k - st.dk;
@@ -168,7 +190,7 @@ void VNRArtificialViscosity::AddAxisContribution(const DataLayer& layer,
                 const double vel_plus = 0.5 * (v0 + vp);
                 const double vel_minus = 0.5 * (vm + v0);
 
-                const int idx = (axis == Axis::X) ? i : (axis == Axis::Y) ? j : k;
+                const int idx = axis == Axis::X ? i : (axis == Axis::Y ? j : k);
                 const double inv = inv_h(static_cast<std::size_t>(idx));
 
                 rhs(mom, i, j, k) += -(q_plus - q_minus) * inv;
@@ -179,24 +201,26 @@ void VNRArtificialViscosity::AddAxisContribution(const DataLayer& layer,
 }
 
 void VNRArtificialViscosity::AddToRhs(const DataLayer& layer,
+                                      const Mesh& mesh,
                                       const xt::xtensor<double, 4>& W,
                                       const double gamma,
                                       const double dt,
                                       xt::xtensor<double, 4>& rhs) const {
+    (void)layer;
     (void)dt;
 
-    ResizeFrom(layer);
+    ResizeFrom(mesh);
 
-    ComputeQFaces(layer, W, gamma, Axis::X);
-    AddAxisContribution(layer, W, rhs, Axis::X);
+    ComputeQFaces(mesh, W, gamma, Axis::X);
+    AddAxisContribution(mesh, W, rhs, Axis::X);
 
-    if (layer.GetDim() >= 2) {
-        ComputeQFaces(layer, W, gamma, Axis::Y);
-        AddAxisContribution(layer, W, rhs, Axis::Y);
+    if (mesh.GetDim() >= 2) {
+        ComputeQFaces(mesh, W, gamma, Axis::Y);
+        AddAxisContribution(mesh, W, rhs, Axis::Y);
     }
 
-    if (layer.GetDim() >= 3) {
-        ComputeQFaces(layer, W, gamma, Axis::Z);
-        AddAxisContribution(layer, W, rhs, Axis::Z);
+    if (mesh.GetDim() >= 3) {
+        ComputeQFaces(mesh, W, gamma, Axis::Z);
+        AddAxisContribution(mesh, W, rhs, Axis::Z);
     }
 }

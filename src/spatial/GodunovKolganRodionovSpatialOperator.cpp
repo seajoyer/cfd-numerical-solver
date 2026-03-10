@@ -1,29 +1,47 @@
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
+#include <string>
 
 #include "bc/BoundaryManager.hpp"
 #include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 #include "data/Variables.hpp"
 #include "data/Workspace.hpp"
-
-#include "reconstruction/Reconstruction.hpp"
-#include "riemann/RiemannSolver.hpp"
-
+#include "reconstruction/ENOReconstruction.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
-#include "reconstruction/ENOReconstruction.hpp"
+#include "reconstruction/Reconstruction.hpp"
 #include "reconstruction/WENOReconstruction.hpp"
-
 #include "riemann/AcousticRiemannSolver.hpp"
-#include "riemann/RusanovRiemannSolver.hpp"
-#include "riemann/HLLRiemannSolver.hpp"
-#include "riemann/HLLCRiemannSolver.hpp"
-#include "riemann/RoeRiemannSolver.hpp"
-#include "riemann/OsherRiemannSolver.hpp"
 #include "riemann/ExactIdealGasRiemannSolver.hpp"
-
+#include "riemann/HLLCRiemannSolver.hpp"
+#include "riemann/HLLRiemannSolver.hpp"
+#include "riemann/OsherRiemannSolver.hpp"
+#include "riemann/RiemannSolver.hpp"
+#include "riemann/RoeRiemannSolver.hpp"
+#include "riemann/RusanovRiemannSolver.hpp"
 #include "viscosity/VNRArtificialViscosity.hpp"
+
+namespace {
+    PrimitiveCell LoadPrimitiveCell(const xt::xtensor<double, 4>& W, const int i, const int j, const int k) {
+        PrimitiveCell w;
+        w.rho = W(var::u_rho, i, j, k);
+        w.u = W(var::u_u, i, j, k);
+        w.v = W(var::u_v, i, j, k);
+        w.w = W(var::u_w, i, j, k);
+        w.P = W(var::u_P, i, j, k);
+        return w;
+    }
+
+    bool IsFluidInterface(const Mesh& mesh,
+                          const int iL, const int jL, const int kL,
+                          const int iR, const int jR, const int kR) {
+        return mesh.IsFluidCell(iL, jL, kL) && mesh.IsFluidCell(iR, jR, kR);
+    }
+} // namespace
 
 GodunovKolganRodionovSpatialOperator::GodunovKolganRodionovSpatialOperator(
     const Settings& settings,
@@ -104,51 +122,70 @@ void GodunovKolganRodionovSpatialOperator::InitializeRiemannSolver(const Setting
 }
 
 void GodunovKolganRodionovSpatialOperator::ComputeRHS(DataLayer& layer,
+                                                      const Mesh& mesh,
                                                       Workspace& workspace,
-                                                      const double gamma, const double dt) const {
+                                                      const double gamma,
+                                                      const double dt) const {
     if (!reconstruction_ || !riemann_solver_) {
         throw std::runtime_error("GKR: reconstruction_ or riemann_solver_ is null");
     }
 
-    const int ng = layer.GetPadding();
+    const int ng = mesh.GetPadding();
     if (ng < 1) {
         throw std::runtime_error("GKR: requires at least 1 ghost cell (ng>=1)");
     }
 
-    workspace.ResizeFrom(layer);
+    workspace.ResizeFrom(mesh);
 
-    boundary_manager_->UpdateHalo(layer);
-    boundary_manager_->ApplyPhysicalBc(layer);
+    boundary_manager_->UpdateHalo(layer, mesh);
+    boundary_manager_->ApplyPhysicalBc(layer, mesh);
 
     ConvertUtoW(layer.U(), workspace.W(), gamma,
-                0, layer.GetSx(),
-                0, layer.GetSy(),
-                0, layer.GetSz());
+                0, mesh.GetSx(),
+                0, mesh.GetSy(),
+                0, mesh.GetSz());
 
     workspace.ZeroRhs();
 
     auto& rhs = workspace.Rhs();
     const auto& W = workspace.W();
 
-    AccumulateAxis(layer, W, rhs, gamma, Axis::X, dt);
-    if (layer.GetDim() >= 2) AccumulateAxis(layer, W, rhs, gamma, Axis::Y, dt);
-    if (layer.GetDim() >= 3) AccumulateAxis(layer, W, rhs, gamma, Axis::Z, dt);
+    AccumulateAxis(layer, mesh, W, rhs, gamma, Axis::X, dt);
+    if (mesh.GetDim() >= 2) {
+        AccumulateAxis(layer, mesh, W, rhs, gamma, Axis::Y, dt);
+    }
+    if (mesh.GetDim() >= 3) {
+        AccumulateAxis(layer, mesh, W, rhs, gamma, Axis::Z, dt);
+    }
 
     if (viscosity_) {
-        viscosity_->AddToRhs(layer, workspace.W(), gamma, dt, workspace.Rhs());
+        viscosity_->AddToRhs(layer, mesh, workspace.W(), gamma, dt, workspace.Rhs());
     }
 }
 
-
-[[nodiscard]] double GodunovKolganRodionovSpatialOperator::InvMetricAt(
-    const DataLayer& layer, const Axis axis, const int i, const int j, const int k) const {
-    if (axis == Axis::X) return layer.InvDx()(static_cast<std::size_t>(i));
-    if (axis == Axis::Y) return layer.InvDy()(static_cast<std::size_t>(j));
-    return layer.InvDz()(static_cast<std::size_t>(k));
+double GodunovKolganRodionovSpatialOperator::InvMetricAt(
+    const Mesh& mesh,
+    const Axis axis,
+    const int i,
+    const int j,
+    const int k) const {
+    if (axis == Axis::X) {
+        return mesh.InvDx()(static_cast<std::size_t>(i));
+    }
+    if (axis == Axis::Y) {
+        return mesh.InvDy()(static_cast<std::size_t>(j));
+    }
+    return mesh.InvDz()(static_cast<std::size_t>(k));
 }
 
 void GodunovKolganRodionovSpatialOperator::MapCellIndices(
-    const Axis axis, const int s, const int a, const int b, int& i, int& j, int& k) const {
+    const Axis axis,
+    const int s,
+    const int a,
+    const int b,
+    int& i,
+    int& j,
+    int& k) const {
     if (axis == Axis::X) {
         i = s;
         j = a;
@@ -161,7 +198,6 @@ void GodunovKolganRodionovSpatialOperator::MapCellIndices(
         k = b;
         return;
     }
-    // Axis::Z
     i = a;
     j = b;
     k = s;
@@ -194,7 +230,9 @@ void GodunovKolganRodionovSpatialOperator::ApplyPredictor(
 
 void GodunovKolganRodionovSpatialOperator::AccumulateCellRhs(
     xt::xtensor<double, 4>& rhs,
-    const int i, const int j, const int k,
+    const int i,
+    const int j,
+    const int k,
     const double invd,
     const FluxCell& Fp,
     const FluxCell& Fm) {
@@ -209,28 +247,49 @@ void GodunovKolganRodionovSpatialOperator::ComputeStarForCell(const xt::xtensor<
                                                               const double gamma,
                                                               const Axis axis,
                                                               const AxisStride& st,
-                                                              const DataLayer& layer,
-                                                              const int ci, const int cj, const int ck,
+                                                              const Mesh& mesh,
+                                                              const int ci,
+                                                              const int cj,
+                                                              const int ck,
                                                               PrimitiveCell& WL_face,
                                                               PrimitiveCell& WR_face,
                                                               PrimitiveCell& WLm_face,
                                                               PrimitiveCell& WRm_face,
                                                               ConservativeCell& UL_star,
                                                               ConservativeCell& UR_star,
-                                                              double dt) const {
-    // Left face of cell C: interface (C-1/2) has left cell index = C - stride
+                                                              const double dt) const {
+    const int im = ci - st.di;
+    const int jm = cj - st.dj;
+    const int km = ck - st.dk;
+
+    const int ip = ci + st.di;
+    const int jp = cj + st.dj;
+    const int kp = ck + st.dk;
+
+    if (!mesh.IsFluidCell(ci, cj, ck)) {
+        UL_star = ConservativeCell{};
+        UR_star = ConservativeCell{};
+        return;
+    }
+
+    if (!mesh.IsFluidCell(im, jm, km) || !mesh.IsFluidCell(ip, jp, kp)) {
+        const PrimitiveCell wc = LoadPrimitiveCell(W, ci, cj, ck);
+        const ConservativeCell Uc = ConservativeFromPrimitive(wc, gamma);
+        UL_star = Uc;
+        UR_star = Uc;
+        return;
+    }
+
     reconstruction_->ReconstructFace(W, axis,
                                      ci - st.di, cj - st.dj, ck - st.dk,
                                      WLm_face, WRm_face);
 
-    // Right face of cell C: interface (C+1/2) has left cell index = C
     reconstruction_->ReconstructFace(W, axis,
                                      ci, cj, ck,
                                      WL_face, WR_face);
 
-    // States *inside cell C* at its left/right faces
-    const PrimitiveCell W_L_cell = WRm_face; // right state at (C-1/2)
-    const PrimitiveCell W_R_cell = WL_face; // left  state at (C+1/2)
+    const PrimitiveCell W_L_cell = WRm_face;
+    const PrimitiveCell W_R_cell = WL_face;
 
     ConservativeCell U_L = ConservativeFromPrimitive(W_L_cell, gamma);
     ConservativeCell U_R = ConservativeFromPrimitive(W_R_cell, gamma);
@@ -238,7 +297,7 @@ void GodunovKolganRodionovSpatialOperator::ComputeStarForCell(const xt::xtensor<
     const FluxCell F_L = EulerFlux(W_L_cell, gamma, axis);
     const FluxCell F_R = EulerFlux(W_R_cell, gamma, axis);
 
-    const double half_dt_over_d = 0.5 * dt * InvMetricAt(layer, axis, ci, cj, ck);
+    const double half_dt_over_d = 0.5 * dt * InvMetricAt(mesh, axis, ci, cj, ck);
     ApplyPredictor(U_L, U_R, F_L, F_R, half_dt_over_d);
 
     UL_star = U_L;
@@ -246,22 +305,28 @@ void GodunovKolganRodionovSpatialOperator::ComputeStarForCell(const xt::xtensor<
 }
 
 void GodunovKolganRodionovSpatialOperator::AccumulateAxis(DataLayer& layer,
+                                                          const Mesh& mesh,
                                                           const xt::xtensor<double, 4>& W,
                                                           xt::xtensor<double, 4>& rhs,
                                                           const double gamma,
                                                           const Axis axis,
-                                                          double dt) const {
+                                                          const double dt) const {
+    (void)layer;
+
     const AxisStride st = AxisStride::FromAxis(axis);
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    // transverse ranges (a,b) and sweep range (s)
-    int a0 = 0, a1 = 0, b0 = 0, b1 = 0;
+    int a0 = 0;
+    int a1 = 0;
+    int b0 = 0;
+    int b1 = 0;
+
     if (axis == Axis::X) {
         a0 = j0;
         a1 = j1;
@@ -281,7 +346,9 @@ void GodunovKolganRodionovSpatialOperator::AccumulateAxis(DataLayer& layer,
         b1 = j1;
     }
 
-    int s_core0 = 0, s_core1 = 0;
+    int s_core0 = 0;
+    int s_core1 = 0;
+
     if (axis == Axis::X) {
         s_core0 = i0;
         s_core1 = i1;
@@ -295,60 +362,87 @@ void GodunovKolganRodionovSpatialOperator::AccumulateAxis(DataLayer& layer,
         s_core1 = k1;
     }
 
-    // We need F_{s_core0-1/2} as "Fm" for the first core cell.
-    const int s_left = s_core0 - 1;
-
-    PrimitiveCell WL_face{}, WR_face{}, WLm_face{}, WRm_face{};
-    ConservativeCell ULs{}, URs{}, ULn{}, URn{};
+    PrimitiveCell WL_face{};
+    PrimitiveCell WR_face{};
+    PrimitiveCell WLm_face{};
+    PrimitiveCell WRm_face{};
+    ConservativeCell UL_left{};
+    ConservativeCell UR_left{};
+    ConservativeCell UL_right{};
+    ConservativeCell UR_right{};
 
     for (int b = b0; b < b1; ++b) {
         for (int a = a0; a < a1; ++a) {
-            int iL, jL, kL;
-            int iR, jR, kR;
+            FluxCell Fm{};
 
-            // Left cell at s_left, right cell at s_left+1 (needed for initial Fm)
-            MapCellIndices(axis, s_left, a, b, iL, jL, kL);
-            MapCellIndices(axis, s_left + 1, a, b, iR, jR, kR);
+            {
+                int iL = 0;
+                int jL = 0;
+                int kL = 0;
+                int iR = 0;
+                int jR = 0;
+                int kR = 0;
 
-            ComputeStarForCell(W, gamma, axis, st, layer,
-                               iL, jL, kL,
-                               WL_face, WR_face, WLm_face, WRm_face,
-                               ULs, URs, dt);
+                MapCellIndices(axis, s_core0 - 1, a, b, iL, jL, kL);
+                MapCellIndices(axis, s_core0, a, b, iR, jR, kR);
 
-            ComputeStarForCell(W, gamma, axis, st, layer,
-                               iR, jR, kR,
-                               WL_face, WR_face, WLm_face, WRm_face,
-                               ULn, URn, dt);
+                if (IsFluidInterface(mesh, iL, jL, kL, iR, jR, kR)) {
+                    ComputeStarForCell(W, gamma, axis, st, mesh,
+                                       iL, jL, kL,
+                                       WL_face, WR_face, WLm_face, WRm_face,
+                                       UL_left, UR_left, dt);
 
-            // Interface between cell(s_left) and cell(s_left+1):
-            // left state = UR* of left cell, right state = UL* of right cell
-            FluxCell Fm = riemann_solver_->ComputeFlux(
-                PrimitiveFromConservativeCell(URs, gamma),
-                PrimitiveFromConservativeCell(ULn, gamma),
-                gamma, axis);
+                    ComputeStarForCell(W, gamma, axis, st, mesh,
+                                       iR, jR, kR,
+                                       WL_face, WR_face, WLm_face, WRm_face,
+                                       UL_right, UR_right, dt);
+
+                    Fm = riemann_solver_->ComputeFlux(
+                        PrimitiveFromConservativeCell(UR_left, gamma),
+                        PrimitiveFromConservativeCell(UL_right, gamma),
+                        gamma, axis);
+                }
+            }
 
             for (int s = s_core0; s < s_core1; ++s) {
-                // shift: previous "right cell" becomes current "left cell"
-                ULs = ULn;
-                URs = URn;
+                FluxCell Fp{};
 
-                // build next right cell at s+1
-                MapCellIndices(axis, s + 1, a, b, iR, jR, kR);
-                ComputeStarForCell(W, gamma, axis, st, layer,
-                                   iR, jR, kR,
-                                   WL_face, WR_face, WLm_face, WRm_face,
-                                   ULn, URn, dt);
-
-                const FluxCell Fp = riemann_solver_->ComputeFlux(
-                    PrimitiveFromConservativeCell(URs, gamma),
-                    PrimitiveFromConservativeCell(ULn, gamma),
-                    gamma, axis);
-
-                int ci, cj, ck;
+                int ci = 0;
+                int cj = 0;
+                int ck = 0;
                 MapCellIndices(axis, s, a, b, ci, cj, ck);
 
-                const double invd = InvMetricAt(layer, axis, ci, cj, ck);
-                AccumulateCellRhs(rhs, ci, cj, ck, invd, Fp, Fm);
+                int iL = 0;
+                int jL = 0;
+                int kL = 0;
+                int iR = 0;
+                int jR = 0;
+                int kR = 0;
+
+                MapCellIndices(axis, s, a, b, iL, jL, kL);
+                MapCellIndices(axis, s + 1, a, b, iR, jR, kR);
+
+                if (IsFluidInterface(mesh, iL, jL, kL, iR, jR, kR)) {
+                    ComputeStarForCell(W, gamma, axis, st, mesh,
+                                       iL, jL, kL,
+                                       WL_face, WR_face, WLm_face, WRm_face,
+                                       UL_left, UR_left, dt);
+
+                    ComputeStarForCell(W, gamma, axis, st, mesh,
+                                       iR, jR, kR,
+                                       WL_face, WR_face, WLm_face, WRm_face,
+                                       UL_right, UR_right, dt);
+
+                    Fp = riemann_solver_->ComputeFlux(
+                        PrimitiveFromConservativeCell(UR_left, gamma),
+                        PrimitiveFromConservativeCell(UL_right, gamma),
+                        gamma, axis);
+                }
+
+                if (mesh.IsFluidCell(ci, cj, ck)) {
+                    const double invd = InvMetricAt(mesh, axis, ci, cj, ck);
+                    AccumulateCellRhs(rhs, ci, cj, ck, invd, Fp, Fm);
+                }
 
                 Fm = Fp;
             }

@@ -1,8 +1,11 @@
 #include "bc/BoundaryManager.hpp"
 
 #include "bc/BoundaryCondition.hpp"
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 
-BoundaryManager::BoundaryManager() : axes_(3) {}
+BoundaryManager::BoundaryManager(std::shared_ptr<HaloExchange> halo_exchange)
+    : axes_(3), halo_exchange_(std::move(halo_exchange)) {}
 
 void BoundaryManager::Set(const Axis axis,
                           std::shared_ptr<BoundaryCondition> left_bc,
@@ -11,44 +14,44 @@ void BoundaryManager::Set(const Axis axis,
     axes_.at(static_cast<std::size_t>(axis)).right_bc = std::move(right_bc);
 }
 
-void BoundaryManager::UpdateHalo(DataLayer& /*layer*/) const {
-    // MPI halo exchange will live here later.
-    // For single-domain smoke-test: no-op.
+void BoundaryManager::UpdateHalo(DataLayer& layer, const Mesh& mesh) const {
+    if (!halo_exchange_) {
+        return;
+    }
+
+    halo_exchange_->Exchange(layer, mesh);
 }
 
-void BoundaryManager::ApplyPhysicalBc(DataLayer& layer) const {
-    const int dim = layer.GetDim();
+void BoundaryManager::ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const {
+    const int dim = mesh.GetDim();
 
-    // X axis always active
     {
         const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::X)];
-        if (bc.left_bc && layer.IsGlobalBoundary(Axis::X, Side::Left)) {
-            bc.left_bc->Apply(layer, Axis::X, Side::Left);
+        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::X, Side::Left)) {
+            bc.left_bc->Apply(layer, mesh, Axis::X, Side::Left);
         }
-        if (bc.right_bc && layer.IsGlobalBoundary(Axis::X, Side::Right)) {
-            bc.right_bc->Apply(layer, Axis::X, Side::Right);
+        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::X, Side::Right)) {
+            bc.right_bc->Apply(layer, mesh, Axis::X, Side::Right);
         }
     }
 
-    // Y axis only if dim >= 2
     if (dim >= 2) {
         const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::Y)];
-        if (bc.left_bc && layer.IsGlobalBoundary(Axis::Y, Side::Left)) {
-            bc.left_bc->Apply(layer, Axis::Y, Side::Left);
+        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::Y, Side::Left)) {
+            bc.left_bc->Apply(layer, mesh, Axis::Y, Side::Left);
         }
-        if (bc.right_bc && layer.IsGlobalBoundary(Axis::Y, Side::Right)) {
-            bc.right_bc->Apply(layer, Axis::Y, Side::Right);
+        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::Y, Side::Right)) {
+            bc.right_bc->Apply(layer, mesh, Axis::Y, Side::Right);
         }
     }
 
-    // Z axis only if dim >= 3
     if (dim >= 3) {
         const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::Z)];
-        if (bc.left_bc && layer.IsGlobalBoundary(Axis::Z, Side::Left)) {
-            bc.left_bc->Apply(layer, Axis::Z, Side::Left);
+        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::Z, Side::Left)) {
+            bc.left_bc->Apply(layer, mesh, Axis::Z, Side::Left);
         }
-        if (bc.right_bc && layer.IsGlobalBoundary(Axis::Z, Side::Right)) {
-            bc.right_bc->Apply(layer, Axis::Z, Side::Right);
+        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::Z, Side::Right)) {
+            bc.right_bc->Apply(layer, mesh, Axis::Z, Side::Right);
         }
     }
 }

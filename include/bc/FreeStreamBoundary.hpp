@@ -22,7 +22,7 @@ public:
      */
     explicit FreeStreamBoundary(const FarfieldConservative& freestream_U);
 
-    void Apply(DataLayer& layer, Axis axis, Side side) const override;
+    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
 
 private:
     FarfieldConservative freestream_U_;

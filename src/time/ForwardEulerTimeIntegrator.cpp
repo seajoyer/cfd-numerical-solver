@@ -1,9 +1,13 @@
 #include "time/ForwardEulerTimeIntegrator.hpp"
 
-#include "spatial/SpatialOperator.hpp"
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
+#include "data/Workspace.hpp"
 #include "solver/PositivityLimiter.hpp"
+#include "spatial/SpatialOperator.hpp"
 
 void ForwardEulerTimeIntegrator::Advance(DataLayer& layer,
+                                         const Mesh& mesh,
                                          Workspace& workspace,
                                          const double dt,
                                          const double gamma,
@@ -12,32 +16,33 @@ void ForwardEulerTimeIntegrator::Advance(DataLayer& layer,
         return;
     }
 
-    // Ensure workspace matches layer sizes (caller обычно делает это, но здесь безопасно)
-    workspace.ResizeFrom(layer);
+    workspace.ResizeFrom(mesh);
 
-    // Compute RHS into workspace.Rhs() (SpatialOperator handles halo+physical BC internally)
-    op.ComputeRHS(layer, workspace, gamma, dt);
+    op.ComputeRHS(layer, mesh, workspace, gamma, dt);
 
-    // Update U on core region: U_core += dt * rhs_core
     auto& U = layer.U();
     auto& rhs = workspace.Rhs();
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    xt::view(U, xt::all(),
-             xt::range(i0, i1),
-             xt::range(j0, j1),
-             xt::range(k0, k1)) +=
-        dt * xt::view(rhs, xt::all(),
-                      xt::range(i0, i1),
-                      xt::range(j0, j1),
-                      xt::range(k0, k1));
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
 
-    // Safety limiter on core cells (in-place on U)
-    PositivityLimiter::Apply(layer, gamma, rho_min_, p_min_);
+                for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
+                    U(v, i, j, k) += dt * rhs(v, i, j, k);
+                }
+            }
+        }
+    }
+
+    PositivityLimiter::Apply(layer, mesh, gamma, rho_min_, p_min_);
 }

@@ -172,6 +172,8 @@ public:
      */
     [[nodiscard]] auto GetConfigPath() const -> const std::string&;
 
+    static auto ParseImmersedObjects(const YAML::Node& node) -> std::vector<ImmersedObjectSettings>;
+
     /**
      * @brief Print list of supported solvers and their reconstructions
      */

@@ -3,9 +3,8 @@
 
 #include <cstddef>
 
-#include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
 #include "config/Settings.hpp"
+#include "data/Variables.hpp"
 
 /**
  * @class SolutionFilter
@@ -15,16 +14,19 @@
  * to selected primitive scalars (rho and P), then maps back to conservative U.
  *
  * Notes:
- *  - Operates on core cells only.
- *  - Uses axis-split filtering (X/Y/Z) depending on layer dimension.
+ *  - Operates on fluid core cells only.
+ *  - Uses axis-split filtering (X/Y/Z) depending on mesh dimension.
  *  - Keeps velocities (u,v,w) unchanged; updates E consistently with filtered P and rho.
  */
+class DataLayer;
+class Mesh;
+
 class SolutionFilter final {
 public:
     explicit SolutionFilter(const Settings& settings);
 
-    /** @brief Apply the filter in-place to DataLayer::U() (core only). */
-    void Apply(DataLayer& layer, double gamma) const;
+    /** @brief Apply the filter in-place to DataLayer::U() on fluid core cells only. */
+    void Apply(DataLayer& layer, const Mesh& mesh, double gamma) const;
 
 private:
     double eps_diff_ = 0.05;
@@ -41,12 +43,12 @@ private:
     mutable int sy_ = 0;
     mutable int sz_ = 0;
 
-    void ResizeFrom(const DataLayer& layer) const;
+    void ResizeFrom(const Mesh& mesh) const;
 
-    void ExtractRhoP(const DataLayer& layer, double gamma) const;
-    void WriteBackConservative(DataLayer& layer, double gamma) const;
+    void ExtractRhoP(const DataLayer& layer, const Mesh& mesh, double gamma) const;
+    void WriteBackConservative(DataLayer& layer, const Mesh& mesh, double gamma) const;
 
-    void ApplyAxis(Axis axis) const;
+    void ApplyAxis(const Mesh& mesh, Axis axis) const;
 };
 
 #endif  // SOLUTIONFILTER_HPP

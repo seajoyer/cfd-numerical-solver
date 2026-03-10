@@ -10,7 +10,10 @@
 #include "bc/BoundaryManager.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
 #include "data/Variables.hpp"
+#include "parallel/MPIContext.hpp"
+#include "parallel/DomainDecomposition.hpp"
 #include "output/StepWriter.hpp"
 // #include "solver/AnalyticalSolver.hpp"
 #include "solver/Solver.hpp"
@@ -135,7 +138,7 @@ private:
      * @brief Applies initial conditions to data layer
      * @param layer Data layer to initialize
      */
-    void ApplyInitialConditions(DataLayer& layer);
+    void ApplyInitialConditions(DataLayer& layer, Mesh& mesh);
 
     // ==================== Output Control ====================
 
@@ -213,6 +216,14 @@ private:
 
     /** @brief Numerical solution data */
     std::unique_ptr<DataLayer> layer_;
+
+    std::unique_ptr<Mesh> mesh_;
+
+    std::unique_ptr<Mesh> analytical_mesh_;
+
+    std::unique_ptr<MPIContext> mpi_context_;
+
+    std::unique_ptr<DomainDecomposition> decomposition_;
 
     /** @brief Numerical solution data */
     std::shared_ptr<BoundaryManager> boundary_manager_;

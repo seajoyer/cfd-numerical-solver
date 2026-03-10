@@ -1,15 +1,15 @@
 config:
-    run_cases: [sod1, sod2, sod3, sod4, sod5]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
+    run_cases: [sod1] #, sod2, sod3, sod4, sod5]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
 
     global:
-        solver: flic
+        solver: godunov
         riemann_solver: exact
-        reconstruction: weno5
+        reconstruction: P0
         time_integrator: euler
         left_boundary: outlet
         right_boundary: outlet
-        bottom_boundary: reflective
-        top_boundary: reflective
+        bottom_boundary: outlet
+        top_boundary: outlet
         back_boundary: reflective
         front_boundary: reflective
 
@@ -19,12 +19,12 @@ config:
 
         N: 400
         Nx: 400      # 0 = use N
-        Ny: 400      # 0 = use N
+        Ny: 100      # 0 = use N
         Nz: 1        # 0 = use N
         cfl: 0.125
         padding: 3
         gamma: 1.4
-        dim: 1
+        dim: 2
         L_x: 1
         L_y: 1
         L_z: 1
@@ -35,6 +35,14 @@ config:
         y0: 0.5
         z0: 0.5
         analytical: false
+
+        mpi_enabled: true
+        immersed_enabled: false
+        immersed_objects:
+            - type: circle
+              cx: 0.5
+              cy: 0.5
+              radius: 0.15
 
         t_end: 0.25
         step_end: 0

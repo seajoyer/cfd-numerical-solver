@@ -8,8 +8,10 @@ VTK_MODULE_INIT(vtkRenderingContextOpenGL2);
 #include "Simulation.hpp"
 #include "config/ConfigParser.hpp"
 #include "utils/StringUtils.hpp"
+#include "parallel/MPIContext.hpp"
 
 auto main(int argc, char* argv[]) -> int {
+    MPIContext::Initialize(argc, argv);
     try {
         ConfigParser parser;
 
@@ -111,7 +113,7 @@ auto main(int argc, char* argv[]) -> int {
         }
 
         std::cout << "Results saved to: " << run_dir << "\n";
-
+        MPIContext::Finalize();
         return 0;
 
     } catch (const std::exception& e) {

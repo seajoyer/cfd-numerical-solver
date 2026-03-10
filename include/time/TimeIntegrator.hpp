@@ -1,9 +1,9 @@
 #ifndef TIMEINTEGRATOR_HPP
 #define TIMEINTEGRATOR_HPP
 
-#include "data/DataLayer.hpp"
-#include "data/Workspace.hpp"
-
+class DataLayer;
+class Mesh;
+class Workspace;
 class SpatialOperator;
 
 /**
@@ -23,12 +23,14 @@ public:
      * @brief Advances the solution by one time step dt.
      *
      * @param layer Conservative state owner (updated in-place).
+     * @param mesh Structured mesh with geometry, ranges, and cell types.
      * @param workspace Scratch buffers (W, rhs).
      * @param dt Time step size.
      * @param gamma Ratio of specific heats.
      * @param op Spatial operator providing RHS evaluations.
      */
     virtual void Advance(DataLayer& layer,
+                         const Mesh& mesh,
                          Workspace& workspace,
                          double dt,
                          double gamma,

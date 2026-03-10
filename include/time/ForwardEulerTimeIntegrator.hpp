@@ -15,6 +15,7 @@ public:
     ForwardEulerTimeIntegrator() = default;
 
     void Advance(DataLayer& layer,
+                 const Mesh& mesh,
                  Workspace& workspace,
                  double dt,
                  double gamma,

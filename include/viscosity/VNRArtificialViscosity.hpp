@@ -3,13 +3,13 @@
 
 #include <cmath>
 
-#include "viscosity/ArtificialViscosity.hpp"
-#include "data/Variables.hpp"
 #include "config/Settings.hpp"
+#include "data/Variables.hpp"
+#include "viscosity/ArtificialViscosity.hpp"
 
 /**
  * @class VNRArtificialViscosity
- * @brief von Neumann–Richtmyer artificial viscosity (axis-split, face-based).
+ * @brief von Neumann-Richtmyer artificial viscosity (axis-split, face-based).
  *
  * For each axis, on each face (indexed by its left cell):
  *   du = u_n(R) - u_n(L)
@@ -23,6 +23,9 @@
  *
  * and is added to RHS as a flux divergence.
  */
+class DataLayer;
+class Mesh;
+
 class VNRArtificialViscosity final : public ArtificialViscosity {
 public:
     explicit VNRArtificialViscosity(const Settings& settings,
@@ -30,6 +33,7 @@ public:
                                     double C2 = 6.0);
 
     void AddToRhs(const DataLayer& layer,
+                  const Mesh& mesh,
                   const xt::xtensor<double, 4>& W,
                   double gamma,
                   double dt,
@@ -42,28 +46,27 @@ private:
     double C2_;
     Settings settings_;
 
-    // Cached face buffers (mutable to allow resizing in const AddToRhs)
-    mutable xt::xtensor<double, 3> qx_; // (sx-1, sy, sz)
-    mutable xt::xtensor<double, 3> qy_; // (sx, sy-1, sz)
-    mutable xt::xtensor<double, 3> qz_; // (sx, sy, sz-1)
+    mutable xt::xtensor<double, 3> qx_;
+    mutable xt::xtensor<double, 3> qy_;
+    mutable xt::xtensor<double, 3> qz_;
     mutable int sx_ = 0;
     mutable int sy_ = 0;
     mutable int sz_ = 0;
 
-    void ResizeFrom(const DataLayer& layer) const;
+    void ResizeFrom(const Mesh& mesh) const;
 
     [[nodiscard]] xt::xtensor<double, 3>& QFace(Axis axis) const;
-    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const DataLayer& layer, Axis axis) const;
+    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const Mesh& mesh, Axis axis) const;
 
     [[nodiscard]] static std::size_t MomVarIndex(Axis axis);
     [[nodiscard]] static std::size_t VelVarIndex(Axis axis);
 
-    void ComputeQFaces(const DataLayer& layer,
+    void ComputeQFaces(const Mesh& mesh,
                        const xt::xtensor<double, 4>& W,
                        double gamma,
                        Axis axis) const;
 
-    void AddAxisContribution(const DataLayer& layer,
+    void AddAxisContribution(const Mesh& mesh,
                              const xt::xtensor<double, 4>& W,
                              xt::xtensor<double, 4>& rhs,
                              Axis axis) const;

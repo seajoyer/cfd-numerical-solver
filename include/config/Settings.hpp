@@ -6,6 +6,20 @@
 #include <string>
 #include <vector>
 
+struct ImmersedObjectSettings {
+    std::string type;
+
+    double cx = 0.0;
+    double cy = 0.0;
+    double cz = 0.0;
+
+    double radius = 0.0;
+
+    double size_x = 0.0;
+    double size_y = 0.0;
+    double size_z = 0.0;
+};
+
 /**
  * @struct CaseSettings
  * @brief Optional overrides for case-specific settings
@@ -44,6 +58,11 @@ struct CaseSettings {
     std::optional<double> y0;
     std::optional<double> z0;
     std::optional<bool> analytical;
+
+    std::optional<bool> immersed_enabled;
+    std::optional<bool> mpi_enabled;
+
+    std::optional<std::vector<ImmersedObjectSettings>> immersed_objects;
 
     // Time Control
     std::optional<double> t_end;
@@ -121,6 +140,11 @@ struct Settings {
     std::vector<std::string> output_formats = {"vtk"};
     std::string output_dir = "data/output";
 
+    bool immersed_enabled = false;
+    bool mpi_enabled = false;
+
+    std::vector<ImmersedObjectSettings> immersed_objects;
+
     /**
      * @brief Returns effective Nx (uses N if Nx not set)
      */
@@ -197,6 +221,9 @@ inline auto MergeSettings(const Settings& global,
     APPLY_OVERRIDE(output_every_time)
     APPLY_OVERRIDE(output_formats)
     APPLY_OVERRIDE(output_dir)
+    APPLY_OVERRIDE(immersed_enabled)
+    APPLY_OVERRIDE(mpi_enabled)
+    APPLY_OVERRIDE(immersed_objects)
 
 #undef APPLY_OVERRIDE
 

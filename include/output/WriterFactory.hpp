@@ -43,7 +43,9 @@ class WriterFactory {
      */
     static auto Create(const std::string& output_format, 
                        const std::string& output_dir,
-                       bool is_analytical = false)
+                       bool is_analytical = false,
+                       int rank = 0,
+                       int size = 1)
         -> std::unique_ptr<StepWriter>;
 
     /**
@@ -57,7 +59,9 @@ class WriterFactory {
      */
     static auto CreateMultiple(const std::vector<std::string>& output_formats,
                                const std::string& output_dir,
-                               bool is_analytical = false)
+                               bool is_analytical = false,
+                               int rank = 0,
+                               int size = 1)
         -> std::vector<std::unique_ptr<StepWriter>>;
 
     /**

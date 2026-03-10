@@ -3,7 +3,8 @@
 
 #include <cstdint>
 
-struct DataLayer;
+class DataLayer;
+class Mesh;
 
 /**
  * @enum Side
@@ -23,7 +24,6 @@ enum class Side : std::uint8_t { Left = 0, Right = 1 };
  */
 enum class Axis : std::uint8_t;
 
-
 /**
  * @class BoundaryCondition
  * @brief Abstract base class for physical boundary conditions on a structured grid.
@@ -42,13 +42,14 @@ public:
     virtual ~BoundaryCondition() = default;
 
     /**
-     * @brief Applies boundary condition along a specified axis and side.
+     * @brief Apply boundary condition along a specified axis and side.
      *
      * @param layer Data layer to modify (ghost cells of U will be written).
+     * @param mesh Structured mesh with ranges and metadata.
      * @param axis Spatial axis (X,Y,Z).
      * @param side Boundary side (Left or Right).
      */
-    virtual void Apply(DataLayer& layer, Axis axis, Side side) const = 0;
+    virtual void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const = 0;
 };
 
 #endif  // BOUNDARYCONDITION_HPP

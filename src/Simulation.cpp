@@ -12,13 +12,14 @@
 #include "utils/StringUtils.hpp"
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
+#include "data/geometry/GeometryFactory.hpp"
 
 Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions)
     : settings_(std::move(settings)), initial_conditions_(initial_conditions),
-      boundary_manager_(std::make_shared<BoundaryManager>()) {}
+      boundary_manager_(std::make_shared<BoundaryManager>(nullptr)) {}
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
-    return SolverFactory::Create(settings_, boundary_manager_);
+    return SolverFactory::Create(settings_, *mesh_, boundary_manager_, mpi_context_.get());
 }
 
 auto Simulation::CreateBoundaryCondition(const std::string& boundary_type,
@@ -33,6 +34,9 @@ void Simulation::CreateWriters() {
     const int nx = settings_.GetNx();
     const int ny = settings_.GetNy();
     const int nz = settings_.GetNz();
+
+    const int rank = mpi_context_ ? mpi_context_->Rank() : 0;
+    const int size = mpi_context_ ? mpi_context_->Size() : 1;
 
     for (const auto& format : settings_.output_formats) {
         std::string f = format;
@@ -49,88 +53,91 @@ void Simulation::CreateWriters() {
                 << "__N_" << nx << "x" << ny << "x" << nz
                 << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
 
-            vtk_writer_ = WriterFactory::Create("vtk", subdir.str(), false);
+            vtk_writer_ = WriterFactory::Create("vtk", subdir.str(), false, rank, size);
 
             if (settings_.analytical) {
                 std::string vtk_analytical_dir = case_output_dir_ + "/vtk/analytical";
-                vtk_analytical_writer_ = WriterFactory::Create("vtk", vtk_analytical_dir, true);
+                vtk_analytical_writer_ = WriterFactory::Create("vtk", vtk_analytical_dir, true, rank, size);
             }
         }
     }
 }
 
-void Simulation::ApplyInitialConditions(DataLayer& layer) {
-    const int dim = layer.GetDim();
-    const int pad = layer.GetPadding();
+void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
+    const int dim = mesh.GetDim();
+    const int pad = mesh.GetPadding();
 
-    const int sx = layer.GetSx();
-    const int sy = layer.GetSy();
-    const int sz = layer.GetSz();
-
-    const int nx = layer.GetNx(); // core
-    const int ny = layer.GetNy(); // уже 1 если dim<2
-    const int nz = layer.GetNz(); // уже 1 если dim<3
+    const int sx = mesh.GetSx();
+    const int sy = mesh.GetSy();
+    const int sz = mesh.GetSz();
 
     const double gamma = settings_.gamma;
 
-    // --- Uniform grid spacing for now ---
-    const double dx = settings_.L_x / static_cast<double>(nx);
-    const double dy = (dim >= 2) ? (settings_.L_y / static_cast<double>(ny)) : 1.0;
-    const double dz = (dim >= 3) ? (settings_.L_z / static_cast<double>(nz)) : 1.0;
+    const int global_nx = mesh.GetGlobalNx();
+    const int global_ny = mesh.GetGlobalNy();
+    const int global_nz = mesh.GetGlobalNz();
 
-    // --- Build boundary coordinates (size s? + 1) and centers (size s?) ---
-    // X
+    const double dx = settings_.L_x / static_cast<double>(global_nx);
+    const double dy = dim >= 2 ? settings_.L_y / static_cast<double>(global_ny) : 1.0;
+    const double dz = dim >= 3 ? settings_.L_z / static_cast<double>(global_nz) : 1.0;
+
     {
-        auto& xb = layer.Xb();
-        auto& xc = layer.Xc();
+        auto& xb = mesh.Xb();
+        auto& xc = mesh.Xc();
+
+        const int offset_x = mesh.GetOffsetX();
+
         for (int i = 0; i <= sx; ++i) {
-            const int ii = i - pad;
-            xb(static_cast<std::size_t>(i)) = static_cast<double>(ii) * dx;
+            const int ig = offset_x + (i - pad);
+            xb(static_cast<std::size_t>(i)) = static_cast<double>(ig) * dx;
         }
         for (int i = 0; i < sx; ++i) {
-            const int ii = i - pad;
-            xc(static_cast<std::size_t>(i)) = (static_cast<double>(ii) + 0.5) * dx;
+            const int ig = offset_x + (i - pad);
+            xc(static_cast<std::size_t>(i)) = (static_cast<double>(ig) + 0.5) * dx;
         }
     }
 
-    // Y
     {
-        auto& yb = layer.Yb();
-        auto& yc = layer.Yc();
+        auto& yb = mesh.Yb();
+        auto& yc = mesh.Yc();
+
+        const int offset_y = mesh.GetOffsetY();
+
         for (int j = 0; j <= sy; ++j) {
-            const int jj = j - pad;
-            yb(static_cast<std::size_t>(j)) = static_cast<double>(jj) * dy;
+            const int jg = offset_y + (j - pad);
+            yb(static_cast<std::size_t>(j)) = static_cast<double>(jg) * dy;
         }
         for (int j = 0; j < sy; ++j) {
-            const int jj = j - pad;
-            yc(static_cast<std::size_t>(j)) = (static_cast<double>(jj) + 0.5) * dy;
+            const int jg = offset_y + (j - pad);
+            yc(static_cast<std::size_t>(j)) = (static_cast<double>(jg) + 0.5) * dy;
         }
     }
 
-    // Z
     {
-        auto& zb = layer.Zb();
-        auto& zc = layer.Zc();
+        auto& zb = mesh.Zb();
+        auto& zc = mesh.Zc();
+
+        const int offset_z = mesh.GetOffsetZ();
+
         for (int k = 0; k <= sz; ++k) {
-            const int kk = k - pad;
-            zb(static_cast<std::size_t>(k)) = static_cast<double>(kk) * dz;
+            const int kg = offset_z + (k - pad);
+            zb(static_cast<std::size_t>(k)) = static_cast<double>(kg) * dz;
         }
         for (int k = 0; k < sz; ++k) {
-            const int kk = k - pad;
-            zc(static_cast<std::size_t>(k)) = (static_cast<double>(kk) + 0.5) * dz;
+            const int kg = offset_z + (k - pad);
+            zc(static_cast<std::size_t>(k)) = (static_cast<double>(kg) + 0.5) * dz;
         }
     }
 
-    // Fill dx/dy/dz arrays + inverses from boundary coords (no allocations)
-    layer.UpdateMetricsFromCoordinates();
+    mesh.UpdateMetricsFromCoordinates();
+    mesh.SetAllCellsFluid();
 
-    // --- Core region indices ---
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
     const std::string& ic_type = initial_conditions_.ic_type;
 
@@ -138,7 +145,6 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
 
     auto write_conservative = [&](int i, int j, int k,
                                   double rho, double u, double v, double w, double P) {
-        // conservative
         const double rhoU = rho * u;
         const double rhoV = rho * v;
         const double rhoW = rho * w;
@@ -152,15 +158,18 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
         U(DataLayer::k_E, i, j, k) = E;
     };
 
-    // --- Apply IC on core cells ---
     for (int k = k0; k < k1; ++k) {
-        const double z = layer.Zc()(static_cast<std::size_t>(k));
+        const double z = mesh.Zc()(static_cast<std::size_t>(k));
         for (int j = j0; j < j1; ++j) {
-            const double y = layer.Yc()(static_cast<std::size_t>(j));
+            const double y = mesh.Yc()(static_cast<std::size_t>(j));
             for (int i = i0; i < i1; ++i) {
-                const double x = layer.Xc()(static_cast<std::size_t>(i));
+                const double x = mesh.Xc()(static_cast<std::size_t>(i));
 
-                double rho = 0.0, u = 0.0, v = 0.0, w = 0.0, P = 0.0;
+                double rho = 0.0;
+                double u = 0.0;
+                double v = 0.0;
+                double w = 0.0;
+                double P = 0.0;
 
                 if (ic_type == "x_riemann") {
                     if (x < settings_.x0) {
@@ -179,7 +188,9 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
                     }
                 }
                 else if (ic_type == "y_riemann") {
-                    if (dim < 2) throw std::runtime_error("ic_type=y_riemann requires dim>=2");
+                    if (dim < 2) {
+                        throw std::runtime_error("ic_type=y_riemann requires dim>=2");
+                    }
                     if (y < settings_.y0) {
                         rho = initial_conditions_.rho_L;
                         u = initial_conditions_.u_L;
@@ -196,7 +207,10 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
                     }
                 }
                 else if (ic_type == "quadrant") {
-                    if (dim != 2) throw std::runtime_error("ic_type=quadrant currently supported only for dim==2");
+                    if (dim != 2) {
+                        throw std::runtime_error("ic_type=quadrant currently supported only for dim==2");
+                    }
+
                     const bool right = x >= settings_.x0;
                     const bool top = y >= settings_.y0;
 
@@ -230,7 +244,10 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
                     }
                 }
                 else if (ic_type == "octant" || ic_type == "octants") {
-                    if (dim != 3) throw std::runtime_error("ic_type=octant requires dim==3");
+                    if (dim != 3) {
+                        throw std::runtime_error("ic_type=octant requires dim==3");
+                    }
+
                     const bool xp = x >= settings_.x0;
                     const bool yp = y >= settings_.y0;
                     const bool zp = z >= settings_.z0;
@@ -300,9 +317,12 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
                     throw std::runtime_error("Unknown ic_type: " + ic_type);
                 }
 
-                // For 1D/2D safety: enforce unused velocity components = 0
-                if (dim < 2) v = 0.0;
-                if (dim < 3) w = 0.0;
+                if (dim < 2) {
+                    v = 0.0;
+                }
+                if (dim < 3) {
+                    w = 0.0;
+                }
 
                 write_conservative(i, j, k, rho, u, v, w, P);
             }
@@ -313,29 +333,70 @@ void Simulation::ApplyInitialConditions(DataLayer& layer) {
 void Simulation::Initialize() {
     std::cout << "Initializing simulation..." << '\n';
 
-    layer_ = std::make_unique<DataLayer>(settings_.Nx, settings_.Ny, settings_.Nz,
-                                         settings_.padding, settings_.dim);
+    if (settings_.mpi_enabled) {
+        mpi_context_ = std::make_unique<MPIContext>(MPI_COMM_WORLD, false);
+        decomposition_ = std::make_unique<DomainDecomposition>(settings_, *mpi_context_);
 
-    // single-domain: all 6 faces are global boundaries
-    layer_->SetAllGlobalBoundaries(true);
+        auto halo_exchange = std::make_shared<HaloExchange>(*mpi_context_);
+        boundary_manager_ = std::make_shared<BoundaryManager>(halo_exchange);
 
-    ApplyInitialConditions(*layer_);
+        mesh_ = std::make_unique<Mesh>(
+            decomposition_->LocalNx(),
+            decomposition_->LocalNy(),
+            decomposition_->LocalNz(),
+            settings_.padding,
+            settings_.dim
+        );
+
+        decomposition_->ApplyToMesh(*mesh_);
+    }
+    else {
+        mesh_ = std::make_unique<Mesh>(
+            settings_.GetNx(),
+            settings_.GetNy(),
+            settings_.GetNz(),
+            settings_.padding,
+            settings_.dim
+        );
+
+        mesh_->SetAllGlobalBoundaries(true);
+        mesh_->SetGlobalDecomposition(
+            mesh_->GetNx(),
+            mesh_->GetNy(),
+            mesh_->GetNz(),
+            0, 0, 0
+        );
+    }
+
+    layer_ = std::make_unique<DataLayer>(
+        mesh_->GetSx(),
+        mesh_->GetSy(),
+        mesh_->GetSz()
+    );
+
+    ApplyInitialConditions(*layer_, *mesh_);
+
+    if (settings_.immersed_enabled) {
+        for (const auto& object : settings_.immersed_objects) {
+            mesh_->AddPrimitive(CreateGeometryPrimitive(object));
+        }
+
+        mesh_->BuildCellTypesFromPrimitives();
+        mesh_->BuildImmersedFaces();
+    }
 
     FarfieldConservative far_field_U{};
 
-    // X boundaries always exist
     auto left_bc = CreateBoundaryCondition(settings_.left_boundary, far_field_U);
     auto right_bc = CreateBoundaryCondition(settings_.right_boundary, far_field_U);
     boundary_manager_->Set(Axis::X, left_bc, right_bc);
 
-    // Y boundaries only if dim >= 2
     if (settings_.dim >= 2) {
         auto bottom_bc = CreateBoundaryCondition(settings_.bottom_boundary, far_field_U);
         auto top_bc = CreateBoundaryCondition(settings_.top_boundary, far_field_U);
         boundary_manager_->Set(Axis::Y, bottom_bc, top_bc);
     }
 
-    // Z boundaries only if dim >= 3
     if (settings_.dim >= 3) {
         auto back_bc = CreateBoundaryCondition(settings_.back_boundary, far_field_U);
         auto front_bc = CreateBoundaryCondition(settings_.front_boundary, far_field_U);
@@ -349,13 +410,51 @@ void Simulation::Initialize() {
         analytical_settings_ = settings_;
         analytical_settings_.solver = "analytical";
 
-        analytical_layer_ = std::make_unique<DataLayer>(analytical_settings_.Nx, analytical_settings_.Ny,
-                                                        analytical_settings_.Nz, analytical_settings_.padding,
-                                                        analytical_settings_.dim);
+        if (settings_.mpi_enabled) {
+            analytical_mesh_ = std::make_unique<Mesh>(
+                decomposition_->LocalNx(),
+                decomposition_->LocalNy(),
+                decomposition_->LocalNz(),
+                analytical_settings_.padding,
+                analytical_settings_.dim
+            );
 
-        analytical_layer_->SetAllGlobalBoundaries(true);
+            decomposition_->ApplyToMesh(*analytical_mesh_);
+        }
+        else {
+            analytical_mesh_ = std::make_unique<Mesh>(
+                analytical_settings_.GetNx(),
+                analytical_settings_.GetNy(),
+                analytical_settings_.GetNz(),
+                analytical_settings_.padding,
+                analytical_settings_.dim
+            );
 
-        ApplyInitialConditions(*analytical_layer_);
+            analytical_mesh_->SetAllGlobalBoundaries(true);
+            analytical_mesh_->SetGlobalDecomposition(
+                analytical_mesh_->GetNx(),
+                analytical_mesh_->GetNy(),
+                analytical_mesh_->GetNz(),
+                0, 0, 0
+            );
+        }
+
+        analytical_layer_ = std::make_unique<DataLayer>(
+            analytical_mesh_->GetSx(),
+            analytical_mesh_->GetSy(),
+            analytical_mesh_->GetSz()
+        );
+
+        ApplyInitialConditions(*analytical_layer_, *analytical_mesh_);
+
+        if (settings_.immersed_enabled) {
+            for (const auto& object : settings_.immersed_objects) {
+                analytical_mesh_->AddPrimitive(CreateGeometryPrimitive(object));
+            }
+
+            analytical_mesh_->BuildCellTypesFromPrimitives();
+            analytical_mesh_->BuildImmersedFaces();
+        }
     }
 
     CreateWriters();
@@ -369,37 +468,64 @@ void Simulation::Run() {
     t_cur_ = 0.0;
     step_cur_ = 0;
 
-    std::cout << "\nStarting simulation..." << '\n';
+    const bool is_root = !mpi_context_ || mpi_context_->IsRoot();
+
+    if (is_root) {
+        std::cout << "\nStarting simulation..." << '\n';
+    }
 
     std::chrono::duration<double> runtime{0};
-    auto start_wall = std::chrono::high_resolution_clock::now();
+    const auto start_wall = std::chrono::high_resolution_clock::now();
 
     while (ShouldRun()) {
-        auto start = std::chrono::high_resolution_clock::now();
+        const auto start = std::chrono::high_resolution_clock::now();
         dt_ = solver_->Step(*layer_, t_cur_);
-        auto end = std::chrono::high_resolution_clock::now();
+        const auto end = std::chrono::high_resolution_clock::now();
         runtime += end - start;
 
         if (settings_.solver == "analytical") {
             t_cur_ += dt_;
         }
+
         ++step_cur_;
 
         WriteStepState(t_cur_, step_cur_);
-        PrintLog();
+
+        if (is_root) {
+            PrintLog();
+        }
     }
 
-    auto end_wall = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> wall_time = end_wall - start_wall;
+    if (mpi_context_) {
+        mpi_context_->Barrier();
+    }
 
-    std::cout << '\n';
-    std::cout << "\nSimulation completed!" << '\n';
-    std::cout << ">>> Final time:  " << t_cur_ << '\n';
-    std::cout << ">>> Total steps: " << step_cur_ << '\n';
-    std::cout << ">>> Wall time: " << wall_time.count() << "s\n";
-    std::cout << ">>> Computation time: " << runtime.count() << "s\n";
+    const auto end_wall = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> wall_time_local = end_wall - start_wall;
+    const double runtime_local = runtime.count();
+
+    double wall_time = wall_time_local.count();
+    double computation_time = runtime_local;
+
+    if (mpi_context_) {
+        wall_time = mpi_context_->GlobalMax(wall_time);
+        computation_time = mpi_context_->GlobalMax(computation_time);
+    }
+
+    if (is_root) {
+        std::cout << '\n';
+        std::cout << "\nSimulation completed!" << '\n';
+        std::cout << ">>> Final time:  " << t_cur_ << '\n';
+        std::cout << ">>> Total steps: " << step_cur_ << '\n';
+        std::cout << ">>> Wall time: " << wall_time << "s\n";
+        std::cout << ">>> Computation time: " << computation_time << "s\n";
+    }
 
     FinalizeWriters();
+
+    if (mpi_context_) {
+        mpi_context_->Barrier();
+    }
 }
 
 auto Simulation::GetDataLayer() -> DataLayer& {
@@ -464,10 +590,10 @@ auto Simulation::ShouldRun() const -> bool {
 void Simulation::WriteInitialState() const {
     std::cout << "Writing the initial state..." << '\n';
     if (vtk_writer_) {
-        vtk_writer_->Write(*layer_, settings_, 0, 0.0);
+        vtk_writer_->Write(*layer_, *mesh_, settings_, 0, 0.0);
     }
     if (vtk_analytical_writer_ && analytical_layer_) {
-        vtk_analytical_writer_->Write(*analytical_layer_, settings_, 0, 0.0);
+        vtk_analytical_writer_->Write(*analytical_layer_, *analytical_mesh_, settings_, 0, 0.0);
     }
 }
 
@@ -476,10 +602,10 @@ void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
         return;
     }
     if (vtk_writer_) {
-        vtk_writer_->Write(*layer_, settings_, step_cur, t_cur);
+        vtk_writer_->Write(*layer_, *mesh_, settings_, step_cur, t_cur);
     }
     if (vtk_analytical_writer_ && analytical_layer_) {
-        vtk_analytical_writer_->Write(*analytical_layer_, settings_, step_cur, t_cur);
+        vtk_analytical_writer_->Write(*analytical_layer_, *analytical_mesh_, settings_, step_cur, t_cur);
     }
 }
 

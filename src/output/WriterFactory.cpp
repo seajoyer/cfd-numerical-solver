@@ -41,14 +41,16 @@ void WriterFactory::ParseResolution(const std::string& format_lower,
 
 auto WriterFactory::Create(const std::string& output_format,
                            const std::string& output_dir,
-                           bool is_analytical) -> std::unique_ptr<StepWriter> {
+                           bool is_analytical,
+                           int rank,
+                           int size) -> std::unique_ptr<StepWriter> {
     // Convert to lowercase for case-insensitive comparison
     std::string format_lower = output_format;
     std::transform(format_lower.begin(), format_lower.end(), format_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
     if (format_lower == "vtk") {
-        return std::make_unique<VTKWriter>(output_dir, is_analytical);
+        return std::make_unique<VTKWriter>(output_dir, is_analytical, rank, size);
     }
 
     // Parse PNG format: "png" or "png<width>x<height>"
@@ -79,13 +81,15 @@ auto WriterFactory::Create(const std::string& output_format,
 
 auto WriterFactory::CreateMultiple(const std::vector<std::string>& output_formats,
                                    const std::string& output_dir,
-                                   bool is_analytical)
+                                   bool is_analytical,
+                                   int rank,
+                                   int size)
     -> std::vector<std::unique_ptr<StepWriter>> {
     std::vector<std::unique_ptr<StepWriter>> writers;
     writers.reserve(output_formats.size());
 
     for (const auto& format : output_formats) {
-        writers.push_back(Create(format, output_dir, is_analytical));
+        writers.push_back(Create(format, output_dir, is_analytical, rank, size));
     }
 
     return writers;

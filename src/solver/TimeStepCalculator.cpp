@@ -4,19 +4,25 @@
 #include <cmath>
 #include <limits>
 
-auto TimeStepCalculator::ComputeDt(const DataLayer& layer, const double gamma, const double cfl) -> double {
+#include "data/DataLayer.hpp"
+#include "data/Mesh.hpp"
+
+auto TimeStepCalculator::ComputeDt(const DataLayer& layer,
+                                   const Mesh& mesh,
+                                   const double gamma,
+                                   const double cfl) -> double {
     if (cfl <= 0.0) {
         return 0.0;
     }
 
-    const int dim = layer.GetDim();
+    const int dim = mesh.GetDim();
 
-    const int i0 = layer.GetCoreStartX();
-    const int i1 = layer.GetCoreEndExclusiveX();
-    const int j0 = layer.GetCoreStartY();
-    const int j1 = layer.GetCoreEndExclusiveY();
-    const int k0 = layer.GetCoreStartZ();
-    const int k1 = layer.GetCoreEndExclusiveZ();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
     const bool active_x = (i1 - i0) >= 2;
     const bool active_y = (dim >= 2) && ((j1 - j0) >= 2);
@@ -27,9 +33,9 @@ auto TimeStepCalculator::ComputeDt(const DataLayer& layer, const double gamma, c
     }
 
     const auto& U = layer.U();
-    const auto& dx = layer.Dx();
-    const auto& dy = layer.Dy();
-    const auto& dz = layer.Dz();
+    const auto& dx = mesh.Dx();
+    const auto& dy = mesh.Dy();
+    const auto& dz = mesh.Dz();
 
     double dt_min = std::numeric_limits<double>::infinity();
     bool has_dt = false;
@@ -37,6 +43,10 @@ auto TimeStepCalculator::ComputeDt(const DataLayer& layer, const double gamma, c
     for (int k = k0; k < k1; ++k) {
         for (int j = j0; j < j1; ++j) {
             for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
+
                 const double rho = U(DataLayer::k_rho, i, j, k);
                 if (rho <= 0.0) {
                     continue;
@@ -101,5 +111,6 @@ auto TimeStepCalculator::ComputeDt(const DataLayer& layer, const double gamma, c
     if (!has_dt || !std::isfinite(dt_min) || dt_min <= 0.0) {
         return 0.0;
     }
+
     return dt_min;
 }
