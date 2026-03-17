@@ -219,9 +219,11 @@ void VTKWriter::Write3D(const DataLayer& layer,
                 const int ii = cs_x + i;
                 const int jj = cs_y + j;
                 const int kk = cs_z + k;
-                const vtkIdType pid = static_cast<vtkIdType>(i + j * nx + k * nx * ny);
+                const vtkIdType pid = i + j * nx + k * nx * ny;
 
                 if (mesh.IsSolidCell(ii, jj, kk)) {
+
+                    grid->BlankPoint(pid);
                     const double nan = std::numeric_limits<double>::quiet_NaN();
 
                     arr_rho->SetValue(pid, nan);

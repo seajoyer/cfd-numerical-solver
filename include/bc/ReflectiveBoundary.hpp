@@ -2,7 +2,6 @@
 #define REFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "data/DataLayer.hpp"
 #include "data/Variables.hpp"
 
 /**
@@ -19,7 +18,7 @@
  */
 class ReflectiveBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, Axis axis, Side side) const override;
+    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
 };
 
 #endif  // REFLECTIVEBOUNDARY_HPP

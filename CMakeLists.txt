@@ -33,6 +33,7 @@ add_executable(${NAME}
 
     src/time/ForwardEulerTimeIntegrator.cpp
     src/time/MacCormackTimeIntegrator.cpp
+    src/time/MaderTimeIntegrator.cpp
     src/time/SSPRK3TimeIntegrator.cpp
     src/time/SSPRK2TimeIntegrator.cpp
     include/time/TimeIntegrator.hpp
@@ -48,6 +49,7 @@ add_executable(${NAME}
     src/spatial/ForwardEulerSpatialOperator.cpp
     src/spatial/BackwardEulerSpatialOperator.cpp
     src/spatial/FLICSpatialOperator.cpp
+    src/spatial/MaderSpatialOperator.cpp
     src/spatial/GodunovSpatialOperator.cpp
     src/spatial/GodunovKolganRodionovSpatialOperator.cpp
     include/spatial/SpatialOperator.hpp
@@ -94,7 +96,7 @@ add_executable(${NAME}
 #    src/bc/InletBoundary.cpp
     src/bc/OutletBoundary.cpp
 #    src/bc/PeriodicBoundary.cpp
-#    src/bc/ReflectiveBoundary.cpp
+    src/bc/ReflectiveBoundary.cpp
 #    src/bc/NonReflectiveBoundary.cpp
 #    src/bc/SymmetryBoundary.cpp
 #    src/bc/WallBoundary.cpp

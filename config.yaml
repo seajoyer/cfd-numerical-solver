@@ -43,6 +43,11 @@ config:
               cx: 0.5
               cy: 0.5
               radius: 0.15
+            - type: rectangle
+              cx: 0.15
+              cy: 0.35
+              size_x: 0.3
+              size_y: 0.7
 
         t_end: 0.25
         step_end: 0

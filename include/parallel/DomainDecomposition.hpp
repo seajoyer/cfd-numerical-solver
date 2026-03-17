@@ -14,13 +14,13 @@
  * @brief Balanced Cartesian MPI domain decomposition for structured grids.
  *
  * The decomposition:
- *  - uses MPI_Dims_create for active dimensions
+ *  - chooses process-grid dimensions using global cell counts
  *  - builds Cartesian communicator
  *  - computes local physical sizes and global offsets
  *  - computes neighbor ranks for each active axis
  *  - determines which local sides are global physical boundaries
  *
- * Local cell counts are split as evenly as possible:
+ * Local cell counts along each axis are split as evenly as possible:
  *  - base = global_n / proc_n
  *  - first (global_n % proc_n) subdomains get one extra cell
  */
@@ -101,6 +101,9 @@ private:
     int cart_rank_ = 0;
 
     void BuildCartesianTopology(const MPIContext& mpi);
+    void ChooseProcessGridFromCells(int world_size);
+    [[nodiscard]] double ComputeProcessGridScore(int px, int py, int pz) const;
+
     void ComputeLocalSizesAndOffsets();
     void ComputeNeighbors();
     void ComputeGlobalBoundaryFlags();

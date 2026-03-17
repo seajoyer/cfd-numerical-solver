@@ -473,6 +473,9 @@ void Simulation::Run() {
     if (is_root) {
         std::cout << "\nStarting simulation..." << '\n';
     }
+    if (mpi_context_) {
+        mpi_context_->Barrier();
+    }
 
     std::chrono::duration<double> runtime{0};
     const auto start_wall = std::chrono::high_resolution_clock::now();
@@ -588,7 +591,7 @@ auto Simulation::ShouldRun() const -> bool {
 }
 
 void Simulation::WriteInitialState() const {
-    std::cout << "Writing the initial state..." << '\n';
+    if (!mpi_context_ || mpi_context_->IsRoot()) std::cout << "Writing the initial state..." << '\n';
     if (vtk_writer_) {
         vtk_writer_->Write(*layer_, *mesh_, settings_, 0, 0.0);
     }
@@ -613,7 +616,7 @@ void Simulation::PrintLog() const {
     if (ShouldLog()) {
         double progress = t_cur_ / settings_.t_end * 100.0;
         int percent = static_cast<int>(progress);
-        std::cout << '\r';
+        std::cout << "\r \r";
         std::cout << ">>> [PROGRESS]: Step " << step_cur_ << ", " << percent
             << "% processed, time: " << t_cur_ << " of " << settings_.t_end;
         std::cout.flush();

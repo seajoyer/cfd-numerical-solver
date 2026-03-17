@@ -2,7 +2,7 @@
 
 #include "bc/BoundaryCondition.hpp"
 #include "bc/OutletBoundary.hpp"
-// #include "bc/ReflectiveBoundary.hpp"
+#include "bc/ReflectiveBoundary.hpp"
 // #include "bc/InletBoundary.hpp"
 // #include "bc/NonReflectiveBoundary.hpp"
 // #include "bc/SymmetryBoundary.hpp"
@@ -15,7 +15,7 @@
 
 auto BoundaryFactory::Create(const std::string& boundary_type) -> std::shared_ptr<BoundaryCondition> {
     if (boundary_type == "outlet") return std::make_shared<OutletBoundary>();
-    // if (boundary_type == "reflective") return std::make_shared<ReflectiveBoundary>();
+    if (boundary_type == "reflective") return std::make_shared<ReflectiveBoundary>();
     // if (boundary_type == "non_reflective") return std::make_shared<NonReflectiveBoundary>();
     // if (boundary_type == "periodic") return std::make_shared<PeriodicBoundary>();
     // if (boundary_type == "symmetry") return std::make_shared<SymmetryBoundary>();

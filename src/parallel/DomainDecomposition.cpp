@@ -1,6 +1,14 @@
 #include "parallel/DomainDecomposition.hpp"
 
+#include <cmath>
+#include <limits>
 #include <stdexcept>
+
+namespace {
+    [[nodiscard]] inline double Square(const double x) {
+        return x * x;
+    }
+} // namespace
 
 DomainDecomposition::DomainDecomposition(const Settings& settings, const MPIContext& mpi)
     : dim_(settings.dim),
@@ -9,6 +17,16 @@ DomainDecomposition::DomainDecomposition(const Settings& settings, const MPICont
       global_nz_(settings.dim >= 3 ? settings.GetNz() : 1) {
     if (dim_ < 1 || dim_ > 3) {
         throw std::invalid_argument("DomainDecomposition: dim must be 1..3");
+    }
+
+    if (global_nx_ <= 0) {
+        throw std::invalid_argument("DomainDecomposition: global_nx must be > 0");
+    }
+    if (dim_ >= 2 && global_ny_ <= 0) {
+        throw std::invalid_argument("DomainDecomposition: global_ny must be > 0 for dim >= 2");
+    }
+    if (dim_ >= 3 && global_nz_ <= 0) {
+        throw std::invalid_argument("DomainDecomposition: global_nz must be > 0 for dim >= 3");
     }
 
     BuildCartesianTopology(mpi);
@@ -133,19 +151,9 @@ void DomainDecomposition::ApplyToMesh(Mesh& mesh) const {
 }
 
 void DomainDecomposition::BuildCartesianTopology(const MPIContext& mpi) {
-    int dims[3] = {0, 0, 0};
+    ChooseProcessGridFromCells(mpi.Size());
+
     int periods[3] = {0, 0, 0};
-
-    dims[0] = 0;
-    dims[1] = dim_ >= 2 ? 0 : 1;
-    dims[2] = dim_ >= 3 ? 0 : 1;
-
-    const int nnodes = mpi.Size();
-    MPI_Dims_create(nnodes, 3, dims);
-
-    proc_dims_[0] = dims[0];
-    proc_dims_[1] = dim_ >= 2 ? dims[1] : 1;
-    proc_dims_[2] = dim_ >= 3 ? dims[2] : 1;
 
     MPI_Cart_create(mpi.Comm(), 3, proc_dims_, periods, 0, &cart_comm_);
     if (cart_comm_ == MPI_COMM_NULL) {
@@ -154,6 +162,132 @@ void DomainDecomposition::BuildCartesianTopology(const MPIContext& mpi) {
 
     MPI_Comm_rank(cart_comm_, &cart_rank_);
     MPI_Cart_coords(cart_comm_, cart_rank_, 3, coords_);
+}
+
+void DomainDecomposition::ChooseProcessGridFromCells(const int world_size) {
+    if (world_size <= 0) {
+        throw std::invalid_argument("DomainDecomposition: world_size must be > 0");
+    }
+
+    proc_dims_[0] = 1;
+    proc_dims_[1] = 1;
+    proc_dims_[2] = 1;
+
+    // 1D
+    if (dim_ == 1) {
+        if (world_size > global_nx_) {
+            throw std::runtime_error(
+                "DomainDecomposition: number of MPI ranks exceeds global_nx in 1D");
+        }
+
+        proc_dims_[0] = world_size;
+        proc_dims_[1] = 1;
+        proc_dims_[2] = 1;
+        return;
+    }
+
+    double best_score = std::numeric_limits<double>::infinity();
+    bool found = false;
+
+    // 2D
+    if (dim_ == 2) {
+        for (int px = 1; px <= world_size; ++px) {
+            if (world_size % px != 0) {
+                continue;
+            }
+
+            const int py = world_size / px;
+
+            if (px > global_nx_ || py > global_ny_) {
+                continue;
+            }
+
+            const double score = ComputeProcessGridScore(px, py, 1);
+
+            if (!found || score < best_score) {
+                best_score = score;
+                proc_dims_[0] = px;
+                proc_dims_[1] = py;
+                proc_dims_[2] = 1;
+                found = true;
+            }
+        }
+
+        if (!found) {
+            throw std::runtime_error(
+                "DomainDecomposition: cannot build valid 2D process grid "
+                "(too many ranks for available cells)");
+        }
+
+        return;
+    }
+
+    // 3D
+    for (int px = 1; px <= world_size; ++px) {
+        if (world_size % px != 0) {
+            continue;
+        }
+
+        const int rem_xy = world_size / px;
+
+        for (int py = 1; py <= rem_xy; ++py) {
+            if (rem_xy % py != 0) {
+                continue;
+            }
+
+            const int pz = rem_xy / py;
+
+            if (px > global_nx_ || py > global_ny_ || pz > global_nz_) {
+                continue;
+            }
+
+            const double score = ComputeProcessGridScore(px, py, pz);
+
+            if (!found || score < best_score) {
+                best_score = score;
+                proc_dims_[0] = px;
+                proc_dims_[1] = py;
+                proc_dims_[2] = pz;
+                found = true;
+            }
+        }
+    }
+
+    if (!found) {
+        throw std::runtime_error(
+            "DomainDecomposition: cannot build valid 3D process grid "
+            "(too many ranks for available cells)");
+    }
+}
+
+double DomainDecomposition::ComputeProcessGridScore(const int px,
+                                                    const int py,
+                                                    const int pz) const {
+    if (px <= 0 || py <= 0 || pz <= 0) {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    const double lx = static_cast<double>(global_nx_) / static_cast<double>(px);
+    const double ly = static_cast<double>(global_ny_) / static_cast<double>(py);
+    const double lz = static_cast<double>(global_nz_) / static_cast<double>(pz);
+
+    // Оцениваем, насколько "похожи" локальные размеры по осям.
+    // Используем логарифмы отношений, чтобы оценка была симметричной:
+    // lx=100, ly=10 и lx=10, ly=100 дают одинаковый штраф.
+    if (dim_ == 1) {
+        return 0.0;
+    }
+
+    if (dim_ == 2) {
+        const double rxy = std::log(lx / ly);
+        return Square(rxy);
+    }
+
+    const double rxy = std::log(lx / ly);
+    const double rxz = std::log(lx / lz);
+    const double ryz = std::log(ly / lz);
+
+    return Square(rxy) + Square(rxz) + Square(ryz);
 }
 
 void DomainDecomposition::ComputeLocalSizesAndOffsets() {
@@ -241,6 +375,11 @@ void DomainDecomposition::ComputeBalancedPartition(const int global_n,
     }
     if (coord < 0 || coord >= proc_n) {
         throw std::invalid_argument("DomainDecomposition: coord is out of range");
+    }
+    if (proc_n > global_n) {
+        throw std::invalid_argument(
+            "DomainDecomposition: proc_n must not exceed global_n "
+            "(empty subdomains are not allowed)");
     }
 
     const int base = global_n / proc_n;

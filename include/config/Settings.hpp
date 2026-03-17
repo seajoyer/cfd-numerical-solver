@@ -30,6 +30,8 @@ struct CaseSettings {
     std::optional<std::string> time_integrator;
     std::optional<std::string> riemann_solver;
     std::optional<std::string> reconstruction;
+    std::optional<std::string> EOS;
+    std::optional<std::string> mader_transport;
     std::optional<std::string> left_boundary;
     std::optional<std::string> right_boundary;
     std::optional<std::string> bottom_boundary; // 2D: y-min boundary
@@ -89,6 +91,9 @@ struct Settings {
     std::string riemann_solver = "exact";
     std::string reconstruction = "p0";
     std::string time_integrator = "euler";
+
+    std::optional<std::string> EOS;
+    std::optional<std::string> mader_transport;
 
     std::string left_boundary = "free_stream";
     std::string right_boundary = "free_stream";
