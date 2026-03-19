@@ -22,6 +22,14 @@ const xt::xtensor<double, 4>& DataLayer::U() const {
     return U_;
 }
 
+xt::xtensor<double, 3>& DataLayer::ReactantMassFraction() {
+    return reactant_mass_fraction_;
+}
+
+const xt::xtensor<double, 3>& DataLayer::ReactantMassFraction() const {
+    return reactant_mass_fraction_;
+}
+
 int DataLayer::GetSx() const {
     return sx_;
 }
@@ -61,4 +69,6 @@ void DataLayer::Allocate(const int sx, const int sy, const int sz) {
         static_cast<std::size_t>(sy_),
         static_cast<std::size_t>(sz_)
     });
+
+    reactant_mass_fraction_ = xt::zeros<double>({sx_, sy_, sz_});
 }

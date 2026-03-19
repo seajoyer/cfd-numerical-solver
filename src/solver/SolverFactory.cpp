@@ -8,10 +8,12 @@
 
 #include "solver/FiniteVolumeSolver.hpp"
 #include "spatial/FLICSpatialOperator.hpp"
+#include "spatial/MaderSpatialOperator.hpp"
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
 #include "spatial/GodunovSpatialOperator.hpp"
 #include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/MacCormackTimeIntegrator.hpp"
+#include "time/MaderTimeIntegrator.hpp"
 #include "time/SSPRK2TimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
 
@@ -64,6 +66,9 @@ static auto CreateTimeIntegrator(const Settings& settings,
     if (ti == "maccormack") {
         return std::make_shared<MacCormackTimeIntegrator>(settings, boundary_manager);
     }
+    if (ti == "mader") {
+        return std::make_shared<MaderTimeIntegrator>();
+    }
 
     throw std::runtime_error("Unknown time integrator type: " + settings.time_integrator);
 }
@@ -83,6 +88,10 @@ static auto CreateSpatialOperator(const Settings& settings,
 
     if (solver_lower == "flic") {
         return std::make_shared<FLICSpatialOperator>(settings, boundary_manager);
+    }
+
+    if (solver_lower == "mader") {
+        return std::make_shared<MaderSpatialOperator>(boundary_manager);
     }
 
     throw std::runtime_error("Unknown solver type: " + settings.solver);

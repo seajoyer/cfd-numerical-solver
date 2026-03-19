@@ -26,6 +26,7 @@ add_executable(${NAME}
 
     src/solver/SolverFactory.cpp
     src/solver/FiniteVolumeSolver.cpp
+    src/solver/EOS.cpp
 #    src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
     src/solver/TimeStepCalculator.cpp

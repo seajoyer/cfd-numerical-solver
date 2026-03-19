@@ -49,6 +49,9 @@ public:
     [[nodiscard]] xt::xtensor<double, 4>& U();
     [[nodiscard]] const xt::xtensor<double, 4>& U() const;
 
+    [[nodiscard]] xt::xtensor<double, 3>& ReactantMassFraction();
+    [[nodiscard]] const xt::xtensor<double, 3>& ReactantMassFraction() const;
+
     /** @brief Total padded size in x. */
     [[nodiscard]] int GetSx() const;
 
@@ -67,6 +70,7 @@ private:
     int sz_ = 0;
 
     xt::xtensor<double, 4> U_;
+    xt::xtensor<double, 3> reactant_mass_fraction_;
 
     void ValidateSizes(int sx, int sy, int sz) const;
     void Allocate(int sx, int sy, int sz);
