@@ -13,6 +13,8 @@
 
 A modular CFD solver for 1D and 2D compressible flow using finite volume methods. Features flexible configuration via YAML, VTK output for visualization in ParaView, and PNG/GIF output for 1D cases. The project is designed for educational and research purposes.
 
+![Lax-Liu showcase](./doc/lax-liu.gif)
+
 ## Features
 
 - **Solvers**: Godunov, Godunov-Kolgan, Godunov-Kolgan-Rodionov (1D), MacCormack (1D), Analytical (1D)
