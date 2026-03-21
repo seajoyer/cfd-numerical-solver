@@ -17,85 +17,63 @@
 #include "time/SSPRK2TimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
 
-static std::string ToLowerCopy(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) -> char {
-                       return static_cast<char>(std::tolower(c));
-                   });
-    return s;
-}
+#include "solver/SolverFactory.hpp"
 
-static void ValidateSolverReconstructionCompatibility(const std::string& solver_lower,
-                                                      const std::string& reconstruction_lower) {
-    if (solver_lower == "analytical") {
-        return;
-    }
+#include <memory>
+#include <stdexcept>
+#include <utility>
 
-    if (solver_lower == "godunov") {
-        if (reconstruction_lower.find("p0") == std::string::npos) {
-            std::cerr << "\nError: Incompatible solver-reconstruction pair!\n"
-                << "  Solver: " << solver_lower
-                << ", Reconstruction: " << reconstruction_lower << "\n";
-            throw std::runtime_error("Incompatible solver-reconstruction pair");
+#include "utils/StringUtils.hpp"
+
+namespace {
+    auto CreateTimeIntegrator(const Settings& settings,
+                              const std::shared_ptr<BoundaryManager>& boundary_manager)
+        -> std::shared_ptr<TimeIntegrator> {
+        const std::string ti = utils::ToLower(settings.time_integrator);
+
+        if (ti == "euler") {
+            return std::make_shared<ForwardEulerTimeIntegrator>();
         }
-        return;
-    }
-
-    if (solver_lower == "godunov-kolgan-rodionov") {
-        if (reconstruction_lower.find("p0") != std::string::npos) {
-            std::cerr << "\nError: godunov-kolgan-rodionov requires at least P1\n";
-            throw std::runtime_error("Incompatible solver-reconstruction pair");
+        if (ti == "ssprk2") {
+            return std::make_shared<SSPRK2TimeIntegrator>();
         }
-    }
-}
+        if (ti == "ssprk3") {
+            return std::make_shared<SSPRK3TimeIntegrator>();
+        }
+        if (ti == "maccormack") {
+            return std::make_shared<MacCormackTimeIntegrator>(settings, boundary_manager);
+        }
+        if (ti == "mader") {
+            return std::make_shared<MaderTimeIntegrator>();
+        }
 
-static auto CreateTimeIntegrator(const Settings& settings,
-                                 const std::shared_ptr<BoundaryManager>& boundary_manager)
-    -> std::shared_ptr<TimeIntegrator> {
-    const std::string ti = ToLowerCopy(settings.time_integrator);
-
-    if (ti == "euler") {
-        return std::make_shared<ForwardEulerTimeIntegrator>();
-    }
-    if (ti == "ssprk2") {
-        return std::make_shared<SSPRK2TimeIntegrator>();
-    }
-    if (ti == "ssprk3") {
-        return std::make_shared<SSPRK3TimeIntegrator>();
-    }
-    if (ti == "maccormack") {
-        return std::make_shared<MacCormackTimeIntegrator>(settings, boundary_manager);
-    }
-    if (ti == "mader") {
-        return std::make_shared<MaderTimeIntegrator>();
+        throw std::runtime_error("Unknown time integrator type: " + settings.time_integrator);
     }
 
-    throw std::runtime_error("Unknown time integrator type: " + settings.time_integrator);
-}
+    auto CreateSpatialOperator(const Settings& settings,
+                               const std::shared_ptr<BoundaryManager>& boundary_manager)
+        -> std::shared_ptr<SpatialOperator> {
+        const std::string solver = utils::ToLower(settings.solver);
 
-static auto CreateSpatialOperator(const Settings& settings,
-                                  const std::shared_ptr<BoundaryManager>& boundary_manager)
-    -> std::shared_ptr<SpatialOperator> {
-    const std::string solver_lower = ToLowerCopy(settings.solver);
+        if (solver == "godunov" || solver == "godunov-kolgan") {
+            return std::make_shared<GodunovSpatialOperator>(settings, boundary_manager);
+        }
 
-    if (solver_lower == "godunov" || solver_lower == "godunov-kolgan") {
-        return std::make_shared<GodunovSpatialOperator>(settings, boundary_manager);
+        if (solver == "godunov-kolgan-rodionov") {
+            return std::make_shared<GodunovKolganRodionovSpatialOperator>(settings, boundary_manager);
+        }
+
+        if (solver == "flic") {
+            return std::make_shared<FLICSpatialOperator>(settings, boundary_manager);
+        }
+
+        if (solver == "mader") {
+            return std::make_shared<MaderSpatialOperator>(boundary_manager);
+        }
+
+        throw std::runtime_error("Unknown solver type: " + settings.solver);
     }
-
-    if (solver_lower == "godunov-kolgan-rodionov") {
-        return std::make_shared<GodunovKolganRodionovSpatialOperator>(settings, boundary_manager);
-    }
-
-    if (solver_lower == "flic") {
-        return std::make_shared<FLICSpatialOperator>(settings, boundary_manager);
-    }
-
-    if (solver_lower == "mader") {
-        return std::make_shared<MaderSpatialOperator>(boundary_manager);
-    }
-
-    throw std::runtime_error("Unknown solver type: " + settings.solver);
-}
+} // namespace
 
 void SolverFactory::AddBoundary(const Axis axis,
                                 std::shared_ptr<BoundaryCondition> left_bc,
@@ -107,11 +85,6 @@ auto SolverFactory::Create(const Settings& settings,
                            Mesh mesh,
                            const std::shared_ptr<BoundaryManager>& boundary_manager,
                            const MPIContext* mpi_context) -> std::unique_ptr<Solver> {
-    const std::string solver_lower = ToLowerCopy(settings.solver);
-    const std::string recon_lower = ToLowerCopy(settings.reconstruction);
-
-    ValidateSolverReconstructionCompatibility(solver_lower, recon_lower);
-
     auto spatial_operator = CreateSpatialOperator(settings, boundary_manager);
     auto time_integrator = CreateTimeIntegrator(settings, boundary_manager);
 

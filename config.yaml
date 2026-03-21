@@ -1,248 +1,348 @@
-config:
-    run_cases: [sod1] #, sod2, sod3, sod4, sod5]  # or: [sod1, sod2, sod1_2d, lax_liu_3, lax_liu_12]
+run:
+    cases: [cylinder]
 
-    global:
-        solver: mader
-        riemann_solver: exact
-        reconstruction: P0
-        time_integrator: mader
-        left_boundary: outlet
-        right_boundary: outlet
-        bottom_boundary: outlet
-        top_boundary: outlet
-        back_boundary: reflective
-        front_boundary: reflective
-
-        global_limiter: false
-        diffusion: false
-        viscosity: false
-
-        N: 400
-        Nx: 100      # 0 = use N
-        Ny: 3      # 0 = use N
-        Nz: 1        # 0 = use N
-        cfl: 0.5
-        padding: 1
-        gamma: 1.4
+defaults:
+    mesh:
+        type: structured
         dim: 2
-        L_x: 1
-        L_y: 1
-        L_z: 1
+        cells:
+            x: 100
+            y: 3
+            z: 1
+        domain:
+            x: 1.0
+            y: 1.0
+            z: 1.0
 
-        Q_user: 2
+    physics:
+        eos: ideal_gas
+        parameters:
+            gamma: 1.4
+            reactant_mass_fraction: 1.0
 
-        x0: 0.5
-        y0: 0.5
-        z0: 0.5
-        analytical: false
+    numerics:
+        method: godunov-kolgan
+        parameters:
+            time_integrator: euler
+            reconstruction: p1
+            riemann_solver: exact
+            cfl: 0.5
+            global_limiter: false
+            viscosity: false
+            diffusion: false
 
-        mpi_enabled: true
-        immersed_enabled: false
-        immersed_objects:
-            - type: circle
-              cx: 0.5
-              cy: 0.5
-              radius: 0.15
-            - type: rectangle
-              cx: 0.15
-              cy: 0.35
-              size_x: 0.3
-              size_y: 0.7
+    boundary_conditions:
+        x_min: outlet
+        x_max: outlet
+        y_min: outlet
+        y_max: outlet
+        z_min: reflective
+        z_max: reflective
 
+    immersed_boundaries:
+        enabled: true
+        objects: []
+
+    parallel:
+        mpi: true
+
+    stopping:
         t_end: 0.25
-        step_end: 0
+        max_steps: 0
 
-        log_every_steps: 10
-        log_every_time: 0.0
+    logging:
+        every_steps: 10
+        every_time: 0.0
 
-        output_every_steps: 1
-        output_every_time: 0.0
+    output:
+        format: vtk
+        directory: ../result
+        every_steps: 1
+        every_time: 0.0
 
-        output_formats: [vtk]
-        output_dir: "../result"
-
-    cases:
-        # ==================== 1D Cases ====================
-        sod1:
-            rho_L: 1.0
-            u_L: 0.0
-            P_L: 1.0
-            rho_R: 0.125
-            u_R: 0.0
-            P_R: 0.1
-            x0: 0.5
+cases:
+    cylinder:
+        mesh:
+            domain:
+                x: 10.0
+                y: 1.0
+                z: 1.0
+            dim: 2
+            cells:
+                x: 2000
+                y: 200
+                z: 1
+        immersed_boundaries:
+            enabled: true
+            objects:
+                - type: circle
+                  cx: 3
+                  cy: 0.5
+                  radius: 0.1
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [ ]
+                y: [ ]
+                z: [ ]
+            rho: [ 1.0 ]
+            u: [ 1.0 ]
+            v: [ 0.0 ]
+            w: [ 0.0 ]
+            p: [ 1.0 ]
+        stopping:
+            t_end: 2
+    sod1:
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: []
+                z: []
+            rho: [1.0, 0.125]
+            u:   [0.0, 0.0]
+            v:   [0.0, 0.0]
+            w:   [0.0, 0.0]
+            p:   [1.0, 0.1]
+        stopping:
             t_end: 0.2
 
-        sod2:
-            rho_L: 1.0
-            u_L: -2.0
-            P_L: 0.4
-            rho_R: 1.0
-            u_R: 2.0
-            P_R: 0.4
-            x0: 0.5
-            t_end: 0.15
-        
-        sod3:
-            rho_L: 1.0
-            u_L: 0.0
-            P_L: 1000.0
-            rho_R: 1.0
-            u_R: 0.0
-            P_R: 0.01
-            x0: 0.5
-            t_end: 0.012
-
-        sod4:
-            rho_L: 1.0
-            u_L: 0.0
-            P_L: 0.01
-            rho_R: 1.0
-            u_R: 0.0
-            P_R: 100.0
-
-            x0: 0.5
-            t_end: 0.035
-
-        sod5:
-            rho_L: 5.99924
-            u_L: 19.5975
-            P_L: 460.894
-            rho_R: 5.99242
-            u_R: -6.19633
-            P_R: 46.0950
-
-            x0: 0.5
-            t_end: 0.035
-
-        # ==================== 2D Cases ====================
-        
-        # 2D Sod shock tube along x (sanity check - should match 1D Sod)
-        sod1_2d:
+    sod1_2d:
+        mesh:
             dim: 2
-            N: 400
-            ic_type: x_riemann
-            rho_L: 1.0
-            u_L: 0.0
-            v_L: 0.0
-            P_L: 1.0
-            rho_R: 0.125
-            u_R: 0.0
-            v_R: 0.0
-            P_R: 0.1
-            x0: 0.5
-            y0: 0.5
+            cells:
+                x: 400
+                y: 400
+                z: 1
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: []
+                z: []
+            rho: [1.0, 0.125]
+            u:   [0.0, 0.0]
+            v:   [0.0, 0.0]
+            w:   [0.0, 0.0]
+            p:   [1.0, 0.1]
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+        output:
+            every_steps: 20
+        stopping:
             t_end: 0.25
-            analytical: false
-            left_boundary: reflective
-            right_boundary: reflective
-            bottom_boundary: reflective
-            top_boundary: reflective
-            output_formats: [vtk]
-            output_every_steps: 20
 
-        # 2D Sod shock tube along y
-        sod1_2d_y:
+    sod1_2d_y:
+        mesh:
             dim: 2
-            N: 200
-            ic_type: y_riemann
-            rho_L: 1.0
-            u_L: 0.0
-            v_L: 0.0
-            P_L: 1.0
-            rho_R: 0.125
-            u_R: 0.0
-            v_R: 0.0
-            P_R: 0.1
-            x0: 0.5
-            y0: 0.5
+            cells:
+                x: 200
+                y: 200
+                z: 1
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: []
+                y: [0.5]
+                z: []
+            rho:
+                - 1.0
+                - 0.125
+            u:
+                - 0.0
+                - 0.0
+            v:
+                - 0.0
+                - 0.0
+            w:
+                - 0.0
+                - 0.0
+            p:
+                - 1.0
+                - 0.1
+        output:
+            every_steps: 100
+        stopping:
             t_end: 0.25
-            analytical: false
-            output_formats: [vtk]
-            output_every_steps: 100
 
-        # Lax-Liu Configuration 3 (2D Riemann problem)
-        # Reference: Lax & Liu, "Solution of Two-Dimensional Riemann Problems
-        #            of Gas Dynamics by Positive Schemes", 1998
-        lax_liu_3:
+    lax_liu_3:
+        mesh:
             dim: 2
-            N: 400
-            ic_type: quadrant
-            x0: 0.5
-            y0: 0.5
-            L_x: 1.0
-            L_y: 1.0
-            gamma: 1.4
-            cfl: 0.4
+            cells:
+                x: 400
+                y: 400
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            parameters:
+                cfl: 0.4
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: [0.5]
+                z: []
+            rho:
+                - [0.138, 0.5323]
+                - [0.5323, 1.5]
+            u:
+                - [1.206, 1.206]
+                - [0.0,   0.0]
+            v:
+                - [1.206, 0.0]
+                - [1.206, 0.0]
+            w:
+                - [0.0, 0.0]
+                - [0.0, 0.0]
+            p:
+                - [0.029, 0.3]
+                - [0.3,   1.5]
+        output:
+            every_steps: 20
+        stopping:
             t_end: 1.5
-            analytical: false
-            
-            # Q1 (top-right): x >= 0.5, y >= 0.5
-            rho_Q1: 1.5
-            u_Q1: 0.0
-            v_Q1: 0.0
-            P_Q1: 1.5
-            # Q2 (top-left): x < 0.5, y >= 0.5
-            rho_Q2: 0.5323
-            u_Q2: 1.206
-            v_Q2: 0.0
-            P_Q2: 0.3
-            # Q3 (bottom-left): x < 0.5, y < 0.5
-            rho_Q3: 0.138
-            u_Q3: 1.206
-            v_Q3: 1.206
-            P_Q3: 0.029
-            # Q4 (bottom-right): x >= 0.5, y < 0.5
-            rho_Q4: 0.5323
-            u_Q4: 0.0
-            v_Q4: 1.206
-            P_Q4: 0.3
 
-            left_boundary: reflective
-            right_boundary: reflective
-            bottom_boundary: reflective
-            top_boundary: reflective
-            output_formats: [vtk]
-            output_every_steps: 20
-
-        # Lax-Liu Configuration 12 (2D Riemann problem)
-        lax_liu_12:
+    lax_liu_12:
+        mesh:
             dim: 2
-            N: 400
-            ic_type: quadrant
-            x0: 0.5
-            y0: 0.5
-            L_x: 1.0
-            L_y: 1.0
-            gamma: 1.4
-            cfl: 0.4
+            cells:
+                x: 400
+                y: 400
+                z: 1
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            parameters:
+                cfl: 0.4
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: [0.5]
+                z: []
+            rho:
+                - [1.0, 0.8]
+                - [1.0, 0.8]
+            u:
+                - [0.0, 0.0]
+                - [0.7276, 0.0]
+            v:
+                - [0.7276, 0.0]
+                - [0.0,    0.0]
+            w:
+                - [0.0, 0.0]
+                - [0.0, 0.0]
+            p:
+                - [1.0, 1.0]
+                - [1.0, 1.0]
+        output:
+            every_steps: 200
+        stopping:
             t_end: 0.25
-            analytical: false
-            
-            # Q1 (top-right)
-            rho_Q1: 1.0
-            u_Q1: 0.7276
-            v_Q1: 0.0
-            P_Q1: 1.0
-            # Q2 (top-left)
-            rho_Q2: 0.8
-            u_Q2: 0.0
-            v_Q2: 0.0
-            P_Q2: 1.0
-            # Q3 (bottom-left)
-            rho_Q3: 1.0
-            u_Q3: 0.0
-            v_Q3: 0.7276
-            P_Q3: 1.0
-            # Q4 (bottom-right)
-            rho_Q4: 0.8
-            u_Q4: 0.0
-            v_Q4: 0.0
-            P_Q4: 1.0
 
-            left_boundary: reflective
-            right_boundary: reflective
-            bottom_boundary: reflective
-            top_boundary: reflective
-            output_formats: [vtk]
-            output_every_steps: 200
+    octant_test:
+        mesh:
+            dim: 3
+            cells:
+                x: 100
+                y: 100
+                z: 100
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: [0.5]
+                z: [0.5]
+            rho:
+                -
+                    - [1.0, 0.8]
+                    - [0.7, 0.6]
+                -
+                    - [0.5, 0.4]
+                    - [0.3, 0.2]
+            u:
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+            v:
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+            w:
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+                -
+                    - [0.0, 0.0]
+                    - [0.0, 0.0]
+            p:
+                -
+                    - [1.0, 1.0]
+                    - [1.0, 1.0]
+                -
+                    - [1.0, 1.0]
+                    - [1.0, 1.0]
+
+#    gmsh_case_template:
+#        mesh:
+#            type: unstructured
+#            source:
+#                format: geo
+#                file: meshes/example.geo
+#                generator: gmsh
+#        physics:
+#            eos: ideal_gas
+#            parameters:
+#                gamma: 1.4
+#        numerics:
+#            method: godunov
+#            parameters:
+#                time_integrator: euler
+#                reconstruction: p0
+#                riemann_solver: hllc
+#                cfl: 0.4
+#        boundary_conditions:
+#            default: outlet
+#        initial_condition:
+#            type: region_markers
+#            regions:
+#                - marker: fluid_1
+#                  rho: 1.0
+#                  u: 0.0
+#                  v: 0.0
+#                  w: 0.0
+#                  p: 1.0
+#                - marker: fluid_2
+#                  rho: 0.125
+#                  u: 0.0
+#                  v: 0.0
+#                  w: 0.0
+#                  p: 0.1

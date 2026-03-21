@@ -49,7 +49,7 @@ auto DoubleWithoutDot(double value) -> std::string {
     return oss.str();
 }
 
-auto ToLower(std::string& str) -> std::string {
+auto ToLower(const std::string& str) -> std::string {
     std::string lower(str.size(), '\0');
     std::transform(str.begin(), str.end(), lower.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });

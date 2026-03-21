@@ -159,7 +159,6 @@ A modular CFD solver for 1D compressible flow using finite volume methods. Featu
 
         N: 1000
         cfl: 0.5
-        padding: 2
         gamma: 1.4
         dim: 1
         L_x: 1

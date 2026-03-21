@@ -22,6 +22,7 @@ include(cmake/Documentation.cmake)
 add_executable(${NAME}
     src/main.cpp
 
+    src/RunManager.cpp
     src/Simulation.cpp
 
     src/solver/SolverFactory.cpp
@@ -88,6 +89,8 @@ add_executable(${NAME}
     src/parallel/DomainDecomposition.cpp
 
     src/config/ConfigParser.cpp
+    src/config/YamlConfigParser.cpp
+    src/config/CliParser.cpp
     include/config/Settings.hpp
     include/config/InitialConditions.hpp
 

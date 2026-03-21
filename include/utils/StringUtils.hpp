@@ -29,7 +29,7 @@ namespace utils {
  */
 auto DoubleWithoutDot(double value) -> std::string;
 
-auto ToLower(std::string& str) -> std::string;
+auto ToLower(const std::string& str) -> std::string;
 
 auto GetTimestamp() -> std::string;
 
