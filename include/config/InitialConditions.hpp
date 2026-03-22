@@ -63,6 +63,7 @@ struct InitialConditions {
     Field3DValues v;
     Field3DValues w;
     Field3DValues p;
+    std::optional<Field3DValues> reactant_mass_fraction;
 
     /**
      * Case-local runtime overrides.

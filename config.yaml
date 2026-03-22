@@ -1,5 +1,5 @@
 run:
-    cases: [cylinder]
+    cases: [corner]
 
 defaults:
     mesh:
@@ -18,33 +18,51 @@ defaults:
         eos: ideal_gas
         parameters:
             gamma: 1.4
-            reactant_mass_fraction: 1.0
+#            reactant_mass_fraction: 1.0
 
     numerics:
-        method: godunov-kolgan
+        method: mader
         parameters:
-            time_integrator: euler
+            time_integrator: mader
             reconstruction: p1
-            riemann_solver: exact
-            cfl: 0.5
+            riemann_solver: hllc
+            cfl: 0.3
             global_limiter: false
             viscosity: false
             diffusion: false
 
     boundary_conditions:
-        x_min: outlet
+        x_min: inlet
         x_max: outlet
-        y_min: outlet
-        y_max: outlet
-        z_min: reflective
-        z_max: reflective
+        y_min: free_stream
+        y_max: free_stream
+
+        states:
+            x_min:
+                rho: 5.0
+                u: 10.0
+                v: 0.0
+                w: 0.0
+                p: 1.0
+            y_min:
+                rho: 1.0
+                u: 0.0
+                v: 0.5
+                w: 0.0
+                p: 1.0
+            y_max:
+                rho: 1.0
+                u: 0.0
+                v: -0.5
+                w: 0.0
+                p: 1.0
 
     immersed_boundaries:
-        enabled: true
+        enabled: false
         objects: []
 
     parallel:
-        mpi: true
+        mpi: false
 
     stopping:
         t_end: 0.25
@@ -57,28 +75,11 @@ defaults:
     output:
         format: vtk
         directory: ../result
-        every_steps: 1
+        every_steps: 100
         every_time: 0.0
 
 cases:
-    cylinder:
-        mesh:
-            domain:
-                x: 10.0
-                y: 1.0
-                z: 1.0
-            dim: 2
-            cells:
-                x: 2000
-                y: 200
-                z: 1
-        immersed_boundaries:
-            enabled: true
-            objects:
-                - type: circle
-                  cx: 3
-                  cy: 0.5
-                  radius: 0.1
+    smoke:
         initial_condition:
             type: structured_regions
             interfaces:
@@ -86,12 +87,58 @@ cases:
                 y: [ ]
                 z: [ ]
             rho: [ 1.0 ]
-            u: [ 1.0 ]
+            u: [ 0.0 ]
             v: [ 0.0 ]
             w: [ 0.0 ]
             p: [ 1.0 ]
+            stopping:
+                t_end: 0.2
+        mesh:
+            dim: 2
+            cells:
+                x: 100
+                y: 100
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+
+    cylinder:
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [ ]
+                y: [ ]
+                z: [ ]
+            rho: [ 1.0 ]
+            u: [ 0.3 ]
+            v: [ 0.0 ]
+            w: [ 0.0 ]
+            p: [ 1.0 ]
+
+        immersed_boundaries:
+            enabled: true
+            objects:
+                - type: circle
+                  cx: 1.0
+                  cy: 1.0
+                  radius: 0.15
+        mesh:
+            type: structured
+            dim: 2
+            cells:
+                x: 600
+                y: 300
+                z: 1
+            domain:
+                x: 4.0
+                y: 2.0
+                z: 1.0
+
         stopping:
-            t_end: 2
+            t_end: 0.1
+
     sod1:
         initial_condition:
             type: structured_regions
@@ -111,8 +158,8 @@ cases:
         mesh:
             dim: 2
             cells:
-                x: 400
-                y: 400
+                x: 100
+                y: 3
                 z: 1
         initial_condition:
             type: structured_regions
@@ -125,11 +172,11 @@ cases:
             v:   [0.0, 0.0]
             w:   [0.0, 0.0]
             p:   [1.0, 0.1]
-        boundary_conditions:
-            x_min: reflective
-            x_max: reflective
-            y_min: reflective
-            y_max: reflective
+#        boundary_conditions:
+#            x_min: reflective
+#            x_max: reflective
+#            y_min: reflective
+#            y_max: reflective
         output:
             every_steps: 20
         stopping:
@@ -310,6 +357,108 @@ cases:
                 -
                     - [1.0, 1.0]
                     - [1.0, 1.0]
+
+    detonation:
+        mesh:
+            dim: 2
+            cells:
+                x: 200
+                y: 3
+                z: 1
+            domain:
+                x: 1.0
+                y: 0.01
+                z: 1.0
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 3.0
+
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p0
+                riemann_solver: exact
+                cfl: 0.5
+                viscosity: true
+
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [ 0.02 ]
+                y: [ ]
+                z: [ ]
+            rho: [ 2.4533333333, 1.84 ]
+            u: [ 0.0, 0.0 ]
+            v: [ 0.0, 0.0 ]
+            w: [ 0.0, 0.0 ]
+            p: [ 0.7112533333, 1.0e-8 ]
+            reactant_mass_fraction: [ 0.0, 1.0 ]
+
+        stopping:
+            t_end: 0.2
+
+
+    corner:
+        mesh:
+            dim: 2
+            cells:
+                x: 140
+                y: 80
+                z: 1
+            domain:
+                x: 9.0
+                y: 4.0
+                z: 1.0
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 3.0
+
+        boundary_conditions:
+            x_min: reflective
+            x_max: outlet
+            y_min: reflective
+            y_max: reflective
+
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [ 0.05 ]
+                y: [ ]
+                z: [ ]
+            rho: [ 2.4533333333, 1.84 ]
+            u: [ 0.0, 0.0 ]
+            v: [ 0.0, 0.0 ]
+            w: [ 0.0, 0.0 ]
+            p: [ 0.35648, 1.0e-8 ]
+            reactant_mass_fraction: [ 0.0, 1.0 ]
+
+        immersed_boundaries:
+            enabled: true
+            objects:
+                - type: rectangle
+                  cx: 1
+                  cy: 1.5
+                  size_x: 2
+                  size_y: 3
+
+        parallel:
+            mpi: true
+
+        stopping:
+            t_end: 1000.0
+            max_steps: 0
+
 
 #    gmsh_case_template:
 #        mesh:

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "bc/BoundaryManager.hpp"
+#include "bc/BoundaryFactory.hpp"
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
@@ -71,6 +72,7 @@ private:
 
     [[nodiscard]] auto DeterminePadding() const -> int;
     void ValidateConfiguration() const;
+    auto PrimitiveToFarfieldConservative(const BoundaryStateSettings& s, double gamma) -> FarfieldConservative;
 
     [[nodiscard]] auto IsKnownSolver(const std::string& solver) const -> bool;
     [[nodiscard]] auto IsKnownTimeIntegrator(const std::string& time_integrator) const -> bool;
@@ -90,7 +92,6 @@ private:
     void PrintLog() const;
     void FinalizeWriter();
 
-private:
     Settings settings_;
     InitialConditions initial_conditions_;
 
@@ -102,6 +103,8 @@ private:
 
     std::unique_ptr<MPIContext> mpi_context_;
     std::unique_ptr<DomainDecomposition> decomposition_;
+
+    bool is_root_ = true;
 
     std::shared_ptr<BoundaryManager> boundary_manager_;
 

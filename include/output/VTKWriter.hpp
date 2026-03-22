@@ -34,7 +34,7 @@ public:
                double time) const override;
 
     [[nodiscard]] auto RequiresFinalization() const -> bool override;
-    auto Finalize(const Settings& settings) -> std::string override;
+    void Finalize(const Settings& settings) override;
 
 private:
     std::string output_dir_;

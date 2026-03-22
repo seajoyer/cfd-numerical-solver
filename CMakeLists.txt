@@ -72,6 +72,7 @@ add_executable(${NAME}
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
+    src/output/VTKRecomposer.cpp
 #    src/output/PNGWriter.cpp
 #    src/output/GIFWriter.cpp
 
@@ -97,13 +98,13 @@ add_executable(${NAME}
     src/bc/BoundaryFactory.cpp
     src/bc/BoundaryManager.cpp
     src/bc/FreeStreamBoundary.cpp
-#    src/bc/InletBoundary.cpp
+    src/bc/InletBoundary.cpp
     src/bc/OutletBoundary.cpp
-#    src/bc/PeriodicBoundary.cpp
+    src/bc/PeriodicBoundary.cpp
     src/bc/ReflectiveBoundary.cpp
-#    src/bc/NonReflectiveBoundary.cpp
-#    src/bc/SymmetryBoundary.cpp
-#    src/bc/WallBoundary.cpp
+    src/bc/NonReflectiveBoundary.cpp
+    src/bc/SymmetryBoundary.cpp
+    src/bc/WallBoundary.cpp
     include/bc/BoundaryCondition.hpp
 
     include/bc/InternalBoundaryCondition.hpp

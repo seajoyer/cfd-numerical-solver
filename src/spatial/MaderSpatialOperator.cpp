@@ -11,12 +11,163 @@
 #include "data/Workspace.hpp"
 
 namespace {
-constexpr double k_eps = 1e-14;
-}
+    constexpr double k_eps = 1e-14;
+
+    inline double GetRhoFloor(const EOS& eos) {
+        if (eos.GetType() == EosType::IdealGas) {
+            return eos.GetIdealGasParameters().rho_floor;
+        }
+        if (eos.GetType() == EosType::HugoniotGruneisen) {
+            return eos.GetHugoniotGruneisenParameters().rho_floor;
+        }
+        return 1e-14;
+    }
+
+    inline bool IsCoreCell(const Mesh& mesh, const int i, const int j, const int k) {
+        return i >= mesh.GetCoreStartX() && i < mesh.GetCoreEndExclusiveX() &&
+            j >= mesh.GetCoreStartY() && j < mesh.GetCoreEndExclusiveY() &&
+            k >= mesh.GetCoreStartZ() && k < mesh.GetCoreEndExclusiveZ();
+    }
+
+    inline void AddTransportContributionIfCore(xt::xtensor<double, 4>& D,
+                                               const Mesh& mesh,
+                                               const int i,
+                                               const int j,
+                                               const int k,
+                                               const double dm,
+                                               const double de,
+                                               const double dw,
+                                               const double dpu,
+                                               const double dpv) {
+        if (!IsCoreCell(mesh, i, j, k)) {
+            return;
+        }
+
+        D(Workspace::k_dm, i, j, k) += dm;
+        D(Workspace::k_de, i, j, k) += de;
+        D(Workspace::k_dw, i, j, k) += dw;
+        D(Workspace::k_dpu, i, j, k) += dpu;
+        D(Workspace::k_dpv, i, j, k) += dpv;
+    }
+
+    inline void RebuildFaceVelocitiesFromCellCentered(const Mesh& mesh,
+                                                      Workspace& workspace) {
+        auto& W = workspace.W();
+        auto& Ux = workspace.Ux();
+        auto& Vy = workspace.Vy();
+        auto& Wz = workspace.Wz();
+
+        const int sx = mesh.GetSx();
+        const int sy = mesh.GetSy();
+        const int sz = mesh.GetSz();
+
+        for (int k = 0; k < sz; ++k) {
+            for (int j = 0; j < sy; ++j) {
+                Ux(0, j, k) = W(Workspace::k_u, 0, j, k);
+                for (int i = 1; i < sx; ++i) {
+                    Ux(i, j, k) = 0.5 * (W(Workspace::k_u, i - 1, j, k) +
+                        W(Workspace::k_u, i, j, k));
+                }
+                Ux(sx, j, k) = W(Workspace::k_u, sx - 1, j, k);
+            }
+        }
+
+        for (int k = 0; k < sz; ++k) {
+            for (int i = 0; i < sx; ++i) {
+                Vy(i, 0, k) = W(Workspace::k_v, i, 0, k);
+                for (int j = 1; j < sy; ++j) {
+                    Vy(i, j, k) = 0.5 * (W(Workspace::k_v, i, j - 1, k) +
+                        W(Workspace::k_v, i, j, k));
+                }
+                Vy(i, sy, k) = W(Workspace::k_v, i, sy - 1, k);
+            }
+        }
+
+        for (int j = 0; j < sy; ++j) {
+            for (int i = 0; i < sx; ++i) {
+                Wz(i, j, 0) = W(Workspace::k_w, i, j, 0);
+                for (int k = 1; k < sz; ++k) {
+                    Wz(i, j, k) = 0.5 * (W(Workspace::k_w, i, j, k - 1) +
+                        W(Workspace::k_w, i, j, k));
+                }
+                Wz(i, j, sz) = W(Workspace::k_w, i, j, sz - 1);
+            }
+        }
+    }
+
+    inline double ComputeTransferredReactantFractionShargatovImpl(
+        const Mesh& mesh,
+        const DataLayer& layer,
+        const int donor_i,
+        const int donor_j,
+        const int donor_k,
+        const int accept_i,
+        const int accept_j,
+        const int accept_k) {
+        const auto& reactant = layer.ReactantMassFraction();
+
+        const auto is_pure_a = [](const double w) {
+            return std::abs(w) <= 1e-12;
+        };
+        const auto is_pure_b = [](const double w) {
+            return std::abs(w - 1.0) <= 1e-12;
+        };
+        const auto is_mixed = [](const double w) {
+            return w > 1e-12 && w < 1.0 - 1e-12;
+        };
+
+        const double donor_w = std::clamp(reactant(donor_i, donor_j, donor_k), 0.0, 1.0);
+        if (!is_mixed(donor_w)) {
+            return donor_w;
+        }
+
+        bool has_pure_a_neighbor = false;
+        bool has_pure_b_neighbor = false;
+
+        const int sx = mesh.GetSx();
+        const int sy = mesh.GetSy();
+        const int sz = mesh.GetSz();
+
+        const int ni[4] = {donor_i - 1, donor_i + 1, donor_i, donor_i};
+        const int nj[4] = {donor_j, donor_j, donor_j - 1, donor_j + 1};
+
+        for (int n = 0; n < 4; ++n) {
+            const int ii = ni[n];
+            const int jj = nj[n];
+            const int kk = donor_k;
+
+            if (ii < 0 || ii >= sx || jj < 0 || jj >= sy || kk < 0 || kk >= sz) {
+                continue;
+            }
+            if (ii == accept_i && jj == accept_j && kk == accept_k) {
+                continue;
+            }
+            if (!mesh.IsFluidCell(ii, jj, kk)) {
+                continue;
+            }
+
+            const double wn = std::clamp(reactant(ii, jj, kk), 0.0, 1.0);
+            if (is_pure_a(wn)) {
+                has_pure_a_neighbor = true;
+            }
+            if (is_pure_b(wn)) {
+                has_pure_b_neighbor = true;
+            }
+        }
+
+        if (has_pure_a_neighbor && !has_pure_b_neighbor) {
+            return 1.0;
+        }
+        if (has_pure_b_neighbor && !has_pure_a_neighbor) {
+            return 0.0;
+        }
+
+        return donor_w;
+    }
+} // namespace
 
 MaderSpatialOperator::MaderSpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager)
-    : SpatialOperator(std::move(boundary_manager)) {
-}
+    : SpatialOperator(std::move(boundary_manager)) {}
 
 void MaderSpatialOperator::SetEos(const EOS& eos) {
     eos_ = eos;
@@ -75,7 +226,6 @@ void MaderSpatialOperator::Phase2_PressureForces(DataLayer& layer,
                                                  Workspace& workspace,
                                                  const double gamma,
                                                  const double dt) const {
-    (void)layer;
     (void)gamma;
 
     ApplyBoundaryConditions(layer, mesh);
@@ -122,6 +272,7 @@ void MaderSpatialOperator::Phase4_Transport(DataLayer& layer,
                                             const double gamma,
                                             const double dt) const {
     (void)gamma;
+
     ApplyBoundaryConditions(layer, mesh);
     ZeroTransportAccumulators(workspace);
 
@@ -169,32 +320,27 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
     const int sy = mesh.GetSy();
     const int sz = mesh.GetSz();
 
-    double rho_floor = 1e-14;
-    if (eos_.GetType() == EosType::IdealGas) {
-        rho_floor = eos_.GetIdealGasParameters().rho_floor;
-    } else if (eos_.GetType() == EosType::HugoniotGruneisen) {
-        rho_floor = eos_.GetHugoniotGruneisenParameters().rho_floor;
-    }
+    const double rho_floor = GetRhoFloor(eos_);
 
     for (int k = 0; k < sz; ++k) {
         for (int j = 0; j < sy; ++j) {
             for (int i = 0; i < sx; ++i) {
                 if (!mesh.IsFluidCell(i, j, k)) {
                     W(Workspace::k_rho, i, j, k) = 0.0;
-                    W(Workspace::k_u,   i, j, k) = 0.0;
-                    W(Workspace::k_v,   i, j, k) = 0.0;
-                    W(Workspace::k_w,   i, j, k) = 0.0;
-                    W(Workspace::k_p,   i, j, k) = 0.0;
+                    W(Workspace::k_u, i, j, k) = 0.0;
+                    W(Workspace::k_v, i, j, k) = 0.0;
+                    W(Workspace::k_w, i, j, k) = 0.0;
+                    W(Workspace::k_p, i, j, k) = 0.0;
                     T(i, j, k) = 0.0;
                     I(i, j, k) = 0.0;
                     continue;
                 }
 
-                const double rho_in  = U(var::rho,  i, j, k);
+                const double rho_in = U(var::rho, i, j, k);
                 const double rhoU_in = U(var::rhoU, i, j, k);
                 const double rhoV_in = U(var::rhoV, i, j, k);
                 const double rhoW_in = U(var::rhoW, i, j, k);
-                const double E_in    = U(var::E,    i, j, k);
+                const double E_in = U(var::E, i, j, k);
 
                 const double rho = std::max(rho_in, rho_floor);
                 const double inv_rho = 1.0 / rho;
@@ -211,7 +357,6 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                     lambda_old = chemistry_params_.reactant_initial;
                 }
 
-                // First EOS call: get T from current state
                 const EosCellInput eos_in_1{
                     .rho = rho,
                     .I = I_cell,
@@ -245,12 +390,9 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                 }
 
                 const double d_lambda = lambda_old - lambda_new;
-
-                // Add chemical heat release
                 I_cell += chemistry_params_.heat_release * d_lambda;
                 I_cell = std::max(I_cell, 0.0);
 
-                // Second EOS call after chemistry
                 const EosCellInput eos_in_2{
                     .rho = rho,
                     .I = I_cell,
@@ -259,20 +401,20 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                 const EosCellOutput eos_out_2 = eos_.Evaluate(eos_in_2);
 
                 W(Workspace::k_rho, i, j, k) = rho;
-                W(Workspace::k_u,   i, j, k) = u;
-                W(Workspace::k_v,   i, j, k) = v;
-                W(Workspace::k_w,   i, j, k) = w;
-                W(Workspace::k_p,   i, j, k) = eos_out_2.P;
+                W(Workspace::k_u, i, j, k) = u;
+                W(Workspace::k_v, i, j, k) = v;
+                W(Workspace::k_w, i, j, k) = w;
+                W(Workspace::k_p, i, j, k) = eos_out_2.P;
 
                 I(i, j, k) = I_cell;
                 T(i, j, k) = eos_out_2.T;
                 reactant(i, j, k) = lambda_new;
 
-                U(var::rho,  i, j, k) = rho;
+                U(var::rho, i, j, k) = rho;
                 U(var::rhoU, i, j, k) = rho * u;
                 U(var::rhoV, i, j, k) = rho * v;
                 U(var::rhoW, i, j, k) = rho * w;
-                U(var::E,    i, j, k) = rho * (I_cell + kinetic);
+                U(var::E, i, j, k) = rho * (I_cell + kinetic);
             }
         }
     }
@@ -281,47 +423,7 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
 void MaderSpatialOperator::InitializeFaceVelocitiesIfNeeded(DataLayer&,
                                                             const Mesh& mesh,
                                                             Workspace& workspace) const {
-    auto& W = workspace.W();
-    auto& Ux = workspace.Ux();
-    auto& Vy = workspace.Vy();
-    auto& Wz = workspace.Wz();
-
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
-
-    for (int k = 0; k < sz; ++k) {
-        for (int j = 0; j < sy; ++j) {
-            Ux(0, j, k) = W(Workspace::k_u, 0, j, k);
-            for (int i = 1; i < sx; ++i) {
-                Ux(i, j, k) = 0.5 * (W(Workspace::k_u, i - 1, j, k) +
-                                     W(Workspace::k_u, i,     j, k));
-            }
-            Ux(sx, j, k) = W(Workspace::k_u, sx - 1, j, k);
-        }
-    }
-
-    for (int k = 0; k < sz; ++k) {
-        for (int i = 0; i < sx; ++i) {
-            Vy(i, 0, k) = W(Workspace::k_v, i, 0, k);
-            for (int j = 1; j < sy; ++j) {
-                Vy(i, j, k) = 0.5 * (W(Workspace::k_v, i, j - 1, k) +
-                                     W(Workspace::k_v, i, j,     k));
-            }
-            Vy(i, sy, k) = W(Workspace::k_v, i, sy - 1, k);
-        }
-    }
-
-    for (int j = 0; j < sy; ++j) {
-        for (int i = 0; i < sx; ++i) {
-            Wz(i, j, 0) = W(Workspace::k_w, i, j, 0);
-            for (int k = 1; k < sz; ++k) {
-                Wz(i, j, k) = 0.5 * (W(Workspace::k_w, i, j, k - 1) +
-                                     W(Workspace::k_w, i, j, k));
-            }
-            Wz(i, j, sz) = W(Workspace::k_w, i, j, sz - 1);
-        }
-    }
+    RebuildFaceVelocitiesFromCellCentered(mesh, workspace);
 }
 
 void MaderSpatialOperator::SaveOldFaceVelocities(Workspace& workspace) const {
@@ -334,6 +436,8 @@ void MaderSpatialOperator::ComputeArtificialViscosity(const Mesh& mesh,
                                                       Workspace& workspace) const {
     auto& W = workspace.W();
     auto& Ux = workspace.Ux();
+    auto& Vy = workspace.Vy();
+    auto& Wz = workspace.Wz();
     auto& Q = workspace.Q();
 
     const int sx = mesh.GetSx();
@@ -346,17 +450,26 @@ void MaderSpatialOperator::ComputeArtificialViscosity(const Mesh& mesh,
         return;
     }
 
-    // For current slab / quasi-1D use, keep viscosity closer to x-compression.
     for (int k = 0; k < sz; ++k) {
         for (int j = 0; j < sy; ++j) {
             for (int i = 0; i < sx; ++i) {
-                const double rho = std::max(W(Workspace::k_rho, i, j, k), k_eps);
-                const double u_l = Ux(i,     j, k);
-                const double u_r = Ux(i + 1, j, k);
-                const double compression = u_l - u_r;
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
 
-                if (compression > 0.0) {
-                    Q(i, j, k) = viscosity_params_.coefficient * rho * compression * compression;
+                const double rho = std::max(W(Workspace::k_rho, i, j, k), k_eps);
+
+                const double comp_x = Ux(i, j, k) - Ux(i + 1, j, k);
+                const double cx = std::max(comp_x, 0.0);
+
+                const double comp_y = Vy(i, j, k) - Vy(i, j + 1, k);
+                const double cy = std::max(comp_y, 0.0);
+
+                const double comp_z = Wz(i, j, k) - Wz(i, j, k + 1);
+                const double cz = std::max(comp_z, 0.0);
+
+                if (cx > 0.0 || cy > 0.0 || cz > 0.0) {
+                    Q(i, j, k) = viscosity_params_.coefficient * rho * (cx * cx + cy * cy + cz * cz);
                 }
             }
         }
@@ -399,7 +512,6 @@ void MaderSpatialOperator::UpdateUxFaces(const Mesh& mesh,
                 const double q_l = Q(il, j, k);
                 const double q_r = Q(ir, j, k);
 
-                // IMPORTANT: corrected sign (plus), as verified in your tests.
                 Ux(iface, j, k) += dt * ((p_l - p_r) + (q_l - q_r)) / denom;
             }
         }
@@ -442,7 +554,6 @@ void MaderSpatialOperator::UpdateVyFaces(const Mesh& mesh,
                 const double q_b = Q(i, jb, k);
                 const double q_t = Q(i, jt, k);
 
-                // IMPORTANT: corrected sign (plus), as verified in your tests.
                 Vy(i, jface, k) += dt * ((p_b - p_t) + (q_b - q_t)) / denom;
             }
         }
@@ -479,10 +590,10 @@ void MaderSpatialOperator::UpdateInternalEnergyZip(const Mesh& mesh,
 
                 const double rho = std::max(W(Workspace::k_rho, i, j, k), k_eps);
 
-                const double ux_l_half = 0.5 * (UxOld(i,     j, k) + Ux(i,     j, k));
+                const double ux_l_half = 0.5 * (UxOld(i, j, k) + Ux(i, j, k));
                 const double ux_r_half = 0.5 * (UxOld(i + 1, j, k) + Ux(i + 1, j, k));
 
-                const double vy_b_half = 0.5 * (VyOld(i, j,     k) + Vy(i, j,     k));
+                const double vy_b_half = 0.5 * (VyOld(i, j, k) + Vy(i, j, k));
                 const double vy_t_half = 0.5 * (VyOld(i, j + 1, k) + Vy(i, j + 1, k));
 
                 const double div_half =
@@ -492,8 +603,7 @@ void MaderSpatialOperator::UpdateInternalEnergyZip(const Mesh& mesh,
                 const double p = W(Workspace::k_p, i, j, k);
                 const double q = Q(i, j, k);
 
-                const double I_new = std::max(I(i, j, k) - dt * (p + q) * div_half / rho, 0.0);
-                I(i, j, k) = I_new;
+                I(i, j, k) = std::max(I(i, j, k) - dt * (p + q) * div_half / rho, 0.0);
             }
         }
     }
@@ -524,11 +634,11 @@ void MaderSpatialOperator::RebuildConservativeEnergy(DataLayer& layer,
                 W(Workspace::k_u, i, j, k) = u;
                 W(Workspace::k_v, i, j, k) = v;
 
-                U(var::rho,  i, j, k) = rho;
+                U(var::rho, i, j, k) = rho;
                 U(var::rhoU, i, j, k) = rho * u;
                 U(var::rhoV, i, j, k) = rho * v;
                 U(var::rhoW, i, j, k) = rho * w;
-                U(var::E,    i, j, k) = rho * (I(i, j, k) + 0.5 * (u * u + v * v + w * w));
+                U(var::E, i, j, k) = rho * (I(i, j, k) + 0.5 * (u * u + v * v + w * w));
             }
         }
     }
@@ -565,9 +675,12 @@ void MaderSpatialOperator::TransportDonorAcceptorR(const Mesh& mesh,
     const int k0 = mesh.GetCoreStartZ();
     const int k1 = mesh.GetCoreEndExclusiveZ();
 
+    // Обрабатываем ВСЕ x-грани, которые граничат с локальным core:
+    // iface = i0 ... i1
+    // Это включает левую межранговую/физическую грань и правую тоже.
     for (int k = k0; k < k1; ++k) {
         for (int j = j0; j < j1; ++j) {
-            for (int iface = i0; iface < i1; ++iface) {
+            for (int iface = i0; iface <= i1; ++iface) {
                 const int il = iface - 1;
                 const int ir = iface;
 
@@ -579,8 +692,11 @@ void MaderSpatialOperator::TransportDonorAcceptorR(const Mesh& mesh,
                 }
 
                 const double u_face = Ux(iface, j, k);
+                if (std::abs(u_face) <= k_eps) {
+                    continue;
+                }
 
-                const int donor_i  = (u_face >= 0.0) ? il : ir;
+                const int donor_i = (u_face >= 0.0) ? il : ir;
                 const int accept_i = (u_face >= 0.0) ? ir : il;
 
                 const double rho_d = std::max(W(Workspace::k_rho, donor_i, j, k), k_eps);
@@ -601,29 +717,25 @@ void MaderSpatialOperator::TransportDonorAcceptorR(const Mesh& mesh,
                 if (transport_params_.composition_mode == MaderCompositionTransportMode::Standard) {
                     w_transfer = ComputeTransferredReactantFractionStandard(
                         reactant(donor_i, j, k));
-                } else {
+                }
+                else {
                     w_transfer = ComputeTransferredReactantFractionShargatovR(
                         mesh, layer,
                         donor_i, j, k,
                         accept_i, j, k);
                 }
 
-                const double de  = E_d * dmass;
-                const double dw  = w_transfer * dmass;
+                const double de = E_d * dmass;
+                const double dw = w_transfer * dmass;
                 const double dpu = u_d * dmass;
                 const double dpv = v_d * dmass;
 
-                D(Workspace::k_dm,  accept_i, j, k) += dmass;
-                D(Workspace::k_de,  accept_i, j, k) += de;
-                D(Workspace::k_dw,  accept_i, j, k) += dw;
-                D(Workspace::k_dpu, accept_i, j, k) += dpu;
-                D(Workspace::k_dpv, accept_i, j, k) += dpv;
-
-                D(Workspace::k_dm,  donor_i, j, k) -= dmass;
-                D(Workspace::k_de,  donor_i, j, k) -= de;
-                D(Workspace::k_dw,  donor_i, j, k) -= dw;
-                D(Workspace::k_dpu, donor_i, j, k) -= dpu;
-                D(Workspace::k_dpv, donor_i, j, k) -= dpv;
+                // КЛЮЧЕВОЙ MPI-ФИКС:
+                // ghost-ячейки не обновляем вообще.
+                // Каждая физическая межранговая грань будет обработана двумя rank'ами,
+                // и каждый обновит только свою локальную core-ячейку.
+                AddTransportContributionIfCore(D, mesh, accept_i, j, k, +dmass, +de, +dw, +dpu, +dpv);
+                AddTransportContributionIfCore(D, mesh, donor_i, j, k, -dmass, -de, -dw, -dpu, -dpv);
             }
         }
     }
@@ -648,8 +760,9 @@ void MaderSpatialOperator::TransportDonorAcceptorZ(const Mesh& mesh,
     const int k0 = mesh.GetCoreStartZ();
     const int k1 = mesh.GetCoreEndExclusiveZ();
 
+    // jface = j0 ... j1
     for (int k = k0; k < k1; ++k) {
-        for (int jface = j0; jface < j1; ++jface) {
+        for (int jface = j0; jface <= j1; ++jface) {
             const int jb = jface - 1;
             const int jt = jface;
 
@@ -663,8 +776,11 @@ void MaderSpatialOperator::TransportDonorAcceptorZ(const Mesh& mesh,
                 }
 
                 const double v_face = Vy(i, jface, k);
+                if (std::abs(v_face) <= k_eps) {
+                    continue;
+                }
 
-                const int donor_j  = (v_face >= 0.0) ? jb : jt;
+                const int donor_j = (v_face >= 0.0) ? jb : jt;
                 const int accept_j = (v_face >= 0.0) ? jt : jb;
 
                 const double rho_d = std::max(W(Workspace::k_rho, i, donor_j, k), k_eps);
@@ -685,29 +801,21 @@ void MaderSpatialOperator::TransportDonorAcceptorZ(const Mesh& mesh,
                 if (transport_params_.composition_mode == MaderCompositionTransportMode::Standard) {
                     w_transfer = ComputeTransferredReactantFractionStandard(
                         reactant(i, donor_j, k));
-                } else {
+                }
+                else {
                     w_transfer = ComputeTransferredReactantFractionShargatovZ(
                         mesh, layer,
                         i, donor_j, k,
                         i, accept_j, k);
                 }
 
-                const double de  = E_d * dmass;
-                const double dw  = w_transfer * dmass;
+                const double de = E_d * dmass;
+                const double dw = w_transfer * dmass;
                 const double dpu = u_d * dmass;
                 const double dpv = v_d * dmass;
 
-                D(Workspace::k_dm,  i, accept_j, k) += dmass;
-                D(Workspace::k_de,  i, accept_j, k) += de;
-                D(Workspace::k_dw,  i, accept_j, k) += dw;
-                D(Workspace::k_dpu, i, accept_j, k) += dpu;
-                D(Workspace::k_dpv, i, accept_j, k) += dpv;
-
-                D(Workspace::k_dm,  i, donor_j, k) -= dmass;
-                D(Workspace::k_de,  i, donor_j, k) -= de;
-                D(Workspace::k_dw,  i, donor_j, k) -= dw;
-                D(Workspace::k_dpu, i, donor_j, k) -= dpu;
-                D(Workspace::k_dpv, i, donor_j, k) -= dpv;
+                AddTransportContributionIfCore(D, mesh, i, accept_j, k, +dmass, +de, +dw, +dpu, +dpv);
+                AddTransportContributionIfCore(D, mesh, i, donor_j, k, -dmass, -de, -dw, -dpu, -dpv);
             }
         }
     }
@@ -724,12 +832,7 @@ void MaderSpatialOperator::ApplyTransportAccumulators(DataLayer& layer,
     auto& reactant = layer.ReactantMassFraction();
     auto& D = workspace.D();
 
-    double rho_floor = 1e-14;
-    if (eos_.GetType() == EosType::IdealGas) {
-        rho_floor = eos_.GetIdealGasParameters().rho_floor;
-    } else if (eos_.GetType() == EosType::HugoniotGruneisen) {
-        rho_floor = eos_.GetHugoniotGruneisenParameters().rho_floor;
-    }
+    const double rho_floor = GetRhoFloor(eos_);
 
     const int i0 = mesh.GetCoreStartX();
     const int i1 = mesh.GetCoreEndExclusiveX();
@@ -754,9 +857,9 @@ void MaderSpatialOperator::ApplyTransportAccumulators(DataLayer& layer,
 
                 const double E_old = I_old + 0.5 * (u_old * u_old + v_old * v_old + w_old * w_old);
 
-                const double dm  = D(Workspace::k_dm,  i, j, k);
-                const double de  = D(Workspace::k_de,  i, j, k);
-                const double dw  = D(Workspace::k_dw,  i, j, k);
+                const double dm = D(Workspace::k_dm, i, j, k);
+                const double de = D(Workspace::k_de, i, j, k);
+                const double dw = D(Workspace::k_dw, i, j, k);
                 const double dpu = D(Workspace::k_dpu, i, j, k);
                 const double dpv = D(Workspace::k_dpv, i, j, k);
 
@@ -775,8 +878,8 @@ void MaderSpatialOperator::ApplyTransportAccumulators(DataLayer& layer,
                 lambda_new = std::clamp(lambda_new, chemistry_params_.reactant_floor, 1.0);
 
                 double I_new =
-                    rho_E_new / rho_new
-                    - 0.5 * (u_new * u_new + v_new * v_new + w_new * w_new);
+                    rho_E_new / rho_new -
+                    0.5 * (u_new * u_new + v_new * v_new + w_new * w_new);
                 I_new = std::max(I_new, 0.0);
 
                 const EosCellInput eos_in{
@@ -787,20 +890,20 @@ void MaderSpatialOperator::ApplyTransportAccumulators(DataLayer& layer,
                 const EosCellOutput eos_out = eos_.Evaluate(eos_in);
 
                 W(Workspace::k_rho, i, j, k) = rho_new;
-                W(Workspace::k_u,   i, j, k) = u_new;
-                W(Workspace::k_v,   i, j, k) = v_new;
-                W(Workspace::k_w,   i, j, k) = w_new;
-                W(Workspace::k_p,   i, j, k) = eos_out.P;
+                W(Workspace::k_u, i, j, k) = u_new;
+                W(Workspace::k_v, i, j, k) = v_new;
+                W(Workspace::k_w, i, j, k) = w_new;
+                W(Workspace::k_p, i, j, k) = eos_out.P;
 
                 I(i, j, k) = I_new;
                 T(i, j, k) = eos_out.T;
                 reactant(i, j, k) = lambda_new;
 
-                U(var::rho,  i, j, k) = rho_new;
+                U(var::rho, i, j, k) = rho_new;
                 U(var::rhoU, i, j, k) = rho_new * u_new;
                 U(var::rhoV, i, j, k) = rho_new * v_new;
                 U(var::rhoW, i, j, k) = rho_new * w_new;
-                U(var::E,    i, j, k) = rho_new * (I_new + 0.5 * (u_new * u_new + v_new * v_new + w_new * w_new));
+                U(var::E, i, j, k) = rho_new * (I_new + 0.5 * (u_new * u_new + v_new * v_new + w_new * w_new));
             }
         }
     }
@@ -814,9 +917,6 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
     auto& W = workspace.W();
     auto& T = workspace.Temperature();
     auto& I = workspace.InternalEnergy();
-    auto& Ux = workspace.Ux();
-    auto& Vy = workspace.Vy();
-    auto& Wz = workspace.Wz();
     auto& reactant = layer.ReactantMassFraction();
 
     const int sx = mesh.GetSx();
@@ -829,10 +929,10 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
                 const PrimitiveCell prim = PrimitiveFromConservative(U, i, j, k, gamma);
 
                 W(Workspace::k_rho, i, j, k) = prim.rho;
-                W(Workspace::k_u,   i, j, k) = prim.u;
-                W(Workspace::k_v,   i, j, k) = prim.v;
-                W(Workspace::k_w,   i, j, k) = prim.w;
-                W(Workspace::k_p,   i, j, k) = prim.P;
+                W(Workspace::k_u, i, j, k) = prim.u;
+                W(Workspace::k_v, i, j, k) = prim.v;
+                W(Workspace::k_w, i, j, k) = prim.w;
+                W(Workspace::k_p, i, j, k) = prim.P;
 
                 const double kinetic = 0.5 * (prim.u * prim.u + prim.v * prim.v + prim.w * prim.w);
                 I(i, j, k) = std::max(U(var::E, i, j, k) / std::max(prim.rho, k_eps) - kinetic, 0.0);
@@ -847,38 +947,7 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
         }
     }
 
-    for (int k = 0; k < sz; ++k) {
-        for (int j = 0; j < sy; ++j) {
-            Ux(0, j, k) = W(Workspace::k_u, 0, j, k);
-            for (int i = 1; i < sx; ++i) {
-                Ux(i, j, k) = 0.5 * (W(Workspace::k_u, i - 1, j, k) +
-                                     W(Workspace::k_u, i,     j, k));
-            }
-            Ux(sx, j, k) = W(Workspace::k_u, sx - 1, j, k);
-        }
-    }
-
-    for (int k = 0; k < sz; ++k) {
-        for (int i = 0; i < sx; ++i) {
-            Vy(i, 0, k) = W(Workspace::k_v, i, 0, k);
-            for (int j = 1; j < sy; ++j) {
-                Vy(i, j, k) = 0.5 * (W(Workspace::k_v, i, j - 1, k) +
-                                     W(Workspace::k_v, i, j,     k));
-            }
-            Vy(i, sy, k) = W(Workspace::k_v, i, sy - 1, k);
-        }
-    }
-
-    for (int j = 0; j < sy; ++j) {
-        for (int i = 0; i < sx; ++i) {
-            Wz(i, j, 0) = W(Workspace::k_w, i, j, 0);
-            for (int k = 1; k < sz; ++k) {
-                Wz(i, j, k) = 0.5 * (W(Workspace::k_w, i, j, k - 1) +
-                                     W(Workspace::k_w, i, j, k));
-            }
-            Wz(i, j, sz) = W(Workspace::k_w, i, j, sz - 1);
-        }
-    }
+    RebuildFaceVelocitiesFromCellCentered(mesh, workspace);
 }
 
 bool MaderSpatialOperator::IsPureA(const double w) const {
@@ -903,55 +972,10 @@ double MaderSpatialOperator::ComputeTransferredReactantFractionShargatovR(
     const DataLayer& layer,
     const int donor_i, const int donor_j, const int donor_k,
     const int accept_i, const int accept_j, const int accept_k) const {
-    const auto& reactant = layer.ReactantMassFraction();
-
-    const double donor_w = std::clamp(reactant(donor_i, donor_j, donor_k), 0.0, 1.0);
-    if (!IsMixed(donor_w)) {
-        return donor_w;
-    }
-
-    bool has_pure_a_neighbor = false;
-    bool has_pure_b_neighbor = false;
-
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
-
-    const int ni[4] = {donor_i - 1, donor_i + 1, donor_i, donor_i};
-    const int nj[4] = {donor_j, donor_j, donor_j - 1, donor_j + 1};
-
-    for (int n = 0; n < 4; ++n) {
-        const int ii = ni[n];
-        const int jj = nj[n];
-        const int kk = donor_k;
-
-        if (ii < 0 || ii >= sx || jj < 0 || jj >= sy || kk < 0 || kk >= sz) {
-            continue;
-        }
-        if (ii == accept_i && jj == accept_j && kk == accept_k) {
-            continue;
-        }
-        if (!mesh.IsFluidCell(ii, jj, kk)) {
-            continue;
-        }
-
-        const double wn = std::clamp(reactant(ii, jj, kk), 0.0, 1.0);
-        if (IsPureA(wn)) {
-            has_pure_a_neighbor = true;
-        }
-        if (IsPureB(wn)) {
-            has_pure_b_neighbor = true;
-        }
-    }
-
-    if (has_pure_a_neighbor && !has_pure_b_neighbor) {
-        return 1.0; // transport B
-    }
-    if (has_pure_b_neighbor && !has_pure_a_neighbor) {
-        return 0.0; // transport A
-    }
-
-    return donor_w;
+    return ComputeTransferredReactantFractionShargatovImpl(
+        mesh, layer,
+        donor_i, donor_j, donor_k,
+        accept_i, accept_j, accept_k);
 }
 
 double MaderSpatialOperator::ComputeTransferredReactantFractionShargatovZ(
@@ -959,53 +983,8 @@ double MaderSpatialOperator::ComputeTransferredReactantFractionShargatovZ(
     const DataLayer& layer,
     const int donor_i, const int donor_j, const int donor_k,
     const int accept_i, const int accept_j, const int accept_k) const {
-    const auto& reactant = layer.ReactantMassFraction();
-
-    const double donor_w = std::clamp(reactant(donor_i, donor_j, donor_k), 0.0, 1.0);
-    if (!IsMixed(donor_w)) {
-        return donor_w;
-    }
-
-    bool has_pure_a_neighbor = false;
-    bool has_pure_b_neighbor = false;
-
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
-
-    const int ni[4] = {donor_i - 1, donor_i + 1, donor_i, donor_i};
-    const int nj[4] = {donor_j, donor_j, donor_j - 1, donor_j + 1};
-
-    for (int n = 0; n < 4; ++n) {
-        const int ii = ni[n];
-        const int jj = nj[n];
-        const int kk = donor_k;
-
-        if (ii < 0 || ii >= sx || jj < 0 || jj >= sy || kk < 0 || kk >= sz) {
-            continue;
-        }
-        if (ii == accept_i && jj == accept_j && kk == accept_k) {
-            continue;
-        }
-        if (!mesh.IsFluidCell(ii, jj, kk)) {
-            continue;
-        }
-
-        const double wn = std::clamp(reactant(ii, jj, kk), 0.0, 1.0);
-        if (IsPureA(wn)) {
-            has_pure_a_neighbor = true;
-        }
-        if (IsPureB(wn)) {
-            has_pure_b_neighbor = true;
-        }
-    }
-
-    if (has_pure_a_neighbor && !has_pure_b_neighbor) {
-        return 1.0;
-    }
-    if (has_pure_b_neighbor && !has_pure_a_neighbor) {
-        return 0.0;
-    }
-
-    return donor_w;
+    return ComputeTransferredReactantFractionShargatovImpl(
+        mesh, layer,
+        donor_i, donor_j, donor_k,
+        accept_i, accept_j, accept_k);
 }

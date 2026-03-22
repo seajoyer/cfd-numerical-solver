@@ -2,21 +2,31 @@
 #define NONREFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "data/Variables.hpp"
+#include "bc/BoundaryFactory.hpp"
 
 /**
  * @class NonReflectiveBoundary
- * @brief Placeholder non-reflective boundary condition for conservative Euler state U.
+ * @brief Approximate characteristic open boundary for Euler equations.
  *
- * Current implementation enforces a zero-gradient (outlet-like) condition by copying
- * the nearest interior core layer into ghost layers along the selected axis.
+ * Uses a simple 1D characteristic treatment along the boundary normal:
+ * - supersonic outflow: extrapolate interior state
+ * - supersonic inflow: impose far-field state
+ * - subsonic: combine outgoing characteristic from interior with incoming
+ *   characteristic from far-field
  *
- * This is a simplified fallback; characteristic-based radiation conditions can be
- * added later without changing the interface.
+ * Tangential velocities and entropy are taken:
+ * - from interior for outflow
+ * - from far-field for inflow
  */
 class NonReflectiveBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, Axis axis, Side side) const override;
+    NonReflectiveBoundary(const FarfieldConservative& farfield_U, double gamma);
+
+    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+
+private:
+    FarfieldConservative farfield_U_;
+    double gamma_;
 };
 
 #endif  // NONREFLECTIVEBOUNDARY_HPP

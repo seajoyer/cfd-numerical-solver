@@ -18,6 +18,7 @@
 #include "data/DataLayer.hpp"
 #include "data/Mesh.hpp"
 #include "utils/StringUtils.hpp"
+#include "output/VTKRecomposer.hpp"
 
 class VTKWriter::Impl {
 public:
@@ -38,21 +39,25 @@ VTKWriter::VTKWriter(const std::string& output_dir, const bool is_analytical, co
       pimpl_(std::make_unique<Impl>()) {
     if (size_ > 1) {
         rank_output_dir_ = output_dir_ + "/" + std::format("rank_{:04d}", rank_);
-    } else {
+    }
+    else {
         rank_output_dir_ = output_dir_;
     }
-
-    std::filesystem::create_directories(rank_output_dir_);
 }
 
 VTKWriter::~VTKWriter() = default;
 
 auto VTKWriter::RequiresFinalization() const -> bool {
-    return false;
+    return size_ > 1;
 }
 
-auto VTKWriter::Finalize(const Settings&) -> std::string {
-    return "";
+void VTKWriter::Finalize(const Settings& settings) {
+    if (size_ <= 1) {
+        return;
+    }
+
+    VTKRecomposer recomposer(output_dir_, rank_, size_);
+    recomposer.RecomposeAssigned(settings);
 }
 
 auto VTKWriter::GenerateFilename(const int N, const std::size_t step, const Settings& settings) const
@@ -61,9 +66,11 @@ auto VTKWriter::GenerateFilename(const int N, const std::size_t step, const Sett
 
     if (is_analytical_) {
         oss << rank_output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    } else {
+    }
+    else {
         oss << rank_output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
-            << "__N_" << N << "__CFL_" << std::fixed << std::setprecision(1) << settings.cfl
+            << "__N_" << settings.GetNx() << "x" << settings.GetNy() << "x" << settings.GetNz()
+            << "__CFL_" <<  utils::DoubleWithoutDot(settings.cfl)
             << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
     }
 
@@ -143,22 +150,11 @@ void VTKWriter::Write3D(const DataLayer& layer,
         throw std::runtime_error("Invalid core range");
     }
 
-    std::ostringstream oss;
-    if (is_analytical_) {
-        oss << output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    }
-    else {
-        oss << output_dir_ << "/"
-            << settings.solver << "__R_" << settings.reconstruction
-            << "__N_" << settings.GetNx() << "x" << settings.GetNy() << "x" << settings.GetNz()
-            << "__CFL_" << utils::DoubleWithoutDot(settings.cfl)
-            << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    }
     const std::string filename =
-    is_analytical_
-        ? (rank_output_dir_ + "/step_" + (static_cast<std::ostringstream&&>(
-               std::ostringstream() << std::setw(4) << std::setfill('0') << step)).str() + ".vtk")
-        : GenerateFilename(settings.GetNx(), step, settings);
+        is_analytical_
+            ? (rank_output_dir_ + "/step_" + (static_cast<std::ostringstream&&>(
+                std::ostringstream() << std::setw(4) << std::setfill('0') << step)).str() + ".vtk")
+            : GenerateFilename(settings.GetNx(), step, settings);
 
     vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
@@ -213,6 +209,16 @@ void VTKWriter::Write3D(const DataLayer& layer,
     arr_eint->SetNumberOfComponents(1);
     arr_eint->SetNumberOfTuples(num_points);
 
+    const bool write_lambda = utils::ToLower(settings.solver) == "mader";
+
+    vtkSmartPointer<vtkDoubleArray> arr_lambda;
+    if (write_lambda) {
+        arr_lambda = vtkSmartPointer<vtkDoubleArray>::New();
+        arr_lambda->SetName("reactant_mass_fraction");
+        arr_lambda->SetNumberOfComponents(1);
+        arr_lambda->SetNumberOfTuples(num_points);
+    }
+
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
@@ -222,7 +228,6 @@ void VTKWriter::Write3D(const DataLayer& layer,
                 const vtkIdType pid = i + j * nx + k * nx * ny;
 
                 if (mesh.IsSolidCell(ii, jj, kk)) {
-
                     grid->BlankPoint(pid);
                     const double nan = std::numeric_limits<double>::quiet_NaN();
 
@@ -234,6 +239,10 @@ void VTKWriter::Write3D(const DataLayer& layer,
                     arr_p->SetValue(pid, nan);
                     arr_e->SetValue(pid, nan);
                     arr_eint->SetValue(pid, nan);
+
+                    if (write_lambda) {
+                        arr_lambda->SetValue(pid, nan);
+                    }
                     continue;
                 }
 
@@ -256,6 +265,10 @@ void VTKWriter::Write3D(const DataLayer& layer,
                 arr_p->SetValue(pid, P);
                 arr_e->SetValue(pid, E);
                 arr_eint->SetValue(pid, eint);
+
+                if (write_lambda) {
+                    arr_lambda->SetValue(pid, layer.ReactantMassFraction()(ii, jj, kk));
+                }
             }
         }
     }
@@ -265,6 +278,10 @@ void VTKWriter::Write3D(const DataLayer& layer,
     grid->GetPointData()->AddArray(arr_eint);
     grid->GetPointData()->AddArray(arr_e);
     grid->GetPointData()->AddArray(arr_vel);
+
+    if (write_lambda) {
+        grid->GetPointData()->AddArray(arr_lambda);
+    }
 
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
     time_array->SetName("TimeValue");
@@ -276,5 +293,36 @@ void VTKWriter::Write3D(const DataLayer& layer,
     writer->SetFileName(filename.c_str());
     writer->SetInputData(grid);
     writer->SetFileTypeToBinary();
+
+    vtkSmartPointer<vtkDoubleArray> arr_global_nx = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_global_nx->SetName("GlobalNx");
+    arr_global_nx->InsertNextValue(mesh.GetGlobalNx());
+    grid->GetFieldData()->AddArray(arr_global_nx);
+
+    vtkSmartPointer<vtkDoubleArray> arr_global_ny = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_global_ny->SetName("GlobalNy");
+    arr_global_ny->InsertNextValue(mesh.GetGlobalNy());
+    grid->GetFieldData()->AddArray(arr_global_ny);
+
+    vtkSmartPointer<vtkDoubleArray> arr_global_nz = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_global_nz->SetName("GlobalNz");
+    arr_global_nz->InsertNextValue(mesh.GetGlobalNz());
+    grid->GetFieldData()->AddArray(arr_global_nz);
+
+    vtkSmartPointer<vtkDoubleArray> arr_offset_x = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_offset_x->SetName("OffsetX");
+    arr_offset_x->InsertNextValue(mesh.GetOffsetX());
+    grid->GetFieldData()->AddArray(arr_offset_x);
+
+    vtkSmartPointer<vtkDoubleArray> arr_offset_y = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_offset_y->SetName("OffsetY");
+    arr_offset_y->InsertNextValue(mesh.GetOffsetY());
+    grid->GetFieldData()->AddArray(arr_offset_y);
+
+    vtkSmartPointer<vtkDoubleArray> arr_offset_z = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_offset_z->SetName("OffsetZ");
+    arr_offset_z->InsertNextValue(mesh.GetOffsetZ());
+    grid->GetFieldData()->AddArray(arr_offset_z);
+
     writer->Write();
 }

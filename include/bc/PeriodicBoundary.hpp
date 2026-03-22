@@ -2,20 +2,23 @@
 #define PERIODICBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "data/Variables.hpp"
 
 /**
  * @class PeriodicBoundary
  * @brief Periodic boundary condition for conservative state U.
  *
- * Periodicity is enforced by copying conservative state U from the opposite
- * side of the core domain into ghost layers along the selected axis.
+ * Ghost cells are filled from the opposite side of the local core domain.
  *
- * Works only with conservative state U(var,i,j,k).
+ * This implementation is intended for:
+ * - single-process runs
+ * - MPI runs with a single rank
+ *
+ * For multi-rank MPI, periodicity should be handled by domain decomposition
+ * and halo exchange, not by physical boundary application.
  */
 class PeriodicBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, Axis axis, Side side) const override;
+    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
 };
 
 #endif  // PERIODICBOUNDARY_HPP

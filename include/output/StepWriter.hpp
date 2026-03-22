@@ -71,10 +71,9 @@ public:
      * @param settings Solver settings for filename construction.
      * @return Path to the generated output file.
      */
-    virtual auto Finalize(const Settings& settings) -> std::string {
+    virtual void Finalize(const Settings& settings) {
         (void)settings;
-        return "";
-    }
+   }
 
     /**
      * @brief Whether this writer requires Finalize() to be called.

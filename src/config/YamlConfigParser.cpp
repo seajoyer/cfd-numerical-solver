@@ -26,6 +26,16 @@ namespace {
         }
         return utils::ToLower(node[key].as<std::string>());
     }
+
+    auto ParseBoundaryState(const YAML::Node& node) -> BoundaryStateSettings {
+        BoundaryStateSettings state;
+        AssignIfPresent(node, "rho", state.rho);
+        AssignIfPresent(node, "u", state.u);
+        AssignIfPresent(node, "v", state.v);
+        AssignIfPresent(node, "w", state.w);
+        AssignIfPresent(node, "p", state.p);
+        return state;
+    }
 } // namespace
 
 auto YamlConfigParser::ParseFile(const std::string& filename) -> ParsedYamlConfig {
@@ -234,6 +244,17 @@ void YamlConfigParser::ParseBoundaryConditions(const YAML::Node& node, Settings&
     if (node["y_max"]) settings.top_boundary = utils::ToLower(node["y_max"].as<std::string>());
     if (node["z_min"]) settings.back_boundary = utils::ToLower(node["z_min"].as<std::string>());
     if (node["z_max"]) settings.front_boundary = utils::ToLower(node["z_max"].as<std::string>());
+
+    if (node["states"]) {
+        const YAML::Node states = node["states"];
+
+        if (states["x_min"]) settings.boundary_states.x_min = ParseBoundaryState(states["x_min"]);
+        if (states["x_max"]) settings.boundary_states.x_max = ParseBoundaryState(states["x_max"]);
+        if (states["y_min"]) settings.boundary_states.y_min = ParseBoundaryState(states["y_min"]);
+        if (states["y_max"]) settings.boundary_states.y_max = ParseBoundaryState(states["y_max"]);
+        if (states["z_min"]) settings.boundary_states.z_min = ParseBoundaryState(states["z_min"]);
+        if (states["z_max"]) settings.boundary_states.z_max = ParseBoundaryState(states["z_max"]);
+    }
 }
 
 void YamlConfigParser::ParseParallel(const YAML::Node& node, Settings& settings) {
@@ -369,6 +390,20 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
         if (bc_node["y_max"]) overrides.top_boundary = utils::ToLower(bc_node["y_max"].as<std::string>());
         if (bc_node["z_min"]) overrides.back_boundary = utils::ToLower(bc_node["z_min"].as<std::string>());
         if (bc_node["z_max"]) overrides.front_boundary = utils::ToLower(bc_node["z_max"].as<std::string>());
+
+        if (bc_node["states"]) {
+            BoundaryStatesSettings states_override;
+
+            const YAML::Node states = bc_node["states"];
+            if (states["x_min"]) states_override.x_min = ParseBoundaryState(states["x_min"]);
+            if (states["x_max"]) states_override.x_max = ParseBoundaryState(states["x_max"]);
+            if (states["y_min"]) states_override.y_min = ParseBoundaryState(states["y_min"]);
+            if (states["y_max"]) states_override.y_max = ParseBoundaryState(states["y_max"]);
+            if (states["z_min"]) states_override.z_min = ParseBoundaryState(states["z_min"]);
+            if (states["z_max"]) states_override.z_max = ParseBoundaryState(states["z_max"]);
+
+            overrides.boundary_states = states_override;
+        }
     }
 
     if (case_node["parallel"]) {
@@ -482,6 +517,14 @@ void YamlConfigParser::ParseStructured1D(const YAML::Node& ic_node, InitialCondi
     ic.v = lift_1d(v_1d);
     ic.w = lift_1d(w_1d);
     ic.p = lift_1d(p_1d);
+
+    if (ic_node["reactant_mass_fraction"]) {
+        const auto lambda_1d = ReadVectorDouble(ic_node["reactant_mass_fraction"]);
+        if (lambda_1d.size() != nx) {
+            throw std::runtime_error("1D reactant_mass_fraction size must match state size");
+        }
+        ic.reactant_mass_fraction = lift_1d(lambda_1d);
+    }
 }
 
 void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialConditions& ic) {
@@ -521,6 +564,14 @@ void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialCondi
         ic.v = lift_y_only(v_1d);
         ic.w = lift_y_only(w_1d);
         ic.p = lift_y_only(p_1d);
+
+        if (ic_node["reactant_mass_fraction"]) {
+            const auto lambda_1d = ReadVectorDouble(ic_node["reactant_mass_fraction"]);
+            if (lambda_1d.size() != ny) {
+                throw std::runtime_error("2D y-only reactant_mass_fraction size must match y-region count");
+            }
+            ic.reactant_mass_fraction = lift_y_only(lambda_1d);
+        }
         return;
     }
 
@@ -558,6 +609,11 @@ void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialCondi
     ic.v = lift_2d(v_2d);
     ic.w = lift_2d(w_2d);
     ic.p = lift_2d(p_2d);
+
+    if (ic_node["reactant_mass_fraction"]) {
+        const auto lambda_2d = ReadMatrixDouble(ic_node["reactant_mass_fraction"]);
+        ic.reactant_mass_fraction = lift_2d(lambda_2d);
+    }
 }
 
 void YamlConfigParser::ParseStructured3D(const YAML::Node& ic_node, InitialConditions& ic) {
@@ -603,6 +659,11 @@ void YamlConfigParser::ParseStructured3D(const YAML::Node& ic_node, InitialCondi
     ic.v = lift_3d(v_3d);
     ic.w = lift_3d(w_3d);
     ic.p = lift_3d(p_3d);
+
+    if (ic_node["reactant_mass_fraction"]) {
+        const auto lambda_3d = ReadTensorDouble(ic_node["reactant_mass_fraction"]);
+        ic.reactant_mass_fraction = lift_3d(lambda_3d);
+    }
 }
 
 void YamlConfigParser::ValidateStructuredShape(const YAML::Node& ic_node, int dim) {

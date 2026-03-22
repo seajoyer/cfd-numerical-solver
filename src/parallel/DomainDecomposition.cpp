@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include "utils/StringUtils.hpp"
 
 namespace {
     [[nodiscard]] inline double Square(const double x) {
@@ -28,6 +29,20 @@ DomainDecomposition::DomainDecomposition(const Settings& settings, const MPICont
     if (dim_ >= 3 && global_nz_ <= 0) {
         throw std::invalid_argument("DomainDecomposition: global_nz must be > 0 for dim >= 3");
     }
+
+    periodic_[0] =
+        utils::ToLower(settings.left_boundary) == "periodic" &&
+        utils::ToLower(settings.right_boundary) == "periodic";
+
+    periodic_[1] =
+        dim_ >= 2 &&
+        utils::ToLower(settings.bottom_boundary) == "periodic" &&
+        utils::ToLower(settings.top_boundary) == "periodic";
+
+    periodic_[2] =
+        dim_ >= 3 &&
+        utils::ToLower(settings.back_boundary) == "periodic" &&
+        utils::ToLower(settings.front_boundary) == "periodic";
 
     BuildCartesianTopology(mpi);
     ComputeLocalSizesAndOffsets();
@@ -153,7 +168,11 @@ void DomainDecomposition::ApplyToMesh(Mesh& mesh) const {
 void DomainDecomposition::BuildCartesianTopology(const MPIContext& mpi) {
     ChooseProcessGridFromCells(mpi.Size());
 
-    int periods[3] = {0, 0, 0};
+    int periods[3] = {
+        periodic_[0] ? 1 : 0,
+        periodic_[1] ? 1 : 0,
+        periodic_[2] ? 1 : 0
+    };
 
     MPI_Cart_create(mpi.Comm(), 3, proc_dims_, periods, 0, &cart_comm_);
     if (cart_comm_ == MPI_COMM_NULL) {
@@ -340,12 +359,24 @@ void DomainDecomposition::ComputeNeighbors() {
 }
 
 void DomainDecomposition::ComputeGlobalBoundaryFlags() {
-    is_global_boundary_[0][0] = coords_[0] == 0;
-    is_global_boundary_[0][1] = coords_[0] == proc_dims_[0] - 1;
+    if (periodic_[0]) {
+        is_global_boundary_[0][0] = false;
+        is_global_boundary_[0][1] = false;
+    }
+    else {
+        is_global_boundary_[0][0] = coords_[0] == 0;
+        is_global_boundary_[0][1] = coords_[0] == proc_dims_[0] - 1;
+    }
 
     if (dim_ >= 2) {
-        is_global_boundary_[1][0] = coords_[1] == 0;
-        is_global_boundary_[1][1] = coords_[1] == proc_dims_[1] - 1;
+        if (periodic_[1]) {
+            is_global_boundary_[1][0] = false;
+            is_global_boundary_[1][1] = false;
+        }
+        else {
+            is_global_boundary_[1][0] = coords_[1] == 0;
+            is_global_boundary_[1][1] = coords_[1] == proc_dims_[1] - 1;
+        }
     }
     else {
         is_global_boundary_[1][0] = false;
@@ -353,8 +384,14 @@ void DomainDecomposition::ComputeGlobalBoundaryFlags() {
     }
 
     if (dim_ >= 3) {
-        is_global_boundary_[2][0] = coords_[2] == 0;
-        is_global_boundary_[2][1] = coords_[2] == proc_dims_[2] - 1;
+        if (periodic_[2]) {
+            is_global_boundary_[2][0] = false;
+            is_global_boundary_[2][1] = false;
+        }
+        else {
+            is_global_boundary_[2][0] = coords_[2] == 0;
+            is_global_boundary_[2][1] = coords_[2] == proc_dims_[2] - 1;
+        }
     }
     else {
         is_global_boundary_[2][0] = false;

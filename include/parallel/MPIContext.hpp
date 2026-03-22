@@ -112,6 +112,8 @@ public:
      */
     [[nodiscard]] int GlobalSum(int value) const;
 
+    auto BroadcastString(const std::string& value, int root = 0) const -> std::string;
+
 private:
     MPI_Comm comm_ = MPI_COMM_WORLD;
     int rank_ = 0;

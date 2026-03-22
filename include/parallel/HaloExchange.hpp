@@ -18,7 +18,7 @@
  */
 class HaloExchange final {
 public:
-    explicit HaloExchange(const MPIContext& mpi);
+    HaloExchange(MPI_Comm comm, int size, bool exchange_reactant_mass_fraction);
 
     /**
      * @brief Exchange halo layers for conservative state U.
@@ -28,7 +28,10 @@ public:
     void Exchange(DataLayer& layer, const Mesh& mesh) const;
 
 private:
-    const MPIContext& mpi_;
+    MPI_Comm comm_ = MPI_COMM_NULL;
+    int size_ = 1;
+
+    bool exchange_reactant_mass_fraction_ = false;
 
     void ExchangeX(DataLayer& layer, const Mesh& mesh) const;
     void ExchangeY(DataLayer& layer, const Mesh& mesh) const;

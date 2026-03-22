@@ -8,6 +8,7 @@
 #include "config/ConfigParser.hpp"
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
+#include "parallel/MPIContext.hpp"
 
 /**
  * @file RunManager.hpp
@@ -68,7 +69,8 @@ private:
      */
     void PrintSelectedCases() const;
 
-ConfigParser parser_;
+    bool is_root_ = true;
+    ConfigParser parser_;
     std::vector<std::string> cases_to_run_;
     std::string run_dir_;
 };

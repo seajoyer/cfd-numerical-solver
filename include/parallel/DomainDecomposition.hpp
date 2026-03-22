@@ -84,6 +84,8 @@ private:
     int offset_y_ = 0;
     int offset_z_ = 0;
 
+    bool periodic_[3] = {false, false, false};
+
     int proc_dims_[3] = {1, 1, 1};
     int coords_[3] = {0, 0, 0};
     int neighbor_rank_[3][2] = {

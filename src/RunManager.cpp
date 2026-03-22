@@ -14,6 +14,7 @@ auto RunManager::Run(int argc, char* argv[]) -> int {
     }
 
     BuildRunDirectory();
+    if (is_root_) std::cout << "Configuration loaded from: " << parser_.GetConfigPath() << "\n\n";
     PrintSelectedCases();
 
     return RunCases();
@@ -30,7 +31,6 @@ auto RunManager::LoadConfiguration(int argc, char* argv[]) -> bool {
         throw std::runtime_error("Failed to parse configuration");
     }
 
-    std::cout << "Configuration loaded from: " << parser_.GetConfigPath() << "\n\n";
     return true;
 }
 
@@ -74,14 +74,34 @@ auto RunManager::ResolveCasesToRun() -> bool {
 
 void RunManager::BuildRunDirectory() {
     const Settings& global_settings = parser_.GetSettings();
-    const std::string timestamp = utils::GetTimestamp();
 
-    run_dir_ = global_settings.output_dir + "/run_" + timestamp;
+    std::string run_dir_local;
 
-    std::cout << "Run directory: " << run_dir_ << "\n\n";
+    if (MPIContext::IsInitialized()) {
+        MPIContext mpi(MPI_COMM_WORLD, false);
+
+        is_root_ = mpi.IsRoot();
+
+        if (mpi.Rank() == 0) {
+            const std::string timestamp = utils::GetTimestamp();
+            run_dir_local = global_settings.output_dir + "/run_" + timestamp;
+        }
+
+        run_dir_ = mpi.BroadcastString(run_dir_local);
+
+        if (mpi.IsRoot()) {
+            std::cout << "Run directory: " << run_dir_ << "\n\n";
+        }
+    }
+    else {
+        const std::string timestamp = utils::GetTimestamp();
+        run_dir_ = global_settings.output_dir + "/run_" + timestamp;
+        std::cout << "Run directory: " << run_dir_ << "\n\n";
+    }
 }
 
 void RunManager::PrintSelectedCases() const {
+    if (!is_root_) return;
     if (cases_to_run_.size() == 1) {
         std::cout << "Running 1 simulation case:\n";
     }
@@ -98,10 +118,11 @@ void RunManager::PrintSelectedCases() const {
 
 auto RunManager::RunCases() -> int {
     for (const auto& case_name : cases_to_run_) {
-        std::cout << "========================================\n";
-        std::cout << "Starting simulation case: " << case_name << '\n';
-        std::cout << "========================================\n\n";
-
+        if (is_root_) {
+            std::cout << "========================================\n";
+            std::cout << "Starting simulation case: " << case_name << '\n';
+            std::cout << "========================================\n\n";
+        }
         Settings case_settings = parser_.GetCaseSettings(case_name);
         case_settings.simulation_case = case_name;
         case_settings.output_dir = run_dir_ + "/" + case_name;
@@ -111,16 +132,14 @@ auto RunManager::RunCases() -> int {
 
         Simulation simulation(case_settings, initial_conditions);
         simulation.Run();
-
-        std::cout << '\n';
     }
 
-    if (cases_to_run_.size() > 1) {
+    if (cases_to_run_.size() > 1 && is_root_) {
         std::cout << "========================================\n";
         std::cout << "All simulations completed successfully\n";
         std::cout << "========================================\n";
     }
 
-    std::cout << "Results saved to: " << run_dir_ << '\n';
+    if (is_root_) std::cout << "\nResults saved to: " << run_dir_ << '\n';
     return 0;
 }

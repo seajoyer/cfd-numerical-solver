@@ -116,6 +116,24 @@ int MPIContext::GlobalSum(const int value) const {
     return result;
 }
 
+auto MPIContext::BroadcastString(const std::string& value, const int root) const -> std::string {
+    int length = IsRoot() ? static_cast<int>(value.size()) : 0;
+    MPI_Bcast(&length, 1, MPI_INT, root, comm_);
+
+    std::string result;
+    result.resize(length);
+
+    if (IsRoot() && length > 0) {
+        std::copy(value.begin(), value.end(), result.begin());
+    }
+
+    if (length > 0) {
+        MPI_Bcast(result.data(), length, MPI_CHAR, root, comm_);
+    }
+
+    return result;
+}
+
 void MPIContext::RefreshRankAndSize() {
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);

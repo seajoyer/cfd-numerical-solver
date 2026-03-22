@@ -20,6 +20,25 @@ struct ImmersedObjectSettings {
     double size_z = 0.0;
 };
 
+
+
+struct BoundaryStateSettings {
+    double rho = 0.0;
+    double u = 0.0;
+    double v = 0.0;
+    double w = 0.0;
+    double p = 0.0;
+};
+
+struct BoundaryStatesSettings {
+    std::optional<BoundaryStateSettings> x_min;
+    std::optional<BoundaryStateSettings> x_max;
+    std::optional<BoundaryStateSettings> y_min;
+    std::optional<BoundaryStateSettings> y_max;
+    std::optional<BoundaryStateSettings> z_min;
+    std::optional<BoundaryStateSettings> z_max;
+};
+
 /**
  * @struct CaseSettings
  * @brief Optional per-case overrides applied over global settings
@@ -85,6 +104,8 @@ struct CaseSettings {
     std::optional<double> output_every_time;
     std::optional<std::vector<std::string>> output_formats;
     std::optional<std::string> output_dir;
+
+    std::optional<BoundaryStatesSettings> boundary_states;
 };
 
 /**
@@ -108,6 +129,8 @@ struct Settings {
     std::string top_boundary = "free_stream";
     std::string back_boundary = "free_stream";
     std::string front_boundary = "free_stream";
+
+    BoundaryStatesSettings boundary_states;
 
     // ==================== Grid ====================
     int Nx = 200;
@@ -207,6 +230,8 @@ inline auto MergeSettings(const Settings& global,
     APPLY_OVERRIDE(top_boundary)
     APPLY_OVERRIDE(back_boundary)
     APPLY_OVERRIDE(front_boundary)
+
+    APPLY_OVERRIDE(boundary_states)
 
     APPLY_OVERRIDE(Nx)
     APPLY_OVERRIDE(Ny)

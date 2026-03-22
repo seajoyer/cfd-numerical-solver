@@ -5,6 +5,7 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -25,6 +26,18 @@ auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
     return SolverFactory::Create(settings_, *mesh_, boundary_manager_, mpi_context_.get());
 }
 
+auto Simulation::PrimitiveToFarfieldConservative(const BoundaryStateSettings& s, double gamma) -> FarfieldConservative {
+    FarfieldConservative out;
+    out.rho = s.rho;
+    out.rhoU = s.rho * s.u;
+    out.rhoV = s.rho * s.v;
+    out.rhoW = s.rho * s.w;
+
+    const double kinetic = 0.5 * s.rho * (s.u * s.u + s.v * s.v + s.w * s.w);
+    out.E = s.p / (gamma - 1.0) + kinetic;
+    return out;
+}
+
 void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
     const int dim = mesh.GetDim();
     const double gamma = settings_.gamma;
@@ -37,6 +50,9 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
     const int k1 = mesh.GetCoreEndExclusiveZ();
 
     auto& U = layer.U();
+    auto* lambda_ptr = initial_conditions_.reactant_mass_fraction.has_value()
+                           ? &layer.ReactantMassFraction()
+                           : nullptr;
 
     auto write_conservative = [&](int i, int j, int k,
                                   double rho, double u, double v, double w, double P) {
@@ -87,6 +103,20 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
         throw std::runtime_error("Initial condition z-shape does not match interface count");
     }
 
+    if (initial_conditions_.reactant_mass_fraction.has_value()) {
+        const auto& lambda_ic = *initial_conditions_.reactant_mass_fraction;
+
+        if (lambda_ic.Nx() != expected_nx) {
+            throw std::runtime_error("Reactant mass fraction x-shape does not match interface count");
+        }
+        if (lambda_ic.Ny() != expected_ny) {
+            throw std::runtime_error("Reactant mass fraction y-shape does not match interface count");
+        }
+        if (lambda_ic.Nz() != expected_nz) {
+            throw std::runtime_error("Reactant mass fraction z-shape does not match interface count");
+        }
+    }
+
     for (int k = k0; k < k1; ++k) {
         const double z = mesh.Zc()(static_cast<std::size_t>(k));
         const std::size_t iz = dim >= 3
@@ -117,6 +147,11 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
                 }
 
                 write_conservative(i, j, k, rho, u, v, w, P);
+
+                if (lambda_ptr) {
+                    const double W = initial_conditions_.reactant_mass_fraction->At(ix, iy, iz);
+                    (*lambda_ptr)(i, j, k) = W;
+                }
             }
         }
     }
@@ -124,13 +159,17 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
 
 void Simulation::InitializeParallel() {
     if (!settings_.mpi_enabled) {
+        is_root_ = true;
         return;
     }
 
     mpi_context_ = std::make_unique<MPIContext>(MPI_COMM_WORLD, false);
     decomposition_ = std::make_unique<DomainDecomposition>(settings_, *mpi_context_);
 
-    auto halo_exchange = std::make_shared<HaloExchange>(*mpi_context_);
+    is_root_ = !mpi_context_ || mpi_context_->IsRoot();
+
+    auto halo_exchange = std::make_shared<HaloExchange>(decomposition_->CartComm(), mpi_context_->Size(),
+                                                        utils::ToLower(settings_.solver) == "mader");
     boundary_manager_ = std::make_shared<BoundaryManager>(halo_exchange);
 }
 
@@ -262,6 +301,10 @@ void Simulation::ValidateConfiguration() const {
         }
     }
 
+    if (utils::ToLower(settings_.solver) == "mader" && !initial_conditions_.reactant_mass_fraction.has_value()) {
+        throw std::runtime_error("Mader solver requires initial_condition.reactant_mass_fraction");
+    }
+
     if (settings_.immersed_enabled) {
         for (const auto& object : settings_.immersed_objects) {
             const std::string type = utils::ToLower(object.type);
@@ -286,6 +329,54 @@ void Simulation::ValidateConfiguration() const {
                 }
             }
         }
+    }
+    auto require_boundary_state = [&](const std::string& bc_name,
+                                      const std::optional<BoundaryStateSettings>& state,
+                                      const std::string& side_name) {
+        const std::string bc = utils::ToLower(bc_name);
+        if ((bc == "free_stream" || bc == "inlet") && !state.has_value()) {
+            throw std::runtime_error(
+                "Boundary '" + side_name + "' uses " + bc +
+                " but no boundary state is provided in boundary_conditions.states"
+            );
+        }
+    };
+
+    require_boundary_state(settings_.left_boundary, settings_.boundary_states.x_min, "x_min");
+    require_boundary_state(settings_.right_boundary, settings_.boundary_states.x_max, "x_max");
+
+    if (settings_.dim >= 2) {
+        require_boundary_state(settings_.bottom_boundary, settings_.boundary_states.y_min, "y_min");
+        require_boundary_state(settings_.top_boundary, settings_.boundary_states.y_max, "y_max");
+    }
+
+    if (settings_.dim >= 3) {
+        require_boundary_state(settings_.back_boundary, settings_.boundary_states.z_min, "z_min");
+        require_boundary_state(settings_.front_boundary, settings_.boundary_states.z_max, "z_max");
+    }
+
+    auto validate_periodic_pair = [](const std::string& left_name,
+                                     const std::string& right_name,
+                                     const std::string& axis_name) -> void {
+        const bool left_periodic = utils::ToLower(left_name) == "periodic";
+        const bool right_periodic = utils::ToLower(right_name) == "periodic";
+
+        if (left_periodic != right_periodic) {
+            throw std::runtime_error(
+                "Periodic boundary on axis " + axis_name +
+                " must be specified on both sides"
+            );
+        }
+    };
+
+    validate_periodic_pair(settings_.left_boundary, settings_.right_boundary, "X");
+
+    if (settings_.dim >= 2) {
+        validate_periodic_pair(settings_.bottom_boundary, settings_.top_boundary, "Y");
+    }
+
+    if (settings_.dim >= 3) {
+        validate_periodic_pair(settings_.back_boundary, settings_.front_boundary, "Z");
     }
 }
 
@@ -346,21 +437,52 @@ void Simulation::InitializeGeometry() {
 }
 
 void Simulation::InitializeBoundaryConditions() {
-    FarfieldConservative far_field_U{};
+    const double gamma = settings_.gamma;
 
-    auto left_bc = BoundaryFactory::Create(settings_.left_boundary, far_field_U);
-    auto right_bc = BoundaryFactory::Create(settings_.right_boundary, far_field_U);
+    FarfieldConservative x_min_state{};
+    FarfieldConservative x_max_state{};
+    FarfieldConservative y_min_state{};
+    FarfieldConservative y_max_state{};
+    FarfieldConservative z_min_state{};
+    FarfieldConservative z_max_state{};
+
+    if (settings_.boundary_states.x_min) {
+        x_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_min, gamma);
+    }
+    if (settings_.boundary_states.x_max) {
+        x_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_max, gamma);
+    }
+    if (settings_.boundary_states.y_min) {
+        y_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_min, gamma);
+    }
+    if (settings_.boundary_states.y_max) {
+        y_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_max, gamma);
+    }
+    if (settings_.boundary_states.z_min) {
+        z_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_min, gamma);
+    }
+    if (settings_.boundary_states.z_max) {
+        z_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_max, gamma);
+    }
+
+    int mpi_size = 1;
+    if (mpi_context_) {
+        mpi_size = mpi_context_->Size();
+    }
+
+    auto left_bc = BoundaryFactory::Create(settings_.left_boundary, x_min_state, settings_, mpi_size);
+    auto right_bc = BoundaryFactory::Create(settings_.right_boundary, x_max_state, settings_, mpi_size);
     boundary_manager_->Set(Axis::X, left_bc, right_bc);
 
     if (settings_.dim >= 2) {
-        auto bottom_bc = BoundaryFactory::Create(settings_.bottom_boundary, far_field_U);
-        auto top_bc = BoundaryFactory::Create(settings_.top_boundary, far_field_U);
+        auto bottom_bc = BoundaryFactory::Create(settings_.bottom_boundary, y_min_state, settings_, mpi_size);
+        auto top_bc = BoundaryFactory::Create(settings_.top_boundary, y_max_state, settings_, mpi_size);
         boundary_manager_->Set(Axis::Y, bottom_bc, top_bc);
     }
 
     if (settings_.dim >= 3) {
-        auto back_bc = BoundaryFactory::Create(settings_.back_boundary, far_field_U);
-        auto front_bc = BoundaryFactory::Create(settings_.front_boundary, far_field_U);
+        auto back_bc = BoundaryFactory::Create(settings_.back_boundary, z_min_state, settings_, mpi_size);
+        auto front_bc = BoundaryFactory::Create(settings_.front_boundary, z_max_state, settings_, mpi_size);
         boundary_manager_->Set(Axis::Z, back_bc, front_bc);
     }
 }
@@ -456,7 +578,21 @@ void Simulation::InitializeWriter() {
         << "__N_" << nx << "x" << ny << "x" << nz
         << "__CFL_" << utils::DoubleWithoutDot(settings_.cfl);
 
-    vtk_writer_ = WriterFactory::Create("vtk", subdir.str(), false, rank, size);
+    const std::string vtk_dir = subdir.str();
+
+    if (size > 1) {
+        const std::string rank_dir = vtk_dir + "/" + std::format("rank_{:04d}", rank);
+        std::filesystem::create_directories(rank_dir);
+    }
+    else {
+        std::filesystem::create_directories(vtk_dir);
+    }
+
+    if (mpi_context_) {
+        mpi_context_->Barrier();
+    }
+
+    vtk_writer_ = WriterFactory::Create("vtk", vtk_dir, false, rank, size);
 }
 
 auto Simulation::IsKnownSolver(const std::string& solver) const -> bool {
@@ -513,11 +649,12 @@ auto Simulation::IsKnownOutputFormat(const std::string& format) const -> bool {
 }
 
 void Simulation::Initialize() {
-    std::cout << "Initializing simulation...\n";
-
     ValidateConfiguration();
 
     InitializeParallel();
+    if (is_root_) {
+        std::cout << "Initializing simulation...\n";
+    }
     InitializeMesh();
     InitializeCoordinates();
     InitializeDataLayer();
@@ -529,14 +666,13 @@ void Simulation::Initialize() {
 
 void Simulation::Run() {
     Initialize();
-    WriteInitialState();
 
     t_cur_ = 0.0;
     step_cur_ = 0;
 
-    const bool is_root = !mpi_context_ || mpi_context_->IsRoot();
+    WriteInitialState();
 
-    if (is_root) {
+    if (is_root_) {
         std::cout << "\nStarting simulation...\n";
     }
     if (mpi_context_) {
@@ -556,7 +692,7 @@ void Simulation::Run() {
 
         WriteStepState(t_cur_, step_cur_);
 
-        if (is_root) {
+        if (is_root_) {
             PrintLog();
         }
     }
@@ -577,13 +713,16 @@ void Simulation::Run() {
         computation_time = mpi_context_->GlobalMax(computation_time);
     }
 
-    if (is_root) {
-        std::cout << '\n';
-        std::cout << "\nSimulation completed!\n";
+    if (is_root_) {
+        std::cout << "\n\nSimulation completed!\n";
         std::cout << ">>> Final time:  " << t_cur_ << '\n';
         std::cout << ">>> Total steps: " << step_cur_ << '\n';
         std::cout << ">>> Wall time: " << wall_time << "s\n";
         std::cout << ">>> Computation time: " << computation_time << "s\n";
+    }
+
+    if (mpi_context_) {
+        mpi_context_->Barrier();
     }
 
     FinalizeWriter();
@@ -651,7 +790,7 @@ auto Simulation::ShouldRun() const -> bool {
 }
 
 void Simulation::WriteInitialState() const {
-    if (!mpi_context_ || mpi_context_->IsRoot()) {
+    if (is_root_) {
         std::cout << "Writing the initial state...\n";
     }
 
@@ -682,7 +821,7 @@ void Simulation::PrintLog() const {
 
     const int percent = static_cast<int>(progress);
 
-    std::cout << "\r \r";
+    std::cout << "\r" << ' ' * 200 << "\r";
     std::cout << ">>> [PROGRESS]: Step " << step_cur_
         << ", " << percent
         << "% processed, time: " << t_cur_
