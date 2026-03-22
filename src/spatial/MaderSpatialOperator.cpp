@@ -675,9 +675,6 @@ void MaderSpatialOperator::TransportDonorAcceptorR(const Mesh& mesh,
     const int k0 = mesh.GetCoreStartZ();
     const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    // Обрабатываем ВСЕ x-грани, которые граничат с локальным core:
-    // iface = i0 ... i1
-    // Это включает левую межранговую/физическую грань и правую тоже.
     for (int k = k0; k < k1; ++k) {
         for (int j = j0; j < j1; ++j) {
             for (int iface = i0; iface <= i1; ++iface) {
@@ -730,10 +727,6 @@ void MaderSpatialOperator::TransportDonorAcceptorR(const Mesh& mesh,
                 const double dpu = u_d * dmass;
                 const double dpv = v_d * dmass;
 
-                // КЛЮЧЕВОЙ MPI-ФИКС:
-                // ghost-ячейки не обновляем вообще.
-                // Каждая физическая межранговая грань будет обработана двумя rank'ами,
-                // и каждый обновит только свою локальную core-ячейку.
                 AddTransportContributionIfCore(D, mesh, accept_i, j, k, +dmass, +de, +dw, +dpu, +dpv);
                 AddTransportContributionIfCore(D, mesh, donor_i, j, k, -dmass, -de, -dw, -dpu, -dpv);
             }
@@ -760,7 +753,6 @@ void MaderSpatialOperator::TransportDonorAcceptorZ(const Mesh& mesh,
     const int k0 = mesh.GetCoreStartZ();
     const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    // jface = j0 ... j1
     for (int k = k0; k < k1; ++k) {
         for (int jface = j0; jface <= j1; ++jface) {
             const int jb = jface - 1;
