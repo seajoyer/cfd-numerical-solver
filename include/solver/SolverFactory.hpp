@@ -4,44 +4,39 @@
 #include <memory>
 
 #include "bc/BoundaryManager.hpp"
-#include "bc/BoundaryFactory.hpp"
 #include "config/Settings.hpp"
-#include "data/Mesh.hpp"
-#include "data/Variables.hpp"
+#include "geometry/Mesh.hpp"
 #include "solver/Solver.hpp"
+
+class MPIContext;
 
 /**
  * @class SolverFactory
- * @brief Factory class for creating solver instances based on string identifiers.
+ * @brief Factory for constructing solver pipeline from runtime settings.
  *
- * This class provides a centralized way to create different solver types
- * without coupling the Simulation class to specific solver implementations.
+ * Assembles:
+ * - spatial operator
+ * - time integrator
+ * - finite-volume solver
+ *
+ * Boundary conditions are assumed to be already created and registered in
+ * BoundaryManager by boundary tag.
  */
 class SolverFactory {
 public:
-    SolverFactory() : boundary_manager_(std::make_shared<BoundaryManager>()) {}
-
     /**
-     * @brief Creates a solver instance based on the solver type string.
+     * @brief Create solver instance from runtime settings.
      *
-     * @param settings Settings for solver construction.
-     * @param mesh Structured mesh for solver construction.
-     * @param boundary_manager Boundary manager for spatial operator.
-     * @return Unique pointer to the created solver.
-     * @throws std::runtime_error if solver type is not recognized.
+     * @param settings Runtime settings.
+     * @param mesh Generic mesh.
+     * @param boundary_manager Boundary manager indexed by boundary tag.
+     * @param mpi_context Optional MPI context placeholder for future use.
+     * @return Constructed solver instance.
      */
-    static auto Create(const Settings& settings,
-                       Mesh mesh,
-                       const std::shared_ptr<BoundaryManager>& boundary_manager,
-                       const MPIContext* mpi_context) -> std::unique_ptr<Solver>;
-
-    /** @brief Set boundary conditions for an axis. */
-    void AddBoundary(Axis axis,
-                     std::shared_ptr<BoundaryCondition> left_bc,
-                     std::shared_ptr<BoundaryCondition> right_bc);
-
-private:
-    std::shared_ptr<BoundaryManager> boundary_manager_;
+    static std::unique_ptr<Solver> Create(const Settings& settings,
+                                          Mesh mesh,
+                                          const std::shared_ptr<BoundaryManager>& boundary_manager,
+                                          const MPIContext* mpi_context);
 };
 
 #endif  // SOLVERFACTORY_HPP

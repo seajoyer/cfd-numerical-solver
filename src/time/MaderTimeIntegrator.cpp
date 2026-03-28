@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "../../include/geometry/Mesh.hpp"
 #include "data/Workspace.hpp"
 #include "spatial/MaderSpatialOperator.hpp"
 #include "spatial/SpatialOperator.hpp"

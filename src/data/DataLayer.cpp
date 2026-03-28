@@ -1,74 +1,57 @@
 #include "data/DataLayer.hpp"
 
-DataLayer::DataLayer(const int sx, const int sy, const int sz) {
-    Resize(sx, sy, sz);
+#include "geometry/Mesh.hpp"
+
+DataLayer::DataLayer(const std::size_t n_cells) {
+    Resize(n_cells);
 }
 
-void DataLayer::Resize(const int sx, const int sy, const int sz) {
-    ValidateSizes(sx, sy, sz);
+void DataLayer::Resize(const std::size_t n_cells) {
+    if (n_cells == 0) {
+        throw std::invalid_argument("DataLayer::Resize: n_cells must be > 0");
+    }
 
-    if (sx == sx_ && sy == sy_ && sz == sz_ && IsAllocated()) {
+    if (n_cells == n_cells_ && IsAllocated()) {
         return;
     }
 
-    Allocate(sx, sy, sz);
+    Allocate(n_cells);
 }
 
-xt::xtensor<double, 4>& DataLayer::U() {
+void DataLayer::ResizeFrom(const Mesh& mesh) {
+    Resize(mesh.GetCellCount());
+}
+
+xt::xtensor<double, 2>& DataLayer::U() {
     return U_;
 }
 
-const xt::xtensor<double, 4>& DataLayer::U() const {
+const xt::xtensor<double, 2>& DataLayer::U() const {
     return U_;
 }
 
-xt::xtensor<double, 3>& DataLayer::ReactantMassFraction() {
+xt::xtensor<double, 1>& DataLayer::ReactantMassFraction() {
     return reactant_mass_fraction_;
 }
 
-const xt::xtensor<double, 3>& DataLayer::ReactantMassFraction() const {
+const xt::xtensor<double, 1>& DataLayer::ReactantMassFraction() const {
     return reactant_mass_fraction_;
 }
 
-int DataLayer::GetSx() const {
-    return sx_;
-}
-
-int DataLayer::GetSy() const {
-    return sy_;
-}
-
-int DataLayer::GetSz() const {
-    return sz_;
+std::size_t DataLayer::GetCellCount() const {
+    return n_cells_;
 }
 
 bool DataLayer::IsAllocated() const {
-    return U_.dimension() == 4 && sx_ > 0 && sy_ > 0 && sz_ > 0;
+    return
+        U_.dimension() == 2 &&
+        reactant_mass_fraction_.dimension() == 1 &&
+        n_cells_ > 0;
 }
 
-void DataLayer::ValidateSizes(const int sx, const int sy, const int sz) const {
-    if (sx <= 0) {
-        throw std::invalid_argument("DataLayer: sx must be > 0");
-    }
-    if (sy <= 0) {
-        throw std::invalid_argument("DataLayer: sy must be > 0");
-    }
-    if (sz <= 0) {
-        throw std::invalid_argument("DataLayer: sz must be > 0");
-    }
-}
+void DataLayer::Allocate(const std::size_t n_cells) {
+    n_cells_ = n_cells;
 
-void DataLayer::Allocate(const int sx, const int sy, const int sz) {
-    sx_ = sx;
-    sy_ = sy;
-    sz_ = sz;
-
-    U_ = xt::zeros<double>({
-        k_nvar,
-        static_cast<std::size_t>(sx_),
-        static_cast<std::size_t>(sy_),
-        static_cast<std::size_t>(sz_)
-    });
-
-    reactant_mass_fraction_ = xt::zeros<double>({sx_, sy_, sz_});
+    U_ = xt::zeros<double>({n_cells_, k_nvar});
+    reactant_mass_fraction_ = xt::zeros<double>({n_cells_});
 }

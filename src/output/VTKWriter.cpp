@@ -1,287 +1,235 @@
 #include "output/VTKWriter.hpp"
 
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
 #include <vtkDoubleArray.h>
 #include <vtkFieldData.h>
-#include <vtkPointData.h>
+#include <vtkIdList.h>
+#include <vtkIntArray.h>
 #include <vtkPoints.h>
-#include <vtkStructuredGrid.h>
-#include <vtkStructuredGridWriter.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkXMLUnstructuredGridWriter.h>
 
 #include <cstddef>
 #include <filesystem>
 #include <iomanip>
 #include <memory>
 #include <sstream>
-#include <format>
 #include <stdexcept>
+#include <string>
 
+#include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "data/Variables.hpp"
+#include "geometry/Cell.hpp"
+#include "geometry/Mesh.hpp"
+#include "geometry/Node.hpp"
 #include "utils/StringUtils.hpp"
-#include "output/VTKRecomposer.hpp"
 
-class VTKWriter::Impl {
-public:
-    vtkSmartPointer<vtkStructuredGrid> structured_grid;
-    vtkSmartPointer<vtkPoints> points;
+namespace {
+    [[nodiscard]] int DetectVtkCellType(const Mesh& mesh, const Cell& cell) {
+        const std::size_t node_count = cell.node_ids.size();
+        const int dim = mesh.GetDim();
 
-    Impl() {
-        structured_grid = vtkSmartPointer<vtkStructuredGrid>::New();
-        points = vtkSmartPointer<vtkPoints>::New();
-    }
-};
+        if (dim == 2) {
+            if (node_count == 3) {
+                return VTK_TRIANGLE;
+            }
+            if (node_count == 4) {
+                return VTK_QUAD;
+            }
+            if (node_count > 4) {
+                return VTK_POLYGON;
+            }
 
-VTKWriter::VTKWriter(const std::string& output_dir, const bool is_analytical, const int rank, const int size)
-    : output_dir_(output_dir),
-      is_analytical_(is_analytical),
-      rank_(rank),
-      size_(size),
-      pimpl_(std::make_unique<Impl>()) {
-    if (size_ > 1) {
-        rank_output_dir_ = output_dir_ + "/" + std::format("rank_{:04d}", rank_);
+            throw std::runtime_error("VTKWriter: unsupported 2D cell node count");
+        }
+
+        if (dim == 3) {
+            if (node_count == 4) {
+                return VTK_TETRA;
+            }
+            if (node_count == 5) {
+                return VTK_PYRAMID;
+            }
+            if (node_count == 6) {
+                return VTK_WEDGE;
+            }
+            if (node_count == 8) {
+                return VTK_HEXAHEDRON;
+            }
+
+            throw std::runtime_error("VTKWriter: unsupported 3D cell node count");
+        }
+
+        throw std::runtime_error("VTKWriter: only 2D and 3D meshes are supported");
     }
-    else {
-        rank_output_dir_ = output_dir_;
+
+    [[nodiscard]] PrimitiveCell ConservativeRowToPrimitive(const xt::xtensor<double, 2>& U,
+                                                           const std::size_t cell_id,
+                                                           const double gamma) {
+        ConservativeCell conservative;
+        conservative.rho = U(cell_id, DataLayer::k_rho);
+        conservative.rhoU = U(cell_id, DataLayer::k_rhoU);
+        conservative.rhoV = U(cell_id, DataLayer::k_rhoV);
+        conservative.rhoW = U(cell_id, DataLayer::k_rhoW);
+        conservative.E = U(cell_id, DataLayer::k_E);
+
+        return PrimitiveFromConservativeCell(conservative, gamma);
     }
+} // namespace
+
+VTKWriter::VTKWriter(std::string output_dir)
+    : output_dir_(std::move(output_dir)) {}
+
+void VTKWriter::Write(const DataLayer& layer,
+                      const Mesh& mesh,
+                      const Settings& settings,
+                      const std::size_t step,
+                      const double time) const {
+    WriteUnstructuredGrid(layer, mesh, settings, step, time);
 }
 
-VTKWriter::~VTKWriter() = default;
-
-auto VTKWriter::RequiresFinalization() const -> bool {
-    return size_ > 1;
+bool VTKWriter::RequiresFinalization() const {
+    return false;
 }
 
 void VTKWriter::Finalize(const Settings& settings) {
-    if (size_ <= 1) {
-        return;
-    }
-
-    VTKRecomposer recomposer(output_dir_, rank_, size_);
-    recomposer.RecomposeAssigned(settings);
+    (void)settings;
 }
 
-auto VTKWriter::GenerateFilename(const int N, const std::size_t step, const Settings& settings) const
-    -> std::string {
+std::string VTKWriter::GenerateFilename(const std::size_t step,
+                                        const Settings& settings) const {
     std::ostringstream oss;
-
-    if (is_analytical_) {
-        oss << rank_output_dir_ << "/step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    }
-    else {
-        oss << rank_output_dir_ << "/" << settings.solver << "__R_" << settings.reconstruction
-            << "__N_" << settings.GetNx() << "x" << settings.GetNy() << "x" << settings.GetNz()
-            << "__CFL_" <<  utils::DoubleWithoutDot(settings.cfl)
-            << "__step_" << std::setw(4) << std::setfill('0') << step << ".vtk";
-    }
-
+    oss << output_dir_
+        << "/"
+        << settings.solver
+        << "__R_" << settings.reconstruction
+        << "__step_" << std::setw(4) << std::setfill('0') << step
+        << ".vtu";
     return oss.str();
 }
 
-void VTKWriter::Write(const DataLayer& layer,
-                      const Mesh& mesh,
-                      const Settings& settings,
-                      const std::size_t step,
-                      const double time) const {
-    Write3D(layer, mesh, settings, step, time);
-}
-
-void VTKWriter::Write(const DataLayer& layer,
-                      const DataLayer* analytical_layer,
-                      const Mesh& mesh,
-                      const Mesh* analytical_mesh,
-                      const Settings& settings,
-                      const std::size_t step,
-                      const double time) const {
-    (void)analytical_layer;
-    (void)analytical_mesh;
-    Write(layer, mesh, settings, step, time);
-}
-
-static inline void ConservativeToPrimitive(
-    const xt::xtensor<double, 4>& U,
-    const int i,
-    const int j,
-    const int k,
-    const double gamma,
-    double& rho,
-    double& u,
-    double& v,
-    double& w,
-    double& P
-) {
-    rho = U(DataLayer::k_rho, i, j, k);
-    if (rho <= 0.0) {
-        rho = 0.0;
-        u = 0.0;
-        v = 0.0;
-        w = 0.0;
-        P = 0.0;
-        return;
+void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
+                                      const Mesh& mesh,
+                                      const Settings& settings,
+                                      const std::size_t step,
+                                      const double time) const {
+    if (mesh.GetCellCount() == 0) {
+        throw std::runtime_error("VTKWriter: mesh has zero cells");
+    }
+    if (mesh.GetNodeCount() == 0) {
+        throw std::runtime_error("VTKWriter: mesh has zero nodes");
+    }
+    if (!layer.IsAllocated()) {
+        throw std::runtime_error("VTKWriter: DataLayer is not allocated");
+    }
+    if (layer.GetCellCount() != mesh.GetCellCount()) {
+        throw std::runtime_error("VTKWriter: DataLayer cell count does not match mesh cell count");
     }
 
-    const double inv_rho = 1.0 / rho;
-    u = U(DataLayer::k_rhoU, i, j, k) * inv_rho;
-    v = U(DataLayer::k_rhoV, i, j, k) * inv_rho;
-    w = U(DataLayer::k_rhoW, i, j, k) * inv_rho;
+    std::filesystem::create_directories(output_dir_);
+    const std::string filename = GenerateFilename(step, settings);
 
-    const double E = U(DataLayer::k_E, i, j, k);
-    const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
-    const double eint = E - kinetic;
-    P = (gamma - 1.0) * eint;
-}
-
-void VTKWriter::Write3D(const DataLayer& layer,
-                        const Mesh& mesh,
-                        const Settings& settings,
-                        const std::size_t step,
-                        const double time) const {
-    const int cs_x = mesh.GetCoreStartX();
-    const int ce_x = mesh.GetCoreEndExclusiveX();
-    const int cs_y = mesh.GetCoreStartY();
-    const int ce_y = mesh.GetCoreEndExclusiveY();
-    const int cs_z = mesh.GetCoreStartZ();
-    const int ce_z = mesh.GetCoreEndExclusiveZ();
-
-    const int nx = ce_x - cs_x;
-    const int ny = ce_y - cs_y;
-    const int nz = ce_z - cs_z;
-
-    if (nx <= 0 || ny <= 0 || nz <= 0) {
-        throw std::runtime_error("Invalid core range");
-    }
-
-    const std::string filename =
-        is_analytical_
-            ? (rank_output_dir_ + "/step_" + (static_cast<std::ostringstream&&>(
-                std::ostringstream() << std::setw(4) << std::setfill('0') << step)).str() + ".vtk")
-            : GenerateFilename(settings.GetNx(), step, settings);
-
-    vtkSmartPointer<vtkStructuredGrid> grid = vtkSmartPointer<vtkStructuredGrid>::New();
+    vtkSmartPointer<vtkUnstructuredGrid> grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 
-    grid->SetDimensions(nx, ny, nz);
+    points->SetNumberOfPoints(static_cast<vtkIdType>(mesh.GetNodeCount()));
 
-    const vtkIdType num_points = static_cast<vtkIdType>(nx) * ny * nz;
-    points->SetNumberOfPoints(num_points);
-
-    const auto& xc = mesh.Xc();
-    const auto& yc = mesh.Yc();
-    const auto& zc = mesh.Zc();
-
-    for (int k = 0; k < nz; ++k) {
-        for (int j = 0; j < ny; ++j) {
-            for (int i = 0; i < nx; ++i) {
-                const double x = xc(static_cast<std::size_t>(cs_x + i));
-                const double y = yc(static_cast<std::size_t>(cs_y + j));
-                const double z = zc(static_cast<std::size_t>(cs_z + k));
-                const vtkIdType pid = i + j * nx + k * nx * ny;
-                points->SetPoint(pid, x, y, z);
-            }
-        }
+    for (std::size_t node_id = 0; node_id < mesh.GetNodeCount(); ++node_id) {
+        const Node& node = mesh.GetNode(node_id);
+        points->SetPoint(static_cast<vtkIdType>(node_id), node.x, node.y, node.z);
     }
+
     grid->SetPoints(points);
 
-    const double gamma = settings.gamma;
-    const auto& U = layer.U();
+    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+        const Cell& cell = mesh.GetCell(cell_id);
+        const int vtk_cell_type = DetectVtkCellType(mesh, cell);
 
-    auto arr_rho = vtkSmartPointer<vtkDoubleArray>::New();
+        vtkSmartPointer<vtkIdList> ids = vtkSmartPointer<vtkIdList>::New();
+        ids->SetNumberOfIds(static_cast<vtkIdType>(cell.node_ids.size()));
+
+        for (std::size_t local_node = 0; local_node < cell.node_ids.size(); ++local_node) {
+            ids->SetId(static_cast<vtkIdType>(local_node),
+                       static_cast<vtkIdType>(cell.node_ids[local_node]));
+        }
+
+        grid->InsertNextCell(vtk_cell_type, ids);
+    }
+
+    const vtkIdType n_cells = static_cast<vtkIdType>(mesh.GetCellCount());
+    const auto& U = layer.U();
+    const double gamma = settings.gamma;
+
+    vtkSmartPointer<vtkDoubleArray> arr_rho = vtkSmartPointer<vtkDoubleArray>::New();
     arr_rho->SetName("density");
     arr_rho->SetNumberOfComponents(1);
-    arr_rho->SetNumberOfTuples(num_points);
+    arr_rho->SetNumberOfTuples(n_cells);
 
-    auto arr_vel = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> arr_vel = vtkSmartPointer<vtkDoubleArray>::New();
     arr_vel->SetName("velocity");
     arr_vel->SetNumberOfComponents(3);
-    arr_vel->SetNumberOfTuples(num_points);
+    arr_vel->SetNumberOfTuples(n_cells);
 
-    auto arr_p = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> arr_p = vtkSmartPointer<vtkDoubleArray>::New();
     arr_p->SetName("pressure");
     arr_p->SetNumberOfComponents(1);
-    arr_p->SetNumberOfTuples(num_points);
+    arr_p->SetNumberOfTuples(n_cells);
 
-    auto arr_e = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> arr_e = vtkSmartPointer<vtkDoubleArray>::New();
     arr_e->SetName("conserved_energy");
     arr_e->SetNumberOfComponents(1);
-    arr_e->SetNumberOfTuples(num_points);
+    arr_e->SetNumberOfTuples(n_cells);
 
-    auto arr_eint = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> arr_eint = vtkSmartPointer<vtkDoubleArray>::New();
     arr_eint->SetName("internal_energy");
     arr_eint->SetNumberOfComponents(1);
-    arr_eint->SetNumberOfTuples(num_points);
+    arr_eint->SetNumberOfTuples(n_cells);
 
-    const bool write_lambda = utils::ToLower(settings.solver) == "mader";
+    vtkSmartPointer<vtkDoubleArray> arr_lambda = vtkSmartPointer<vtkDoubleArray>::New();
+    arr_lambda->SetName("reactant_mass_fraction");
+    arr_lambda->SetNumberOfComponents(1);
+    arr_lambda->SetNumberOfTuples(n_cells);
 
-    vtkSmartPointer<vtkDoubleArray> arr_lambda;
-    if (write_lambda) {
-        arr_lambda = vtkSmartPointer<vtkDoubleArray>::New();
-        arr_lambda->SetName("reactant_mass_fraction");
-        arr_lambda->SetNumberOfComponents(1);
-        arr_lambda->SetNumberOfTuples(num_points);
+    vtkSmartPointer<vtkIntArray> arr_cell_id = vtkSmartPointer<vtkIntArray>::New();
+    arr_cell_id->SetName("cell_id");
+    arr_cell_id->SetNumberOfComponents(1);
+    arr_cell_id->SetNumberOfTuples(n_cells);
+
+    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+        const PrimitiveCell primitive = ConservativeRowToPrimitive(U, cell_id, gamma);
+
+        const double rho = primitive.rho;
+        const double u = primitive.u;
+        const double v = primitive.v;
+        const double w = primitive.w;
+        const double P = primitive.P;
+        const double E = U(cell_id, DataLayer::k_E);
+        const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
+        const double eint = rho > 0.0 ? (E - kinetic) / rho : 0.0;
+
+        arr_rho->SetValue(static_cast<vtkIdType>(cell_id), rho);
+
+        double velocity[3] = {u, v, w};
+        arr_vel->SetTuple(static_cast<vtkIdType>(cell_id), velocity);
+
+        arr_p->SetValue(static_cast<vtkIdType>(cell_id), P);
+        arr_e->SetValue(static_cast<vtkIdType>(cell_id), E);
+        arr_eint->SetValue(static_cast<vtkIdType>(cell_id), eint);
+        arr_lambda->SetValue(static_cast<vtkIdType>(cell_id),
+                             layer.ReactantMassFraction()(cell_id));
+        arr_cell_id->SetValue(static_cast<vtkIdType>(cell_id),
+                              static_cast<int>(cell_id));
     }
 
-    for (int k = 0; k < nz; ++k) {
-        for (int j = 0; j < ny; ++j) {
-            for (int i = 0; i < nx; ++i) {
-                const int ii = cs_x + i;
-                const int jj = cs_y + j;
-                const int kk = cs_z + k;
-                const vtkIdType pid = i + j * nx + k * nx * ny;
-
-                if (mesh.IsSolidCell(ii, jj, kk)) {
-                    grid->BlankPoint(pid);
-                    const double nan = std::numeric_limits<double>::quiet_NaN();
-
-                    arr_rho->SetValue(pid, nan);
-
-                    double vec[3] = {nan, nan, nan};
-                    arr_vel->SetTuple(pid, vec);
-
-                    arr_p->SetValue(pid, nan);
-                    arr_e->SetValue(pid, nan);
-                    arr_eint->SetValue(pid, nan);
-
-                    if (write_lambda) {
-                        arr_lambda->SetValue(pid, nan);
-                    }
-                    continue;
-                }
-
-                double rho = 0.0;
-                double u = 0.0;
-                double v = 0.0;
-                double w = 0.0;
-                double P = 0.0;
-                ConservativeToPrimitive(U, ii, jj, kk, gamma, rho, u, v, w, P);
-
-                const double E = U(DataLayer::k_E, ii, jj, kk);
-                const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
-                const double eint = rho > 0.0 ? (E - kinetic) / rho : 0.0;
-
-                arr_rho->SetValue(pid, rho);
-
-                double vec[3] = {u, v, w};
-                arr_vel->SetTuple(pid, vec);
-
-                arr_p->SetValue(pid, P);
-                arr_e->SetValue(pid, E);
-                arr_eint->SetValue(pid, eint);
-
-                if (write_lambda) {
-                    arr_lambda->SetValue(pid, layer.ReactantMassFraction()(ii, jj, kk));
-                }
-            }
-        }
-    }
-
-    grid->GetPointData()->AddArray(arr_rho);
-    grid->GetPointData()->AddArray(arr_p);
-    grid->GetPointData()->AddArray(arr_eint);
-    grid->GetPointData()->AddArray(arr_e);
-    grid->GetPointData()->AddArray(arr_vel);
-
-    if (write_lambda) {
-        grid->GetPointData()->AddArray(arr_lambda);
-    }
+    grid->GetCellData()->AddArray(arr_rho);
+    grid->GetCellData()->AddArray(arr_vel);
+    grid->GetCellData()->AddArray(arr_p);
+    grid->GetCellData()->AddArray(arr_e);
+    grid->GetCellData()->AddArray(arr_eint);
+    grid->GetCellData()->AddArray(arr_lambda);
+    grid->GetCellData()->AddArray(arr_cell_id);
 
     vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
     time_array->SetName("TimeValue");
@@ -289,40 +237,19 @@ void VTKWriter::Write3D(const DataLayer& layer,
     time_array->InsertNextValue(time);
     grid->GetFieldData()->AddArray(time_array);
 
-    vtkSmartPointer<vtkStructuredGridWriter> writer = vtkSmartPointer<vtkStructuredGridWriter>::New();
+    vtkSmartPointer<vtkIntArray> dim_array = vtkSmartPointer<vtkIntArray>::New();
+    dim_array->SetName("MeshDimension");
+    dim_array->SetNumberOfComponents(1);
+    dim_array->InsertNextValue(mesh.GetDim());
+    grid->GetFieldData()->AddArray(dim_array);
+
+    vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
     writer->SetFileName(filename.c_str());
     writer->SetInputData(grid);
-    writer->SetFileTypeToBinary();
+    writer->SetDataModeToBinary();
 
-    vtkSmartPointer<vtkDoubleArray> arr_global_nx = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_global_nx->SetName("GlobalNx");
-    arr_global_nx->InsertNextValue(mesh.GetGlobalNx());
-    grid->GetFieldData()->AddArray(arr_global_nx);
-
-    vtkSmartPointer<vtkDoubleArray> arr_global_ny = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_global_ny->SetName("GlobalNy");
-    arr_global_ny->InsertNextValue(mesh.GetGlobalNy());
-    grid->GetFieldData()->AddArray(arr_global_ny);
-
-    vtkSmartPointer<vtkDoubleArray> arr_global_nz = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_global_nz->SetName("GlobalNz");
-    arr_global_nz->InsertNextValue(mesh.GetGlobalNz());
-    grid->GetFieldData()->AddArray(arr_global_nz);
-
-    vtkSmartPointer<vtkDoubleArray> arr_offset_x = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_offset_x->SetName("OffsetX");
-    arr_offset_x->InsertNextValue(mesh.GetOffsetX());
-    grid->GetFieldData()->AddArray(arr_offset_x);
-
-    vtkSmartPointer<vtkDoubleArray> arr_offset_y = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_offset_y->SetName("OffsetY");
-    arr_offset_y->InsertNextValue(mesh.GetOffsetY());
-    grid->GetFieldData()->AddArray(arr_offset_y);
-
-    vtkSmartPointer<vtkDoubleArray> arr_offset_z = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_offset_z->SetName("OffsetZ");
-    arr_offset_z->InsertNextValue(mesh.GetOffsetZ());
-    grid->GetFieldData()->AddArray(arr_offset_z);
-
-    writer->Write();
+    if (!writer->Write()) {
+        throw std::runtime_error("VTKWriter: failed to write VTU file");
+    }
 }

@@ -8,7 +8,7 @@
 #include "config/ConfigParser.hpp"
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
-#include "parallel/MPIContext.hpp"
+// #include "parallel/MPIContext.hpp"
 
 /**
  * @file RunManager.hpp
@@ -68,6 +68,8 @@ private:
      * @brief Prints selected cases
      */
     void PrintSelectedCases() const;
+
+    void ValidateRuntimeMode() const;
 
     bool is_root_ = true;
     ConfigParser parser_;

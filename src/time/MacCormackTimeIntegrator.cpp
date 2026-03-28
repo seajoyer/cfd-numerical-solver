@@ -1,7 +1,7 @@
 #include "time/MacCormackTimeIntegrator.hpp"
 
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "../../include/geometry/Mesh.hpp"
 #include "data/Workspace.hpp"
 #include "solver/PositivityLimiter.hpp"
 

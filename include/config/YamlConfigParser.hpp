@@ -20,48 +20,59 @@ class YamlConfigParser {
 public:
     YamlConfigParser() = default;
 
-    auto ParseFile(const std::string& filename) -> ParsedYamlConfig;
+    [[nodiscard]] ParsedYamlConfig ParseFile(const std::string& filename) const ;
 
 private:
-    static void ParseDefaults(const YAML::Node& defaults_node, Settings& settings);
-    static void ParseCases(
-        const YAML::Node& cases_node,
-        std::map<std::string, InitialConditions>& initial_conditions,
-        const Settings& defaults);
+    static constexpr int k_xmin_tag = 0;
+    static constexpr int k_xmax_tag = 1;
+    static constexpr int k_ymin_tag = 2;
+    static constexpr int k_ymax_tag = 3;
+    static constexpr int k_zmin_tag = 4;
+    static constexpr int k_zmax_tag = 5;
 
+    static void ParseDefaults(const YAML::Node& defaults_node, Settings& settings);
+    static void ParseCases(const YAML::Node& cases_node,
+                           std::map<std::string, InitialConditions>& initial_conditions,
+                           const Settings& defaults);
     static void ParseRunCases(const YAML::Node& run_node, std::vector<std::string>& run_cases);
 
     static void ParseMesh(const YAML::Node& node, Settings& settings);
     static void ParsePhysics(const YAML::Node& node, Settings& settings);
     static void ParseNumerics(const YAML::Node& node, Settings& settings);
     static void ParseBoundaryConditions(const YAML::Node& node, Settings& settings);
-    static void ParseParallel(const YAML::Node& node, Settings& settings);
     static void ParseStopping(const YAML::Node& node, Settings& settings);
     static void ParseLogging(const YAML::Node& node, Settings& settings);
     static void ParseOutput(const YAML::Node& node, Settings& settings);
+    static void ParseParallel(const YAML::Node& node, Settings& settings);
     static void ParseImmersedBoundaries(const YAML::Node& node, Settings& settings);
 
     static void ApplyCaseOverrides(const YAML::Node& case_node, InitialConditions& ic);
 
-    static void ParseStructuredInitialCondition(
-        const YAML::Node& ic_node,
-        InitialConditions& ic,
-        const Settings& effective_settings);
+    static void ParseInitialCondition(const YAML::Node& ic_node,
+                                      InitialConditions& ic,
+                                      const Settings& effective_settings);
 
-    static auto ParseImmersedObjects(const YAML::Node& node) -> std::vector<ImmersedObjectSettings>;
+    static void ParseStructuredInitialCondition(const YAML::Node& ic_node,
+                                                InitialConditions& ic,
+                                                const Settings& effective_settings);
 
-    static auto ReadVectorDouble(const YAML::Node& node) -> std::vector<double>;
-    static auto ReadMatrixDouble(const YAML::Node& node) -> std::vector<std::vector<double>>;
-    static auto ReadTensorDouble(const YAML::Node& node)
-        -> std::vector<std::vector<std::vector<double>>>;
+    static void ParseConstantInitialCondition(const YAML::Node& ic_node,
+                                              InitialConditions& ic,
+                                              const Settings& effective_settings);
 
-    static void ParseStructured1D(const YAML::Node& ic_node, InitialConditions& ic);
-    static void ParseStructured2D(const YAML::Node& ic_node, InitialConditions& ic);
-    static void ParseStructured3D(const YAML::Node& ic_node, InitialConditions& ic);
+    static void ParseStructured1D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic);
+    static void ParseStructured2D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic);
+    static void ParseStructured3D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic);
 
     static void ValidateStructuredShape(const YAML::Node& ic_node, int dim);
+    static void ValidateSettingsConsistency(const Settings& settings);
 
-    static auto HasKey(const YAML::Node& node, const char* key) -> bool;
+    [[nodiscard]] static std::vector<ImmersedObjectSettings> ParseImmersedObjects(const YAML::Node& node);
+    [[nodiscard]] static std::vector<double> ReadVectorDouble(const YAML::Node& node);
+    [[nodiscard]] static std::vector<std::vector<double>> ReadMatrixDouble(const YAML::Node& node);
+    [[nodiscard]] static std::vector<std::vector<std::vector<double>>> ReadTensorDouble(const YAML::Node& node);
+
+    [[nodiscard]] static bool HasKey(const YAML::Node& node, const char* key);
 };
 
 #endif  // YAMLCONFIGPARSER_HPP

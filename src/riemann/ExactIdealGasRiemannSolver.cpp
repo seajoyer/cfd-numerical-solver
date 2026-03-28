@@ -2,286 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
-#include "riemann/RiemannHelpers.hpp"
-#include "data/Variables.hpp"  // SoundSpeed, EulerFlux
+ExactIdealGasRiemannSolver::ExactIdealGasRiemannSolver() = default;
 
-namespace {
-    // 1D state along interface normal
-    struct State1D final {
-        double rho = 0.0;
-        double un = 0.0;
-        double p = 0.0;
-        double a = 0.0;
-    };
-
-    struct Primitive1D final {
-        double rho = 0.0;
-        double un = 0.0;
-        double p = 0.0;
-    };
-
-    State1D MakeState1D(const PrimitiveCell& w, const Axis axis, const double gamma) {
-        double un, ut1, ut2;
-        riemann::SplitVelocity(w, axis, un, ut1, ut2);
-
-        State1D s;
-        s.rho = w.rho;
-        s.un = un;
-        s.p = w.P;
-        s.a = std::sqrt(std::max(gamma * s.p / s.rho, 0.0));
-        return s;
-    }
-
-    // ================= Phi_k(p) and derivatives (Toro) =================
-
-    double PhiRarefaction(const double p, const State1D& s, const double gamma) {
-        const double pr = p / s.p;
-        const double exp = (gamma - 1.0) / (2.0 * gamma);
-        return 2.0 * s.a / (gamma - 1.0) * (std::pow(pr, exp) - 1.0);
-    }
-
-    double PhiRarefactionDerivative(const double p, const State1D& s, const double gamma) {
-        const double pr = p / s.p;
-        const double exp = (gamma - 1.0) / (2.0 * gamma);
-        const double coeff = (2.0 * s.a / (gamma - 1.0)) * (exp / s.p);
-        return coeff * std::pow(pr, exp - 1.0);
-    }
-
-    double PhiShock(const double p, const State1D& s, const double gamma) {
-        const double A = 2.0 / ((gamma + 1.0) * s.rho);
-        const double B = (gamma - 1.0) / (gamma + 1.0) * s.p;
-        return (p - s.p) * std::sqrt(A / (p + B));
-    }
-
-    double PhiShockDerivative(const double p, const State1D& s, const double gamma) {
-        const double A = 2.0 / ((gamma + 1.0) * s.rho);
-        const double B = (gamma - 1.0) / (gamma + 1.0) * s.p;
-        const double sqrt_term = std::sqrt(A / (p + B));
-        const double term = (p - s.p) / (2.0 * (p + B));
-        return sqrt_term * (1.0 - term);
-    }
-
-    double SidePhi(const double p, const State1D& s, const double gamma) {
-        return (p <= s.p) ? PhiRarefaction(p, s, gamma) : PhiShock(p, s, gamma);
-    }
-
-    double SidePhiDerivative(const double p, const State1D& s, const double gamma) {
-        return (p <= s.p)
-                   ? PhiRarefactionDerivative(p, s, gamma)
-                   : PhiShockDerivative(p, s, gamma);
-    }
-
-    // ================= Initial guess (PVRS / TRRS / TSRS) =================
-
-    double InitialGuess(const State1D& l, const State1D& r, const double Q_user, const double gamma) {
-        const double p_pvrs =
-            0.5 * (l.p + r.p) - 0.125 * (r.un - l.un) * (l.rho + r.rho) * (l.a + r.a);
-
-        const double p_min = std::min(l.p, r.p);
-        const double p_max = std::max(l.p, r.p);
-        const double Q = p_max / p_min;
-
-        double p_star = std::max(p_pvrs, 1e-16);
-
-        // PVRS region
-        if (p_min < p_pvrs && p_pvrs < p_max && Q < Q_user) {
-            return p_star;
-        }
-
-        // Two-rarefaction
-        if (p_pvrs <= p_min) {
-            const double z = (gamma - 1.0) / (2.0 * gamma);
-            const double num = l.a + r.a - 0.5 * (gamma - 1.0) * (r.un - l.un);
-            const double den = l.a / std::pow(l.p, z) + r.a / std::pow(r.p, z);
-            p_star = std::pow(num / den, 1.0 / z);
-            return std::max(p_star, 1e-16);
-        }
-
-        // Two-shock
-        const auto A = [gamma](const State1D& s) -> double {
-            return 2.0 / ((gamma + 1.0) * s.rho);
-        };
-        const auto B = [gamma](const State1D& s) -> double {
-            return (gamma - 1.0) / (gamma + 1.0) * s.p;
-        };
-        const auto g = [&](const State1D& s) -> double {
-            return std::sqrt(A(s) / (p_pvrs + B(s)));
-        };
-
-        const double g_l = g(l);
-        const double g_r = g(r);
-
-        p_star = (g_l * l.p + g_r * r.p - (r.un - l.un)) / (g_l + g_r);
-        return std::max(p_star, 1e-16);
-    }
-
-    // ================= Solve p* (with vacuum check) =================
-
-    double SolveStarPressure(const State1D& l, const State1D& r, const double gamma, const double q_user) {
-        // Correct vacuum condition: u_R - u_L >= 2 (a_L + a_R) / (gamma - 1)
-        const double du = r.un - l.un;
-        const double crit = 2.0 * (l.a + r.a) / (gamma - 1.0);
-        if (du >= crit) {
-            return 0.0; // vacuum (double rarefaction)
-        }
-
-        double p = InitialGuess(l, r, q_user, gamma);
-        const double p_min = 1e-16;
-
-        for (int iter = 0; iter < 40; ++iter) {
-            const double f_l = SidePhi(p, l, gamma);
-            const double f_r = SidePhi(p, r, gamma);
-            const double f = f_l + f_r + (r.un - l.un);
-
-            if (std::fabs(f) < 1e-10) {
-                break;
-            }
-
-            const double d_l = SidePhiDerivative(p, l, gamma);
-            const double d_r = SidePhiDerivative(p, r, gamma);
-            const double df = d_l + d_r;
-
-            if (df == 0.0 || !std::isfinite(df)) {
-                break;
-            }
-
-            double p_new = p - f / df;
-
-            if (!std::isfinite(p_new) || p_new < p_min) {
-                p_new = p_min;
-            }
-
-            if (std::fabs(p_new - p) <= 1e-8 * (p + p_min)) {
-                p = p_new;
-                break;
-            }
-
-            p = p_new;
-        }
-
-        if (!std::isfinite(p) || p <= 0.0) {
-            return 0.0; // treat as vacuum/failure
-        }
-
-        return p;
-    }
-
-    // ================= Sampling helpers =================
-
-    // Vacuum / double rarefaction sampling
-    Primitive1D SampleVacuum(const double xi, const State1D& l, const State1D& r, const double gamma) {
-        const double a_l = l.a;
-        const double a_r = r.a;
-
-        const double shl = l.un - a_l;
-        const double svl = l.un + 2.0 * a_l / (gamma - 1.0);
-
-        const double shr = r.un + a_r;
-        const double svr = r.un - 2.0 * a_r / (gamma - 1.0);
-
-        if (xi <= shl) return Primitive1D{l.rho, l.un, l.p};
-        if (xi >= shr) return Primitive1D{r.rho, r.un, r.p};
-
-        // Left fan
-        if (xi > shl && xi < svl) {
-            const double un = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * l.un + xi);
-            const double a = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * (l.un - xi));
-            const double rho = l.rho * std::pow(a / a_l, 2.0 / (gamma - 1.0));
-            const double p = l.p * std::pow(a / a_l, 2.0 * gamma / (gamma - 1.0));
-            return Primitive1D{rho, un, p};
-        }
-
-        // Right fan
-        if (xi > svr && xi < shr) {
-            const double un = 2.0 / (gamma + 1.0) * (-a_r + 0.5 * (gamma - 1.0) * r.un + xi);
-            const double a = 2.0 / (gamma + 1.0) *
-                (a_r - 0.5 * (gamma - 1.0) * r.un + 0.5 * (gamma - 1.0) * xi);
-            const double rho = r.rho * std::pow(a / a_r, 2.0 / (gamma - 1.0));
-            const double p = r.p * std::pow(a / a_r, 2.0 * gamma / (gamma - 1.0));
-            return Primitive1D{rho, un, p};
-        }
-
-        // True vacuum between SVL and SVR
-        return Primitive1D{0.0, 0.0, 0.0};
-    }
-
-    // Non-vacuum standard sampling
-    Primitive1D SampleNonVacuum(const double xi,
-                                const double p_star,
-                                const double u_star,
-                                const State1D& l,
-                                const State1D& r,
-                                const double gamma) {
-        // LEFT of contact
-        if (xi <= u_star) {
-            if (p_star > l.p) {
-                // Left shock
-                const double q = p_star / l.p;
-                const double sl = l.un - l.a * std::sqrt(0.5 * ((gamma + 1.0) / gamma * q +
-                    (gamma - 1.0) / gamma));
-                if (xi <= sl) return Primitive1D{l.rho, l.un, l.p};
-
-                const double factor = (q + (gamma - 1.0) / (gamma + 1.0)) /
-                    ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
-                const double rho_star_l = l.rho * factor;
-                return Primitive1D{rho_star_l, u_star, p_star};
-            }
-
-            // Left rarefaction
-            const double a_l = l.a;
-            const double shl = l.un - a_l;
-            const double rho_star_l = l.rho * std::pow(p_star / l.p, 1.0 / gamma);
-            const double a_star_l = std::sqrt(std::max(gamma * p_star / rho_star_l, 0.0));
-            const double stl = u_star - a_star_l;
-
-            if (xi <= shl) return Primitive1D{l.rho, l.un, l.p};
-            if (xi >= stl) return Primitive1D{rho_star_l, u_star, p_star};
-
-            const double un = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * l.un + xi);
-            const double a = 2.0 / (gamma + 1.0) * (a_l + 0.5 * (gamma - 1.0) * (l.un - xi));
-            const double rho = l.rho * std::pow(a / a_l, 2.0 / (gamma - 1.0));
-            const double p = l.p * std::pow(a / a_l, 2.0 * gamma / (gamma - 1.0));
-            return Primitive1D{rho, un, p};
-        }
-
-        // RIGHT of contact (xi > uStar)
-        if (p_star > r.p) {
-            // Right shock
-            const double q = p_star / r.p;
-            const double sr =
-                r.un + r.a * std::sqrt(0.5 * ((gamma + 1.0) / gamma * q + (gamma - 1.0) / gamma));
-            if (xi >= sr) return Primitive1D{r.rho, r.un, r.p};
-
-            const double factor = (q + (gamma - 1.0) / (gamma + 1.0)) /
-                ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
-            const double rho_star_r = r.rho * factor;
-            return Primitive1D{rho_star_r, u_star, p_star};
-        }
-
-        // Right rarefaction (pStar <= p_R)
-        const double a_r = r.a;
-        const double shr = r.un + a_r;
-
-        const double rho_star_r = r.rho * std::pow(p_star / r.p, 1.0 / gamma);
-        const double a_star_r = std::sqrt(std::max(gamma * p_star / rho_star_r, 0.0));
-        const double str = u_star + a_star_r;
-
-        if (xi >= shr) return Primitive1D{r.rho, r.un, r.p};
-        if (xi <= str) return Primitive1D{rho_star_r, u_star, p_star};
-
-        const double un = 2.0 / (gamma + 1.0) * (-a_r + 0.5 * (gamma - 1.0) * r.un + xi);
-        const double a = 2.0 / (gamma + 1.0) *
-            (a_r - 0.5 * (gamma - 1.0) * r.un + 0.5 * (gamma - 1.0) * xi);
-        const double rho = r.rho * std::pow(a / a_r, 2.0 / (gamma - 1.0));
-        const double p = r.p * std::pow(a / a_r, 2.0 * gamma / (gamma - 1.0));
-        return Primitive1D{rho, un, p};
-    }
-} // namespace
-
-// ================= Public methods =================
-
-ExactIdealGasRiemannSolver::ExactIdealGasRiemannSolver() {}
+ExactIdealGasRiemannSolver::ExactIdealGasRiemannSolver(const double xi,
+                                                       const double Q_user)
+    : xi_(xi),
+      Q_user_(Q_user) {}
 
 void ExactIdealGasRiemannSolver::SetXi(const double xi) {
     xi_ = xi;
@@ -291,56 +19,516 @@ void ExactIdealGasRiemannSolver::SetQ(const double Q) {
     Q_user_ = Q;
 }
 
+void ExactIdealGasRiemannSolver::BuildTangentialBasis(const FaceNormal& normal,
+                                                      double& t1_x,
+                                                      double& t1_y,
+                                                      double& t1_z,
+                                                      double& t2_x,
+                                                      double& t2_y,
+                                                      double& t2_z) const {
+    double ref_x = 0.0;
+    double ref_y = 0.0;
+    double ref_z = 0.0;
+
+    if (std::abs(normal.x) < 0.9) {
+        ref_x = 1.0;
+    }
+    else {
+        ref_y = 1.0;
+    }
+
+    const double dot = ref_x * normal.x + ref_y * normal.y + ref_z * normal.z;
+
+    t1_x = ref_x - dot * normal.x;
+    t1_y = ref_y - dot * normal.y;
+    t1_z = ref_z - dot * normal.z;
+
+    const double t1_norm = std::sqrt(t1_x * t1_x + t1_y * t1_y + t1_z * t1_z);
+    if (t1_norm <= 1e-14) {
+        throw std::runtime_error(
+            "ExactIdealGasRiemannSolver::BuildTangentialBasis: failed to build first tangential vector"
+        );
+    }
+
+    t1_x /= t1_norm;
+    t1_y /= t1_norm;
+    t1_z /= t1_norm;
+
+    t2_x = normal.y * t1_z - normal.z * t1_y;
+    t2_y = normal.z * t1_x - normal.x * t1_z;
+    t2_z = normal.x * t1_y - normal.y * t1_x;
+
+    const double t2_norm = std::sqrt(t2_x * t2_x + t2_y * t2_y + t2_z * t2_z);
+    if (t2_norm <= 1e-14) {
+        throw std::runtime_error(
+            "ExactIdealGasRiemannSolver::BuildTangentialBasis: failed to build second tangential vector"
+        );
+    }
+
+    t2_x /= t2_norm;
+    t2_y /= t2_norm;
+    t2_z /= t2_norm;
+}
+
+void ExactIdealGasRiemannSolver::ProjectVelocityToLocalBasis(const PrimitiveCell& state,
+                                                             const FaceNormal& normal,
+                                                             const double t1_x,
+                                                             const double t1_y,
+                                                             const double t1_z,
+                                                             const double t2_x,
+                                                             const double t2_y,
+                                                             const double t2_z,
+                                                             double& u_n,
+                                                             double& u_t1,
+                                                             double& u_t2) const {
+    u_n = state.u * normal.x + state.v * normal.y + state.w * normal.z;
+    u_t1 = state.u * t1_x + state.v * t1_y + state.w * t1_z;
+    u_t2 = state.u * t2_x + state.v * t2_y + state.w * t2_z;
+}
+
+void ExactIdealGasRiemannSolver::ComposeVelocityFromLocalBasis(const double u_n,
+                                                               const double u_t1,
+                                                               const double u_t2,
+                                                               const FaceNormal& normal,
+                                                               const double t1_x,
+                                                               const double t1_y,
+                                                               const double t1_z,
+                                                               const double t2_x,
+                                                               const double t2_y,
+                                                               const double t2_z,
+                                                               double& u,
+                                                               double& v,
+                                                               double& w) const {
+    u = u_n * normal.x + u_t1 * t1_x + u_t2 * t2_x;
+    v = u_n * normal.y + u_t1 * t1_y + u_t2 * t2_y;
+    w = u_n * normal.z + u_t1 * t1_z + u_t2 * t2_z;
+}
+
+ExactIdealGasRiemannSolver::State1D ExactIdealGasRiemannSolver::MakeState1D(
+    const PrimitiveCell& state,
+    const FaceNormal& normal,
+    const double t1_x,
+    const double t1_y,
+    const double t1_z,
+    const double t2_x,
+    const double t2_y,
+    const double t2_z,
+    const double gamma
+) const {
+    double u_n = 0.0;
+    double u_t1 = 0.0;
+    double u_t2 = 0.0;
+
+    ProjectVelocityToLocalBasis(state,
+                                normal,
+                                t1_x, t1_y, t1_z,
+                                t2_x, t2_y, t2_z,
+                                u_n, u_t1, u_t2);
+
+    State1D s;
+    s.rho = state.rho;
+    s.un = u_n;
+    s.p = state.P;
+    s.a = std::sqrt(std::max(gamma * s.p / s.rho, 0.0));
+
+    return s;
+}
+
+double ExactIdealGasRiemannSolver::PhiRarefaction(const double p,
+                                                  const State1D& state,
+                                                  const double gamma) const {
+    const double pressure_ratio = p / state.p;
+    const double exponent = (gamma - 1.0) / (2.0 * gamma);
+    return 2.0 * state.a / (gamma - 1.0) * (std::pow(pressure_ratio, exponent) - 1.0);
+}
+
+double ExactIdealGasRiemannSolver::PhiRarefactionDerivative(const double p,
+                                                            const State1D& state,
+                                                            const double gamma) const {
+    const double pressure_ratio = p / state.p;
+    const double exponent = (gamma - 1.0) / (2.0 * gamma);
+    const double coefficient = (2.0 * state.a / (gamma - 1.0)) * (exponent / state.p);
+    return coefficient * std::pow(pressure_ratio, exponent - 1.0);
+}
+
+double ExactIdealGasRiemannSolver::PhiShock(const double p,
+                                            const State1D& state,
+                                            const double gamma) const {
+    const double A = 2.0 / ((gamma + 1.0) * state.rho);
+    const double B = (gamma - 1.0) / (gamma + 1.0) * state.p;
+    return (p - state.p) * std::sqrt(A / (p + B));
+}
+
+double ExactIdealGasRiemannSolver::PhiShockDerivative(const double p,
+                                                      const State1D& state,
+                                                      const double gamma) const {
+    const double A = 2.0 / ((gamma + 1.0) * state.rho);
+    const double B = (gamma - 1.0) / (gamma + 1.0) * state.p;
+    const double sqrt_term = std::sqrt(A / (p + B));
+    const double term = (p - state.p) / (2.0 * (p + B));
+    return sqrt_term * (1.0 - term);
+}
+
+double ExactIdealGasRiemannSolver::SidePhi(const double p,
+                                           const State1D& state,
+                                           const double gamma) const {
+    return (p <= state.p)
+               ? PhiRarefaction(p, state, gamma)
+               : PhiShock(p, state, gamma);
+}
+
+double ExactIdealGasRiemannSolver::SidePhiDerivative(const double p,
+                                                     const State1D& state,
+                                                     const double gamma) const {
+    return (p <= state.p)
+               ? PhiRarefactionDerivative(p, state, gamma)
+               : PhiShockDerivative(p, state, gamma);
+}
+
+double ExactIdealGasRiemannSolver::InitialGuess(const State1D& left,
+                                                const State1D& right,
+                                                const double Q_user,
+                                                const double gamma) const {
+    const double p_pvrs =
+        0.5 * (left.p + right.p) -
+        0.125 * (right.un - left.un) * (left.rho + right.rho) * (left.a + right.a);
+
+    const double p_min = std::min(left.p, right.p);
+    const double p_max = std::max(left.p, right.p);
+    const double Q = p_max / p_min;
+
+    double p_star = std::max(p_pvrs, 1e-16);
+
+    if (p_min < p_pvrs && p_pvrs < p_max && Q < Q_user) {
+        return p_star;
+    }
+
+    if (p_pvrs <= p_min) {
+        const double exponent = (gamma - 1.0) / (2.0 * gamma);
+        const double numerator =
+            left.a + right.a - 0.5 * (gamma - 1.0) * (right.un - left.un);
+        const double denominator =
+            left.a / std::pow(left.p, exponent) +
+            right.a / std::pow(right.p, exponent);
+
+        p_star = std::pow(numerator / denominator, 1.0 / exponent);
+        return std::max(p_star, 1e-16);
+    }
+
+    const auto A = [gamma](const State1D& state) -> double {
+        return 2.0 / ((gamma + 1.0) * state.rho);
+    };
+
+    const auto B = [gamma](const State1D& state) -> double {
+        return (gamma - 1.0) / (gamma + 1.0) * state.p;
+    };
+
+    const auto g = [&](const State1D& state) -> double {
+        return std::sqrt(A(state) / (p_pvrs + B(state)));
+    };
+
+    const double g_left = g(left);
+    const double g_right = g(right);
+
+    p_star =
+        (g_left * left.p + g_right * right.p - (right.un - left.un)) /
+        (g_left + g_right);
+
+    return std::max(p_star, 1e-16);
+}
+
+double ExactIdealGasRiemannSolver::SolveStarPressure(const State1D& left,
+                                                     const State1D& right,
+                                                     const double gamma,
+                                                     const double Q_user) const {
+    const double delta_u = right.un - left.un;
+    const double critical = 2.0 * (left.a + right.a) / (gamma - 1.0);
+
+    if (delta_u >= critical) {
+        return 0.0;
+    }
+
+    double p = InitialGuess(left, right, Q_user, gamma);
+    const double p_min = 1e-16;
+
+    for (int iter = 0; iter < 40; ++iter) {
+        const double f_left = SidePhi(p, left, gamma);
+        const double f_right = SidePhi(p, right, gamma);
+        const double f = f_left + f_right + (right.un - left.un);
+
+        if (std::fabs(f) < 1e-10) {
+            break;
+        }
+
+        const double df_left = SidePhiDerivative(p, left, gamma);
+        const double df_right = SidePhiDerivative(p, right, gamma);
+        const double df = df_left + df_right;
+
+        if (df == 0.0 || !std::isfinite(df)) {
+            break;
+        }
+
+        double p_new = p - f / df;
+
+        if (!std::isfinite(p_new) || p_new < p_min) {
+            p_new = p_min;
+        }
+
+        if (std::fabs(p_new - p) <= 1e-8 * (p + p_min)) {
+            p = p_new;
+            break;
+        }
+
+        p = p_new;
+    }
+
+    if (!std::isfinite(p) || p <= 0.0) {
+        return 0.0;
+    }
+
+    return p;
+}
+
+ExactIdealGasRiemannSolver::Primitive1D ExactIdealGasRiemannSolver::SampleVacuum(
+    const double xi,
+    const State1D& left,
+    const State1D& right,
+    const double gamma
+) const {
+    const double shl = left.un - left.a;
+    const double svl = left.un + 2.0 * left.a / (gamma - 1.0);
+
+    const double shr = right.un + right.a;
+    const double svr = right.un - 2.0 * right.a / (gamma - 1.0);
+
+    if (xi <= shl) {
+        return Primitive1D{left.rho, left.un, left.p};
+    }
+
+    if (xi >= shr) {
+        return Primitive1D{right.rho, right.un, right.p};
+    }
+
+    if (xi > shl && xi < svl) {
+        const double u_n =
+            2.0 / (gamma + 1.0) *
+            (left.a + 0.5 * (gamma - 1.0) * left.un + xi);
+
+        const double a =
+            2.0 / (gamma + 1.0) *
+            (left.a + 0.5 * (gamma - 1.0) * (left.un - xi));
+
+        const double rho = left.rho * std::pow(a / left.a, 2.0 / (gamma - 1.0));
+        const double p = left.p * std::pow(a / left.a, 2.0 * gamma / (gamma - 1.0));
+
+        return Primitive1D{rho, u_n, p};
+    }
+
+    if (xi > svr && xi < shr) {
+        const double u_n =
+            2.0 / (gamma + 1.0) *
+            (-right.a + 0.5 * (gamma - 1.0) * right.un + xi);
+
+        const double a =
+            2.0 / (gamma + 1.0) *
+            (right.a - 0.5 * (gamma - 1.0) * right.un + 0.5 * (gamma - 1.0) * xi);
+
+        const double rho = right.rho * std::pow(a / right.a, 2.0 / (gamma - 1.0));
+        const double p = right.p * std::pow(a / right.a, 2.0 * gamma / (gamma - 1.0));
+
+        return Primitive1D{rho, u_n, p};
+    }
+
+    return Primitive1D{0.0, 0.0, 0.0};
+}
+
+ExactIdealGasRiemannSolver::Primitive1D ExactIdealGasRiemannSolver::SampleNonVacuum(
+    const double xi,
+    const double p_star,
+    const double u_star,
+    const State1D& left,
+    const State1D& right,
+    const double gamma
+) const {
+    if (xi <= u_star) {
+        if (p_star > left.p) {
+            const double q = p_star / left.p;
+            const double shock_speed =
+                left.un -
+                left.a * std::sqrt(
+                    0.5 * ((gamma + 1.0) / gamma * q + (gamma - 1.0) / gamma)
+                );
+
+            if (xi <= shock_speed) {
+                return Primitive1D{left.rho, left.un, left.p};
+            }
+
+            const double factor =
+                (q + (gamma - 1.0) / (gamma + 1.0)) /
+                ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+
+            const double rho_star_left = left.rho * factor;
+            return Primitive1D{rho_star_left, u_star, p_star};
+        }
+
+        const double shl = left.un - left.a;
+        const double rho_star_left = left.rho * std::pow(p_star / left.p, 1.0 / gamma);
+        const double a_star_left = std::sqrt(std::max(gamma * p_star / rho_star_left, 0.0));
+        const double stl = u_star - a_star_left;
+
+        if (xi <= shl) {
+            return Primitive1D{left.rho, left.un, left.p};
+        }
+
+        if (xi >= stl) {
+            return Primitive1D{rho_star_left, u_star, p_star};
+        }
+
+        const double u_n =
+            2.0 / (gamma + 1.0) *
+            (left.a + 0.5 * (gamma - 1.0) * left.un + xi);
+
+        const double a =
+            2.0 / (gamma + 1.0) *
+            (left.a + 0.5 * (gamma - 1.0) * (left.un - xi));
+
+        const double rho = left.rho * std::pow(a / left.a, 2.0 / (gamma - 1.0));
+        const double p = left.p * std::pow(a / left.a, 2.0 * gamma / (gamma - 1.0));
+
+        return Primitive1D{rho, u_n, p};
+    }
+
+    if (p_star > right.p) {
+        const double q = p_star / right.p;
+        const double shock_speed =
+            right.un +
+            right.a * std::sqrt(
+                0.5 * ((gamma + 1.0) / gamma * q + (gamma - 1.0) / gamma)
+            );
+
+        if (xi >= shock_speed) {
+            return Primitive1D{right.rho, right.un, right.p};
+        }
+
+        const double factor =
+            (q + (gamma - 1.0) / (gamma + 1.0)) /
+            ((gamma - 1.0) / (gamma + 1.0) * q + 1.0);
+
+        const double rho_star_right = right.rho * factor;
+        return Primitive1D{rho_star_right, u_star, p_star};
+    }
+
+    const double shr = right.un + right.a;
+
+    const double rho_star_right = right.rho * std::pow(p_star / right.p, 1.0 / gamma);
+    const double a_star_right = std::sqrt(std::max(gamma * p_star / rho_star_right, 0.0));
+    const double str = u_star + a_star_right;
+
+    if (xi >= shr) {
+        return Primitive1D{right.rho, right.un, right.p};
+    }
+
+    if (xi <= str) {
+        return Primitive1D{rho_star_right, u_star, p_star};
+    }
+
+    const double u_n =
+        2.0 / (gamma + 1.0) *
+        (-right.a + 0.5 * (gamma - 1.0) * right.un + xi);
+
+    const double a =
+        2.0 / (gamma + 1.0) *
+        (right.a - 0.5 * (gamma - 1.0) * right.un + 0.5 * (gamma - 1.0) * xi);
+
+    const double rho = right.rho * std::pow(a / right.a, 2.0 / (gamma - 1.0));
+    const double p = right.p * std::pow(a / right.a, 2.0 * gamma / (gamma - 1.0));
+
+    return Primitive1D{rho, u_n, p};
+}
+
 PrimitiveCell ExactIdealGasRiemannSolver::Sample(const PrimitiveCell& left,
                                                  const PrimitiveCell& right,
                                                  const double gamma,
                                                  const double xi,
-                                                 const Axis axis) const {
-    const State1D l = MakeState1D(left, axis, gamma);
-    const State1D r = MakeState1D(right, axis, gamma);
+                                                 const FaceNormal& normal) const {
+    if (!IsUnitNormal(normal)) {
+        throw std::runtime_error(
+            "ExactIdealGasRiemannSolver::Sample: face normal must be unit-length"
+        );
+    }
 
-    const double p_star = SolveStarPressure(l, r, gamma, Q_user_);
+    double t1_x = 0.0;
+    double t1_y = 0.0;
+    double t1_z = 0.0;
+    double t2_x = 0.0;
+    double t2_y = 0.0;
+    double t2_z = 0.0;
+    BuildTangentialBasis(normal, t1_x, t1_y, t1_z, t2_x, t2_y, t2_z);
 
-    // Vacuum / double rarefaction
-    Primitive1D s1d{};
+    const State1D left_state =
+        MakeState1D(left, normal, t1_x, t1_y, t1_z, t2_x, t2_y, t2_z, gamma);
+
+    const State1D right_state =
+        MakeState1D(right, normal, t1_x, t1_y, t1_z, t2_x, t2_y, t2_z, gamma);
+
+    const double p_star = SolveStarPressure(left_state, right_state, gamma, Q_user_);
+
+    Primitive1D sample_1d{};
     double u_star = 0.0;
 
     if (p_star <= 0.0) {
-        s1d = SampleVacuum(xi, l, r, gamma);
-        // In vacuum case, choose tangentials by xi position relative to 0 (arbitrary but stable):
-        // use left if xi <= 0 else right.
+        sample_1d = SampleVacuum(xi, left_state, right_state, gamma);
         u_star = 0.0;
     }
     else {
-        const double f_l = SidePhi(p_star, l, gamma);
-        const double f_r = SidePhi(p_star, r, gamma);
-        u_star = 0.5 * (l.un + r.un + f_r - f_l);
-        s1d = SampleNonVacuum(xi, p_star, u_star, l, r, gamma);
+        const double f_left = SidePhi(p_star, left_state, gamma);
+        const double f_right = SidePhi(p_star, right_state, gamma);
+        u_star = 0.5 * (left_state.un + right_state.un + f_right - f_left);
+        sample_1d = SampleNonVacuum(xi, p_star, u_star, left_state, right_state, gamma);
     }
 
-    // Choose tangential velocities from the side of the contact.
-    double unL, ut1L, ut2L;
-    double unR, ut1R, ut2R;
-    riemann::SplitVelocity(left, axis, unL, ut1L, ut2L);
-    riemann::SplitVelocity(right, axis, unR, ut1R, ut2R);
+    double un_left = 0.0;
+    double ut1_left = 0.0;
+    double ut2_left = 0.0;
+    ProjectVelocityToLocalBasis(left,
+                                normal,
+                                t1_x, t1_y, t1_z,
+                                t2_x, t2_y, t2_z,
+                                un_left, ut1_left, ut2_left);
 
-    const bool use_left_tangential = (p_star <= 0.0) ? (xi <= u_star) : (xi <= u_star);
+    double un_right = 0.0;
+    double ut1_right = 0.0;
+    double ut2_right = 0.0;
+    ProjectVelocityToLocalBasis(right,
+                                normal,
+                                t1_x, t1_y, t1_z,
+                                t2_x, t2_y, t2_z,
+                                un_right, ut1_right, ut2_right);
 
-    const double ut1 = use_left_tangential ? ut1L : ut1R;
-    const double ut2 = use_left_tangential ? ut2L : ut2R;
+    const bool use_left_tangential = (xi <= u_star);
 
-    PrimitiveCell sample{};
-    sample.rho = s1d.rho;
-    sample.P = s1d.p;
+    const double ut1 = use_left_tangential ? ut1_left : ut1_right;
+    const double ut2 = use_left_tangential ? ut2_left : ut2_right;
 
-    riemann::ComposeVelocity(s1d.un, ut1, ut2, axis, sample.u, sample.v, sample.w);
+    PrimitiveCell sample;
+    sample.rho = sample_1d.rho;
+    sample.P = sample_1d.p;
+
+    ComposeVelocityFromLocalBasis(sample_1d.un,
+                                  ut1,
+                                  ut2,
+                                  normal,
+                                  t1_x, t1_y, t1_z,
+                                  t2_x, t2_y, t2_z,
+                                  sample.u, sample.v, sample.w);
+
     return sample;
 }
 
-auto ExactIdealGasRiemannSolver::ComputeFlux(const PrimitiveCell& left,
-                                             const PrimitiveCell& right,
-                                             const double gamma,
-                                             const Axis axis) const -> FluxCell {
-    const PrimitiveCell sample = Sample(left, right, gamma, xi_, axis);
-    return EulerFlux(sample, gamma, axis);
+ConservativeCell ExactIdealGasRiemannSolver::ComputeFlux(const PrimitiveCell& left,
+                                                         const PrimitiveCell& right,
+                                                         const double gamma,
+                                                         const FaceNormal& normal) const {
+    const PrimitiveCell sample = Sample(left, right, gamma, xi_, normal);
+    return PhysicalFlux(sample, gamma, normal);
 }

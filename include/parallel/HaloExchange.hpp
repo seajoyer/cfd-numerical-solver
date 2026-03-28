@@ -6,7 +6,7 @@
 #include "data/DataLayer.hpp"
 #include "data/Variables.hpp"
 #include "bc/BoundaryCondition.hpp"
-#include "data/Mesh.hpp"
+#include "../geometry/Mesh.hpp"
 #include "parallel/MPIContext.hpp"
 
 /**

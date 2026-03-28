@@ -1,55 +1,38 @@
 #ifndef BOUNDARYCONDITION_HPP
 #define BOUNDARYCONDITION_HPP
 
-#include <cstdint>
+#include "data/Variables.hpp"
 
 class DataLayer;
 class Mesh;
-
-/**
- * @enum Side
- * @brief Boundary side along a selected axis.
- *
- * The boundary is defined by a pair (axis, side):
- * - Side::Left  : lower/min side of the axis
- * - Side::Right : upper/max side of the axis
- */
-enum class Side : std::uint8_t { Left = 0, Right = 1 };
-
-/**
- * @brief Spatial axis.
- *
- * Axis is defined in data/Variables.hpp (project-wide enum).
- * Forward-declared here to avoid heavy includes.
- */
-enum class Axis : std::uint8_t;
+class Face;
 
 /**
  * @class BoundaryCondition
- * @brief Abstract base class for physical boundary conditions on a structured grid.
- *
- * Boundary conditions fill ghost cells of the conservative state U(var,i,j,k)
- * for a given (axis, side).
+ * @brief Abstract physical boundary condition for one boundary face.
  *
  * Contract:
- *  - Must modify only ghost cells.
- *  - Must not modify core cells.
- *  - Intended for global external boundaries (not for MPI internal interfaces).
+ * - Works on one boundary face at a time.
+ * - Does not modify mesh or storage.
+ * - Returns the external primitive state used by the Riemann solver.
  */
 class BoundaryCondition {
 public:
-    /** @brief Virtual destructor for safe polymorphic deletion. */
     virtual ~BoundaryCondition() = default;
 
     /**
-     * @brief Apply boundary condition along a specified axis and side.
+     * @brief Build external primitive state for a boundary face.
      *
-     * @param layer Data layer to modify (ghost cells of U will be written).
-     * @param mesh Structured mesh with ranges and metadata.
-     * @param axis Spatial axis (X,Y,Z).
-     * @param side Boundary side (Left or Right).
+     * @param layer Current numerical solution.
+     * @param mesh Mesh with geometry and connectivity.
+     * @param face Boundary face.
+     * @param interior_state Primitive state in owner cell adjacent to the face.
+     * @return External primitive state at the boundary.
      */
-    virtual void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const = 0;
+    [[nodiscard]] virtual PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                           const Mesh& mesh,
+                                                           const Face& face,
+                                                           const PrimitiveCell& interior_state) const = 0;
 };
 
 #endif  // BOUNDARYCONDITION_HPP

@@ -3,19 +3,17 @@
 
 #include <cstddef>
 #include <stdexcept>
+
 #include <xtensor.hpp>
 
+class Mesh;
+
 /**
- * @brief Storage owner for conservative state only.
- *
- * DataLayer owns only conservative variables:
- *   U(var, i, j, k), var in {rho, rhoU, rhoV, rhoW, E}.
- *
- * Geometry, grid metrics, padding, dimension, core ranges, and boundary flags
- * are intentionally not stored here and must live in Mesh.
+ * @brief Storage owner for cell-centered conservative solution fields.
  *
  * Storage layout:
- *   U(var, i, j, k), shape = (5, sx, sy, sz).
+ *   U(cell, var), shape = (n_cells, 5)
+ *   reactant_mass_fraction(cell), shape = (n_cells)
  */
 class DataLayer final {
 public:
@@ -27,53 +25,40 @@ public:
     static constexpr std::size_t k_E = 4;
 
     DataLayer() = default;
+    explicit DataLayer(std::size_t n_cells);
 
     /**
-     * @brief Construct conservative storage with given padded sizes.
-     * @param sx Total number of cells in x, including ghosts.
-     * @param sy Total number of cells in y, including ghosts.
-     * @param sz Total number of cells in z, including ghosts.
-     */
-    DataLayer(int sx, int sy, int sz);
-
-    /**
-     * @brief Resize conservative storage to the given padded sizes.
+     * @brief Resize storage to the given number of cells.
      * @details Reallocates only if shape changed.
-     * @param sx Total number of cells in x, including ghosts.
-     * @param sy Total number of cells in y, including ghosts.
-     * @param sz Total number of cells in z, including ghosts.
      */
-    void Resize(int sx, int sy, int sz);
+    void Resize(std::size_t n_cells);
 
-    /** @brief Conservative state array U(var,i,j,k). Shape (5,sx,sy,sz). */
-    [[nodiscard]] xt::xtensor<double, 4>& U();
-    [[nodiscard]] const xt::xtensor<double, 4>& U() const;
+    /**
+     * @brief Resize storage to match mesh cell count.
+     */
+    void ResizeFrom(const Mesh& mesh);
 
-    [[nodiscard]] xt::xtensor<double, 3>& ReactantMassFraction();
-    [[nodiscard]] const xt::xtensor<double, 3>& ReactantMassFraction() const;
+    /** @brief Conservative state array U(cell,var). Shape (n_cells, 5). */
+    [[nodiscard]] xt::xtensor<double, 2>& U();
+    [[nodiscard]] const xt::xtensor<double, 2>& U() const;
 
-    /** @brief Total padded size in x. */
-    [[nodiscard]] int GetSx() const;
+    /** @brief Reactant mass fraction per cell. Shape (n_cells). */
+    [[nodiscard]] xt::xtensor<double, 1>& ReactantMassFraction();
+    [[nodiscard]] const xt::xtensor<double, 1>& ReactantMassFraction() const;
 
-    /** @brief Total padded size in y. */
-    [[nodiscard]] int GetSy() const;
+    /** @brief Number of cells in storage. */
+    [[nodiscard]] std::size_t GetCellCount() const;
 
-    /** @brief Total padded size in z. */
-    [[nodiscard]] int GetSz() const;
-
-    /** @brief Check whether conservative storage is allocated. */
+    /** @brief Check whether storage is allocated. */
     [[nodiscard]] bool IsAllocated() const;
 
 private:
-    int sx_ = 0;
-    int sy_ = 0;
-    int sz_ = 0;
+    std::size_t n_cells_ = 0;
 
-    xt::xtensor<double, 4> U_;
-    xt::xtensor<double, 3> reactant_mass_fraction_;
+    xt::xtensor<double, 2> U_;
+    xt::xtensor<double, 1> reactant_mass_fraction_;
 
-    void ValidateSizes(int sx, int sy, int sz) const;
-    void Allocate(int sx, int sy, int sz);
+    void Allocate(std::size_t n_cells);
 };
 
 #endif  // DATALAYER_HPP

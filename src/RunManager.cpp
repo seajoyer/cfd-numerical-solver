@@ -4,6 +4,20 @@
 
 #include "utils/StringUtils.hpp"
 
+
+void RunManager::ValidateRuntimeMode() const {
+    for (const std::string& case_name : cases_to_run_) {
+        const Settings case_settings = parser_.GetCaseSettings(case_name);
+
+        if (case_settings.mpi_enabled) {
+            throw std::runtime_error(
+                "RunManager: case '" + case_name +
+                "' requests mpi_enabled=true, but current generic mesh pipeline is single-process only"
+            );
+        }
+    }
+}
+
 auto RunManager::Run(int argc, char* argv[]) -> int {
     if (!LoadConfiguration(argc, argv)) {
         return 0;
@@ -13,8 +27,12 @@ auto RunManager::Run(int argc, char* argv[]) -> int {
         return 1;
     }
 
+    ValidateRuntimeMode();
+
     BuildRunDirectory();
-    if (is_root_) std::cout << "Configuration loaded from: " << parser_.GetConfigPath() << "\n\n";
+    if (is_root_) {
+        std::cout << "Configuration loaded from: " << parser_.GetConfigPath() << "\n\n";
+    }
     PrintSelectedCases();
 
     return RunCases();
@@ -73,31 +91,18 @@ auto RunManager::ResolveCasesToRun() -> bool {
 }
 
 void RunManager::BuildRunDirectory() {
-    const Settings& global_settings = parser_.GetSettings();
-
-    std::string run_dir_local;
-
-    if (MPIContext::IsInitialized()) {
-        MPIContext mpi(MPI_COMM_WORLD, false);
-
-        is_root_ = mpi.IsRoot();
-
-        if (mpi.Rank() == 0) {
-            const std::string timestamp = utils::GetTimestamp();
-            run_dir_local = global_settings.output_dir + "/run_" + timestamp;
-        }
-
-        run_dir_ = mpi.BroadcastString(run_dir_local);
-
-        if (mpi.IsRoot()) {
-            std::cout << "Run directory: " << run_dir_ << "\n\n";
-        }
+    if (cases_to_run_.empty()) {
+        throw std::runtime_error("RunManager::BuildRunDirectory: no cases selected");
     }
-    else {
-        const std::string timestamp = utils::GetTimestamp();
-        run_dir_ = global_settings.output_dir + "/run_" + timestamp;
-        std::cout << "Run directory: " << run_dir_ << "\n\n";
-    }
+
+    const Settings first_case_settings = parser_.GetCaseSettings(cases_to_run_.front());
+
+    const std::string timestamp = utils::GetTimestamp();
+    run_dir_ = first_case_settings.output_dir + "/run_" + timestamp;
+
+    is_root_ = true;
+
+    std::cout << "Run directory: " << run_dir_ << "\n\n";
 }
 
 void RunManager::PrintSelectedCases() const {

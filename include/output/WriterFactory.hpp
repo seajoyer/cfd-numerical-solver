@@ -1,98 +1,50 @@
-#ifndef WRITERFACTORY_H_
-#define WRITERFACTORY_H_
+#ifndef WRITERFACTORY_HPP
+#define WRITERFACTORY_HPP
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "output/StepWriter.hpp"
+class StepWriter;
 
 /**
  * @class WriterFactory
- * @brief Factory class for creating StepWriter instances based on output format.
+ * @brief Factory for creating output writers.
  *
- * This class provides static factory methods to instantiate concrete StepWriter
- * implementations (e.g., VTKWriter, PNGWriter, GIFWriter) without exposing the 
- * underlying creation logic. It promotes extensibility by allowing new output 
- * formats to be added centrally without modifying client code (e.g., Simulation).
- *
- * Supported formats:
- * - "vtk": VTK structured grid format
- * - "png" or "png<width>x<height>": PNG image with 4 subplot panels
- *   - Default: png (1200x900)
- *   - Custom: png1920x1080, png800x600, png3840x2160, etc.
- * - "gif" or "gif<width>x<height>": Animated GIF with 4 subplot panels
- *   - Default: gif (1200x900)
- *   - Custom: gif1920x1080, gif800x600, etc.
- *   - Fonts and line widths scale automatically with resolution
- *
- * Writers that require finalization (like GIFWriter) should be finalized
- * by calling Finalize() at the end of simulation.
+ * Currently supported formats:
+ *  - "vtk"
  */
-class WriterFactory {
-   public:
+class WriterFactory final {
+public:
     /**
-     * @brief Creates a StepWriter instance for the specified output format.
-     *
-     * @param output_format String identifier for the desired output format 
-     *        (e.g., "vtk", "png", "gif", "png1920x1080", "gif1280x720").
-     * @param output_dir Directory path where output files will be written.
-     * @param is_analytical If true, creates writer for analytical solution output.
-     * @return Unique pointer to the created StepWriter.
-     * @throws std::runtime_error If the output format is unrecognized.
+     * @brief Create one writer for the specified output format.
+     * @param output_format Output format identifier.
+     * @param output_dir Directory where files will be written.
+     * @return Unique pointer to created writer.
      */
-    static auto Create(const std::string& output_format, 
-                       const std::string& output_dir,
-                       bool is_analytical = false,
-                       int rank = 0,
-                       int size = 1)
-        -> std::unique_ptr<StepWriter>;
+    [[nodiscard]] static std::unique_ptr<StepWriter> Create(const std::string& output_format,
+                                                            const std::string& output_dir);
 
     /**
-     * @brief Creates multiple StepWriter instances for the specified output formats.
-     *
-     * @param output_formats Vector of format identifiers (e.g., {"vtk", "png", "gif"}).
-     * @param output_dir Base directory path for output files.
-     * @param is_analytical If true, creates writers for analytical solution output.
-     * @return Vector of unique pointers to created StepWriters.
-     * @throws std::runtime_error If any output format is unrecognized.
+     * @brief Create multiple writers for the specified output formats.
+     * @param output_formats List of output format identifiers.
+     * @param output_dir Directory where files will be written.
+     * @return Vector of created writers.
      */
-    static auto CreateMultiple(const std::vector<std::string>& output_formats,
-                               const std::string& output_dir,
-                               bool is_analytical = false,
-                               int rank = 0,
-                               int size = 1)
-        -> std::vector<std::unique_ptr<StepWriter>>;
+    [[nodiscard]] static std::vector<std::unique_ptr<StepWriter>> CreateMultiple(
+        const std::vector<std::string>& output_formats,
+        const std::string& output_dir
+    );
 
     /**
-     * @brief Check if a format is supported
-     * @param format Format string to check
-     * @return true if the format is supported
+     * @brief Check whether output format is supported.
      */
-    static auto IsFormatSupported(const std::string& format) -> bool;
+    [[nodiscard]] static bool IsFormatSupported(const std::string& format);
 
     /**
-     * @brief Get list of all supported formats
-     * @return Vector of supported format strings
+     * @brief Get list of supported output formats.
      */
-    static auto GetSupportedFormats() -> std::vector<std::string>;
-
-    /**
-     * @brief Parse resolution from format string
-     * 
-     * Extracts width and height from format strings like "png1920x1080" or "gif1280x720".
-     * Returns default values if no resolution is specified.
-     * 
-     * @param format_lower Lowercase format string
-     * @param prefix Format prefix ("png" or "gif")
-     * @param width Output parameter for width (default: 1200)
-     * @param height Output parameter for height (default: 900)
-     * @throws std::runtime_error If resolution format is invalid
-     */
-    static void ParseResolution(const std::string& format_lower,
-                                const std::string& prefix,
-                                int& width,
-                                int& height);
+    [[nodiscard]] static std::vector<std::string> GetSupportedFormats();
 };
 
-#endif  // WRITERFACTORY_H_
+#endif  // WRITERFACTORY_HPP

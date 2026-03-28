@@ -6,15 +6,18 @@
 /**
  * @class HLLRiemannSolver
  * @brief HLL approximate Riemann solver (two-wave model).
+ *
+ * Computes conservative numerical flux through one face with an arbitrary
+ * unit normal.
  */
 class HLLRiemannSolver final : public RiemannSolver {
 public:
     HLLRiemannSolver() = default;
 
-    [[nodiscard]] auto ComputeFlux(const PrimitiveCell& left,
-                                   const PrimitiveCell& right,
-                                   double gamma,
-                                   Axis axis) const -> FluxCell override;
+    [[nodiscard]] ConservativeCell ComputeFlux(const PrimitiveCell& left,
+                                               const PrimitiveCell& right,
+                                               double gamma,
+                                               const FaceNormal& normal) const override;
 };
 
 #endif  // HLLRIEMANNSOLVER_HPP

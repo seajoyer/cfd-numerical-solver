@@ -2,46 +2,56 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
+ConservativeCell HLLRiemannSolver::ComputeFlux(const PrimitiveCell& left,
+                                               const PrimitiveCell& right,
+                                               const double gamma,
+                                               const FaceNormal& normal) const {
+    if (!IsUnitNormal(normal)) {
+        throw std::runtime_error(
+            "HLLRiemannSolver::ComputeFlux: face normal must be unit-length"
+        );
+    }
 
-auto HLLRiemannSolver::ComputeFlux(const PrimitiveCell& left,
-                                   const PrimitiveCell& right,
-                                   const double gamma,
-                                   const Axis axis) const -> FluxCell {
-    const double un_l = NormalVelocity(left, axis);
-    const double un_r = NormalVelocity(right, axis);
+    const double un_left = NormalVelocity(left, normal);
+    const double un_right = NormalVelocity(right, normal);
 
-    const double a_l = SoundSpeed(left, gamma);
-    const double a_r = SoundSpeed(right, gamma);
+    const double a_left = SoundSpeed(left, gamma);
+    const double a_right = SoundSpeed(right, gamma);
 
-    // Davis (or Einfeldt-like) wave speed estimates
-    const double sL = std::min(un_l - a_l, un_r - a_r);
-    const double sR = std::max(un_l + a_l, un_r + a_r);
+    const double sL = std::min(un_left - a_left, un_right - a_right);
+    const double sR = std::max(un_left + a_left, un_right + a_right);
 
-    const FluxCell FL = EulerFlux(left, gamma, axis);
-    const FluxCell FR = EulerFlux(right, gamma, axis);
+    const ConservativeCell flux_left = PhysicalFlux(left, gamma, normal);
+    const ConservativeCell flux_right = PhysicalFlux(right, gamma, normal);
 
-    double rhoL, rhoUL, rhoVL, rhoWL, EL;
-    double rhoR, rhoUR, rhoVR, rhoWR, ER;
-    PrimitiveToConservative(left, gamma, rhoL, rhoUL, rhoVL, rhoWL, EL);
-    PrimitiveToConservative(right, gamma, rhoR, rhoUR, rhoVR, rhoWR, ER);
+    const ConservativeCell U_left = ConservativeFromPrimitive(left, gamma);
+    const ConservativeCell U_right = ConservativeFromPrimitive(right, gamma);
 
     if (sL >= 0.0) {
-        return FL;
+        return flux_left;
     }
+
     if (sR <= 0.0) {
-        return FR;
+        return flux_right;
     }
 
-    // HLL flux
-    FluxCell F;
-    const double inv = 1.0 / (sR - sL);
+    const double denom = sR - sL;
+    if (std::abs(denom) <= 1e-14) {
+        throw std::runtime_error(
+            "HLLRiemannSolver::ComputeFlux: degenerate wave-speed interval"
+        );
+    }
 
-    F.mass = (sR * FL.mass - sL * FR.mass + sL * sR * (rhoR - rhoL)) * inv;
-    F.mom_x = (sR * FL.mom_x - sL * FR.mom_x + sL * sR * (rhoUR - rhoUL)) * inv;
-    F.mom_y = (sR * FL.mom_y - sL * FR.mom_y + sL * sR * (rhoVR - rhoVL)) * inv;
-    F.mom_z = (sR * FL.mom_z - sL * FR.mom_z + sL * sR * (rhoWR - rhoWL)) * inv;
-    F.energy = (sR * FL.energy - sL * FR.energy + sL * sR * (ER - EL)) * inv;
+    const double inv = 1.0 / denom;
 
-    return F;
+    ConservativeCell flux;
+    flux.rho = (sR * flux_left.rho - sL * flux_right.rho + sL * sR * (U_right.rho - U_left.rho)) * inv;
+    flux.rhoU = (sR * flux_left.rhoU - sL * flux_right.rhoU + sL * sR * (U_right.rhoU - U_left.rhoU)) * inv;
+    flux.rhoV = (sR * flux_left.rhoV - sL * flux_right.rhoV + sL * sR * (U_right.rhoV - U_left.rhoV)) * inv;
+    flux.rhoW = (sR * flux_left.rhoW - sL * flux_right.rhoW + sL * sR * (U_right.rhoW - U_left.rhoW)) * inv;
+    flux.E = (sR * flux_left.E - sL * flux_right.E + sL * sR * (U_right.E - U_left.E)) * inv;
+
+    return flux;
 }

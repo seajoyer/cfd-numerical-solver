@@ -6,30 +6,35 @@ class Mesh;
 
 /**
  * @class TimeStepCalculator
- * @brief CFL-based timestep selection from conservative state U on structured mesh.
+ * @brief CFL-based timestep selection for generic face-based finite-volume meshes.
  *
- * Uses only conservative U(var,i,j,k) with var=(rho, rhoU, rhoV, rhoW, E).
- * Mesh metrics are taken from Mesh::Dx/Dy/Dz.
+ * For each cell, timestep is estimated from face contributions:
  *
- * For each fluid core cell and each active axis:
- *   s_axis = |v_axis| + c,  c = sqrt(gamma * P / rho),  P = (gamma-1)*(E - 0.5*rho*|v|^2)
- * Local dt candidates:
- *   dt_x = cfl * dx(i) / s_x
- *   dt_y = cfl * dy(j) / s_y
- *   dt_z = cfl * dz(k) / s_z
- * Returns global minimum over fluid core cells and active axes.
+ *   dt_cell = cfl * V / sum_faces( (|u_n| + c) * S )
+ *
+ * where:
+ * - V is cell volume (or area in 2D)
+ * - S is face measure
+ * - u_n is velocity projected onto the face normal
+ * - c is sound speed
+ *
+ * Returns the minimum stable timestep over all mesh cells.
  */
 class TimeStepCalculator final {
 public:
     /**
-     * @brief Computes stable explicit timestep dt.
-     * @param layer DataLayer with conservative state U.
-     * @param mesh Structured mesh with geometry, metrics, and cell types.
+     * @brief Compute stable explicit timestep.
+     *
+     * @param layer Conservative state storage U(cell,var).
+     * @param mesh Mesh with cells, faces, geometry, and connectivity.
      * @param gamma Ratio of specific heats.
-     * @param cfl CFL number (0 < cfl <= 1).
-     * @return dt > 0 on success; 0.0 if dt cannot be computed.
+     * @param cfl CFL number.
+     * @return Stable timestep, or 0.0 if it cannot be computed.
      */
-    static auto ComputeDt(const DataLayer& layer, const Mesh& mesh, double gamma, double cfl) -> double;
+    static double ComputeDt(const DataLayer& layer,
+                            const Mesh& mesh,
+                            double gamma,
+                            double cfl);
 };
 
 #endif  // TIMESTEPCALCULATOR_HPP

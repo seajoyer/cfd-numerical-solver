@@ -2,23 +2,20 @@
 #define REFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "data/Variables.hpp"
 
 /**
  * @class ReflectiveBoundary
- * @brief Reflective (slip-wall) boundary condition for conservative Euler state U.
+ * @brief Slip reflective boundary.
  *
- * Ghost cells are filled by mirroring interior cells across the boundary.
- * The normal momentum component is inverted, tangential components are copied.
- *
- * For axis:
- *  - X: rhoU changes sign
- *  - Y: rhoV changes sign
- *  - Z: rhoW changes sign
+ * Normal velocity component changes sign.
+ * Tangential velocity components are preserved.
  */
 class ReflectiveBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 };
 
 #endif  // REFLECTIVEBOUNDARY_HPP

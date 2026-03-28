@@ -10,28 +10,35 @@ class BoundaryManager;
 
 /**
  * @class SpatialOperator
- * @brief Abstract semi-discrete FV operator in conservative form: dU/dt = L(U).
+ * @brief Abstract semi-discrete finite-volume operator in conservative form.
+ *
+ * Computes:
+ *   dU/dt = L(U)
  *
  * Contract:
- *  - Must apply halo + physical BC internally through BoundaryManager.
- *  - Must write RHS into workspace.Rhs() (no allocations in hot path).
- *  - DataLayer stores only conservative U.
- *  - Mesh stores geometry, metrics, domain ranges, and cell classification.
+ * - Works on generic face-based meshes.
+ * - Does not use ghost cells or structured indexing.
+ * - Does not modify mesh.
+ * - Writes conservative RHS into Workspace::Rhs().
+ * - Uses BoundaryManager to build exterior states on boundary faces.
  */
 class SpatialOperator {
 public:
-    explicit SpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager) : boundary_manager_(std::move(boundary_manager)) {}
+    explicit SpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager)
+        : boundary_manager_(std::move(boundary_manager)) {}
+
     virtual ~SpatialOperator() = default;
 
     /**
-     * @brief Computes RHS dU/dt = L(U) on padded grid.
-     * @param layer Conservative state owner (ghosts may be written by BC).
-     * @param mesh Structured mesh with geometry, metrics, and cell types.
-     * @param workspace Scratch buffers (W and rhs).
+     * @brief Compute conservative RHS for the current state.
+     *
+     * @param layer Conservative solution storage.
+     * @param mesh Mesh with cells, faces, geometry, and connectivity.
+     * @param workspace Reusable scratch buffers and output RHS storage.
      * @param gamma Ratio of specific heats.
-     * @param dt Local timestep.
+     * @param dt Current timestep size, available for optional model terms.
      */
-    virtual void ComputeRHS(DataLayer& layer,
+    virtual void ComputeRHS(const DataLayer& layer,
                             const Mesh& mesh,
                             Workspace& workspace,
                             double gamma,

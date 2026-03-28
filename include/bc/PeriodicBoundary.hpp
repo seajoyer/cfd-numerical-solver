@@ -5,20 +5,17 @@
 
 /**
  * @class PeriodicBoundary
- * @brief Periodic boundary condition for conservative state U.
+ * @brief Placeholder periodic boundary.
  *
- * Ghost cells are filled from the opposite side of the local core domain.
- *
- * This implementation is intended for:
- * - single-process runs
- * - MPI runs with a single rank
- *
- * For multi-rank MPI, periodicity should be handled by domain decomposition
- * and halo exchange, not by physical boundary application.
+ * Proper periodic support should be implemented through explicit face pairing
+ * in the mesh or a dedicated periodic mapping layer.
  */
 class PeriodicBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 };
 
 #endif  // PERIODICBOUNDARY_HPP

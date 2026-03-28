@@ -1,69 +1,51 @@
 #ifndef BOUNDARYMANAGER_HPP
 #define BOUNDARYMANAGER_HPP
 
-#include <cstdint>
 #include <memory>
-#include <vector>
-#include "parallel/HaloExchange.hpp"
+#include <unordered_map>
+
 #include "data/Variables.hpp"
 
-
-
-class DataLayer;
-class Mesh;
 class BoundaryCondition;
-
-/**
- * @struct AxisBc
- * @brief Boundary condition pair for one axis (left/right side).
- */
-struct AxisBc final {
-    std::shared_ptr<BoundaryCondition> left_bc;
-    std::shared_ptr<BoundaryCondition> right_bc;
-};
+class DataLayer;
+class Face;
+class Mesh;
 
 /**
  * @class BoundaryManager
- * @brief Manages halo update (stub for MPI) and physical boundary conditions.
- *
- * Contract:
- *  - UpdateHalo() handles internal subdomain interfaces (MPI later). For now: no-op.
- *  - ApplyPhysicalBc() applies only physical BC on global external boundaries,
- *    as indicated by Mesh boundary flags.
+ * @brief Stores boundary conditions indexed by boundary tag.
  */
 class BoundaryManager final {
 public:
-    /** @brief Constructs boundary manager for three axes. */
-    explicit BoundaryManager(std::shared_ptr<HaloExchange> halo_exchange = nullptr);
+    BoundaryManager() = default;
 
     /**
-     * @brief Assign boundary conditions for an axis.
-     * @param axis Axis (X/Y/Z).
-     * @param left_bc Boundary at lower/min side.
-     * @param right_bc Boundary at upper/max side.
+     * @brief Register boundary condition for one boundary tag.
      */
-    void Set(Axis axis,
-             std::shared_ptr<BoundaryCondition> left_bc,
-             std::shared_ptr<BoundaryCondition> right_bc);
+    void Register(int boundary_tag, std::shared_ptr<BoundaryCondition> boundary_condition);
 
     /**
-     * @brief Halo exchange/update for internal interfaces (MPI later).
-     * @details For now: no-op.
+     * @brief Check whether a boundary tag has a registered boundary condition.
      */
-    void UpdateHalo(DataLayer& layer, const Mesh& mesh) const;
+    [[nodiscard]] bool Has(int boundary_tag) const;
 
     /**
-     * @brief Apply physical boundary conditions on global external boundaries.
-     * @details Uses Mesh::IsGlobalBoundary(axis, side) to decide whether to apply.
+     * @brief Get boundary condition by boundary tag.
+     * @throws std::runtime_error if boundary tag is not registered.
      */
-    void ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const;
+    [[nodiscard]] const BoundaryCondition& Get(int boundary_tag) const;
 
-    /** @brief Get boundary pair for an axis. */
-    [[nodiscard]] const AxisBc& Get(Axis axis) const;
+    /**
+     * @brief Build external primitive state for one boundary face.
+     * @throws std::runtime_error if face is not boundary or no BC is registered for its tag.
+     */
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const;
 
 private:
-    std::vector<AxisBc> axes_;
-    std::shared_ptr<HaloExchange> halo_exchange_;
+    std::unordered_map<int, std::shared_ptr<BoundaryCondition>> by_tag_;
 };
 
 #endif  // BOUNDARYMANAGER_HPP

@@ -2,24 +2,19 @@
 #define STEPWRITER_HPP
 
 #include <cstddef>
-#include <string>
-
-#include "config/Settings.hpp"
 
 class DataLayer;
+class Settings;
 class Mesh;
 
 /**
  * @class StepWriter
  * @brief Abstract interface for writing simulation data to disk.
  *
- * This class defines a minimal I/O interface that allows saving
- * the state of the computational domain at each time step.
+ * This interface defines minimal output functionality for one simulation state.
+ * Concrete implementations define specific file formats and serialization logic.
  *
- * Concrete implementations define specific file formats and data serialization
- * strategies.
- *
- * Writers that accumulate data over multiple steps should override Finalize().
+ * Writers that accumulate data over multiple steps may override Finalize().
  */
 class StepWriter {
 public:
@@ -28,9 +23,9 @@ public:
     /**
      * @brief Write simulation data to disk.
      *
-     * @param layer The numerical solution data layer.
-     * @param mesh Structured mesh with geometry and ranges.
-     * @param settings Solver settings for output file name construction.
+     * @param layer Numerical solution data.
+     * @param mesh Generic mesh with geometry and connectivity.
+     * @param settings Solver settings used for metadata and file naming.
      * @param step Current simulation step number.
      * @param time Current simulation time.
      */
@@ -41,45 +36,18 @@ public:
                        double time) const = 0;
 
     /**
-     * @brief Write simulation data with optional analytical comparison.
-     *
-     * Default implementation ignores analytical data and delegates to Write().
-     *
-     * @param layer The numerical solution data layer.
-     * @param analytical_layer Optional analytical solution data.
-     * @param mesh Structured mesh for numerical solution.
-     * @param analytical_mesh Optional analytical mesh.
-     * @param settings Solver settings for output file name construction.
-     * @param step Current simulation step number.
-     * @param time Current simulation time.
-     */
-    virtual void Write(const DataLayer& layer,
-                       const DataLayer* analytical_layer,
-                       const Mesh& mesh,
-                       const Mesh* analytical_mesh,
-                       const Settings& settings,
-                       std::size_t step,
-                       double time) const {
-        (void)analytical_layer;
-        (void)analytical_mesh;
-        Write(layer, mesh, settings, step, time);
-    }
-
-    /**
      * @brief Finalize output and write any accumulated data.
      *
-     * @param settings Solver settings for filename construction.
-     * @return Path to the generated output file.
+     * Default implementation does nothing.
      */
     virtual void Finalize(const Settings& settings) {
         (void)settings;
-   }
+    }
 
     /**
      * @brief Whether this writer requires Finalize() to be called.
-     * @return true if Finalize() should be called at end of simulation.
      */
-    [[nodiscard]] virtual auto RequiresFinalization() const -> bool {
+    [[nodiscard]] virtual bool RequiresFinalization() const {
         return false;
     }
 };

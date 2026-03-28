@@ -5,23 +5,16 @@
 
 /**
  * @class OutletBoundary
- * @brief Outlet (zero-gradient / Neumann) boundary condition for conservative state U.
+ * @brief Zero-gradient outlet boundary.
  *
- * The outlet condition copies the nearest interior (core) layer into ghost layers
- * along the selected axis, enforcing zero normal gradient at the boundary.
- *
- * Works only with conservative state U(var,i,j,k).
+ * Exterior state equals interior state.
  */
 class OutletBoundary final : public BoundaryCondition {
 public:
-    /**
-     * @brief Apply outlet BC along the specified axis and side.
-     * @param layer Data layer to modify (ghost cells of U will be written).
-     * @param mesh Structured mesh with ranges and metadata.
-     * @param axis Axis (X/Y/Z).
-     * @param side Side (Left/Right).
-     */
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 };
 
 #endif  // OUTLETBOUNDARY_HPP

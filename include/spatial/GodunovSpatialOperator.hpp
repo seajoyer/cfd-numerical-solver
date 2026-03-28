@@ -4,33 +4,36 @@
 #include <memory>
 
 #include "config/Settings.hpp"
-#include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
-#include "data/Workspace.hpp"
 #include "spatial/SpatialOperator.hpp"
+#include "data/Variables.hpp"
 
 class Reconstruction;
 class RiemannSolver;
-class ArtificialViscosity;
-class InternalBoundaryCondition;
+class Face;
 
 /**
  * @class GodunovSpatialOperator
- * @brief Godunov FV operator: reconstruction + Riemann solver, summed per axis.
+ * @brief Face-based Godunov finite-volume operator for generic meshes.
  *
- * Uses Workspace:
- *  - Converts U -> W once per RHS evaluation.
- *  - Computes flux divergence per axis and accumulates into workspace.Rhs().
+ * Workflow of one RHS evaluation:
+ * - convert conservative cell state U(cell,var) to primitive cache W(cell,var)
+ * - loop over mesh faces
+ * - reconstruct owner/neighbor face states
+ * - for boundary face build exterior state through BoundaryManager
+ * - compute numerical flux through face normal
+ * - accumulate flux contribution into cell-centered conservative RHS
  *
- * Embedded internal boundaries are handled on fluid-solid faces via
- * InternalBoundaryCondition.
+ * Notes:
+ * - No ghost cells.
+ * - No structured indexing.
+ * - Boundary handling is performed face-by-face.
  */
 class GodunovSpatialOperator final : public SpatialOperator {
 public:
     GodunovSpatialOperator(const Settings& settings,
                            std::shared_ptr<BoundaryManager> boundary_manager);
 
-    void ComputeRHS(DataLayer& layer,
+    void ComputeRHS(const DataLayer& layer,
                     const Mesh& mesh,
                     Workspace& workspace,
                     double gamma,
@@ -39,20 +42,38 @@ public:
 private:
     std::shared_ptr<Reconstruction> reconstruction_;
     std::shared_ptr<RiemannSolver> riemann_solver_;
-    std::shared_ptr<ArtificialViscosity> viscosity_;
-    std::shared_ptr<InternalBoundaryCondition> internal_boundary_condition_;
 
     void InitializeReconstruction(const Settings& settings);
     void InitializeRiemannSolver(const Settings& settings);
 
-    void AccumulateAxisFluxDivergence(const DataLayer& layer,
-                                      const Mesh& mesh,
-                                      const xt::xtensor<double, 4>& W,
-                                      xt::xtensor<double, 4>& rhs,
-                                      double gamma,
-                                      Axis axis) const;
+    void FillPrimitiveCache(const DataLayer& layer,
+                            const Mesh& mesh,
+                            Workspace& workspace,
+                            double gamma) const;
 
-    [[nodiscard]] const xt::xtensor<double, 1>& InvMetric(const Mesh& mesh, Axis axis) const;
+    [[nodiscard]] FaceNormal BuildFaceNormal(const Face& face) const;
+
+    void AccumulateInternalFace(const DataLayer& layer,
+                                const Mesh& mesh,
+                                const Face& face,
+                                Workspace& workspace,
+                                double gamma) const;
+
+    void AccumulateBoundaryFace(const DataLayer& layer,
+                                const Mesh& mesh,
+                                const Face& face,
+                                Workspace& workspace,
+                                double gamma) const;
+
+    void AccumulateFluxToOwner(const Mesh& mesh,
+                               const Face& face,
+                               const ConservativeCell& flux,
+                               Workspace& workspace) const;
+
+    void AccumulateFluxToNeighbor(const Mesh& mesh,
+                                  const Face& face,
+                                  const ConservativeCell& flux,
+                                  Workspace& workspace) const;
 };
 
 #endif  // GODUNOVSPATIALOPERATOR_HPP

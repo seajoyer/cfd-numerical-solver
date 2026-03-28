@@ -1,7 +1,7 @@
 #include "viscosity/VNRArtificialViscosity.hpp"
 
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "../../include/geometry/Mesh.hpp"
 
 VNRArtificialViscosity::VNRArtificialViscosity(const Settings& settings,
                                                const double C1,

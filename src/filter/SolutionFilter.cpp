@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "../../include/geometry/Mesh.hpp"
 
 SolutionFilter::SolutionFilter(const Settings& settings) {
     (void)settings;

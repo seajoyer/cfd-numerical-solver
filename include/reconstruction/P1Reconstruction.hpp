@@ -1,52 +1,104 @@
 #ifndef P1RECONSTRUCTION_HPP
 #define P1RECONSTRUCTION_HPP
 
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "reconstruction/Reconstruction.hpp"
 
+class Mesh;
+class Workspace;
+class Face;
+struct Cell;
+
 /**
  * @enum LimiterType
- * @brief Types of slope limiters for piecewise-linear reconstruction.
+ * @brief Limiter type for generic-mesh piecewise-linear reconstruction.
  */
-enum class LimiterType : std::uint8_t { kMinmod = 0, kMc = 1, kSuperbee = 2 };
+enum class LimiterType : std::uint8_t {
+    kNone = 0,
+    kBarthJespersen = 1
+};
 
 /**
  * @class P1Reconstruction
- * @brief Piecewise-linear reconstruction with slope limiters (MUSCL-type).
+ * @brief Piecewise-linear reconstruction on generic face-based meshes.
  *
- * For a face between left cell (i,j,k) and right cell (+1 along axis):
- *   WL = W_L + 0.5 * slope(L)
- *   WR = W_R - 0.5 * slope(R)
+ * Reconstruction model:
+ * - compute one cell gradient from neighboring cell-centered primitive values
+ * - optionally limit reconstructed variation
+ * - extrapolate from cell center to face center
  *
- * Slopes are computed component-wise using a limiter applied to backward and forward differences:
- *   slope(i) = limiter( W(i) - W(i-1), W(i+1) - W(i) )
+ * For internal face:
+ * - reconstruct owner-side state at face center
+ * - reconstruct neighbor-side state at face center
  *
- * Contract:
- *  - No allocations in hot path.
- *  - Uses only local stencil and ghost cells for boundary support.
+ * For boundary face:
+ * - reconstruct owner-side interior state at face center
+ *
+ * Notes:
+ * - No ghost cells.
+ * - Uses only real mesh connectivity.
+ * - This is a generic unstructured-friendly MUSCL-type reconstruction.
  */
 class P1Reconstruction final : public Reconstruction {
 public:
     P1Reconstruction() = default;
     ~P1Reconstruction() override = default;
 
-    void ReconstructFace(const xt::xtensor<double, 4>& W,
-                         Axis axis,
-                         int i, int j, int k,
-                         PrimitiveCell& WL,
-                         PrimitiveCell& WR) const override;
+    void ReconstructInteriorFace(const Mesh& mesh,
+                                 const Workspace& workspace,
+                                 const Face& face,
+                                 PrimitiveCell& owner_state,
+                                 PrimitiveCell& neighbor_state) const override;
 
-    void SetLimiter(LimiterType type) { limiter_type_ = type; }
+    void ReconstructBoundaryFaceInterior(const Mesh& mesh,
+                                         const Workspace& workspace,
+                                         const Face& face,
+                                         PrimitiveCell& interior_state) const override;
+
+    void SetLimiter(LimiterType type);
 
 private:
-    LimiterType limiter_type_{LimiterType::kMinmod};
+    struct PrimitiveGradient final {
+        PrimitiveCell dx;
+        PrimitiveCell dy;
+        PrimitiveCell dz;
+    };
 
-    static auto Minmod(double a, double b) -> double;
-    static auto Mc(double a, double b) -> double;
-    static auto Superbee(double a, double b) -> double;
+    LimiterType limiter_type_ = LimiterType::kBarthJespersen;
 
-    [[nodiscard]] auto ApplyLimiter(double a, double b) const -> double;
+    [[nodiscard]] PrimitiveCell LoadCellPrimitive(const Workspace& workspace,
+                                                  std::size_t cell_id) const;
+
+    void CollectNeighborCellIds(const Mesh& mesh,
+                                const Cell& cell,
+                                std::vector<std::size_t>& neighbor_cell_ids) const;
+
+    [[nodiscard]] PrimitiveGradient ComputeGradient(const Mesh& mesh,
+                                                    const Workspace& workspace,
+                                                    const Cell& cell) const;
+
+    [[nodiscard]] double ComputeLimiter(const Mesh& mesh,
+                                        const Workspace& workspace,
+                                        const Cell& cell,
+                                        const PrimitiveGradient& gradient,
+                                        double face_center_x,
+                                        double face_center_y,
+                                        double face_center_z) const;
+
+    [[nodiscard]] PrimitiveCell ExtrapolateToPoint(const Cell& cell, const PrimitiveCell& cell_state,
+                                                   const PrimitiveGradient& gradient, double limiter,
+                                                   double x, double y, double z) const;
+
+    double SolveLeastSquaresComponent(double a11, double a12, double a13, double a22,
+                                      double a23, double a33, double b1, double b2,
+                                      double b3, int dim, double& gx, double& gy,
+                                      double& gz) const;
+
+    [[nodiscard]] double ComputeBarthJespersenPhi(double w_cell, double w_min, double w_max,
+                                                  double w_face_candidate) const;
 };
 
 #endif  // P1RECONSTRUCTION_HPP

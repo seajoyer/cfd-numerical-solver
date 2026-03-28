@@ -5,20 +5,28 @@
 #include <string>
 #include <vector>
 
+#include "config/Settings.hpp"
+
 struct CliOptions {
     std::string config_path;
     std::optional<std::vector<std::string>> run_cases;
+
+    /**
+     * Reserved for future CLI overrides.
+     */
+    CaseSettings overrides;
 };
 
 class CliParser {
 public:
     CliParser() = default;
 
-    auto Parse(int argc, char* argv[], const std::string& default_config_path)
-        -> std::optional<CliOptions>;
+    [[nodiscard]] std::optional<CliOptions> Parse(int argc,
+                                                  char* argv[],
+                                                  const std::string& default_config_path) const;
 
 private:
-    static auto SplitCommaSeparated(const std::string& value) -> std::vector<std::string>;
+    [[nodiscard]] static std::vector<std::string> SplitCommaSeparated(const std::string& value);
 };
 
 #endif  // CLIPARSER_HPP

@@ -5,19 +5,14 @@
 
 /**
  * @class WallBoundary
- * @brief Stationary wall boundary for conservative Euler state U.
- *
- * Implementation:
- * - copies rho and E from the nearest interior core layer
- * - sets all momentum components (rhoU, rhoV, rhoW) to zero in ghost cells
- *
- * Note:
- * For inviscid Euler, reflective/slip-wall is usually more physical.
- * This boundary enforces zero velocity in ghost cells.
+ * @brief Solid slip wall boundary for inviscid Euler equations.
  */
 class WallBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 };
 
 #endif  // WALLBOUNDARY_HPP

@@ -5,7 +5,7 @@
 
 #include "bc/BoundaryCondition.hpp"
 #include "config/Settings.hpp"
-#include "data/Mesh.hpp"
+#include "../geometry/Mesh.hpp"
 #include "data/Variables.hpp"
 #include "parallel/MPIContext.hpp"
 

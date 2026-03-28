@@ -10,21 +10,24 @@ class SpatialOperator;
  * @class TimeIntegrator
  * @brief Abstract explicit time integration scheme for semi-discrete FV systems.
  *
- * Integrators advance the conservative state U stored in DataLayer.
- * They do NOT apply boundary conditions or halos; those are handled inside SpatialOperator.
+ * Integrators advance conservative cell-centered state U stored in DataLayer.
+ * Boundary conditions and face flux construction are handled inside SpatialOperator.
  *
- * Workspace is provided by the caller and reused to avoid allocations.
+ * Contract:
+ * - Works on generic face-based meshes.
+ * - Does not use ghost cells or structured core ranges.
+ * - Reuses caller-provided Workspace.
  */
 class TimeIntegrator {
 public:
     virtual ~TimeIntegrator() = default;
 
     /**
-     * @brief Advances the solution by one time step dt.
+     * @brief Advance conservative solution by one time step.
      *
-     * @param layer Conservative state owner (updated in-place).
-     * @param mesh Structured mesh with geometry, ranges, and cell types.
-     * @param workspace Scratch buffers (W, rhs).
+     * @param layer Conservative state storage updated in-place.
+     * @param mesh Mesh with cells, faces, geometry, and connectivity.
+     * @param workspace Reusable scratch buffers.
      * @param dt Time step size.
      * @param gamma Ratio of specific heats.
      * @param op Spatial operator providing RHS evaluations.
@@ -36,7 +39,12 @@ public:
                          double gamma,
                          const SpatialOperator& op) const = 0;
 
-    /** @brief Sets positivity thresholds used by integrator post-update limiter. */
+    /**
+     * @brief Set positivity floors used after conservative update.
+     *
+     * @param rho_min Density floor.
+     * @param p_min Pressure floor.
+     */
     virtual void SetPositivityThresholds(double rho_min, double p_min) {
         rho_min_ = rho_min;
         p_min_ = p_min;

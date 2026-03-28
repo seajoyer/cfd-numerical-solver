@@ -1,16 +1,18 @@
 #include "config/CliParser.hpp"
 
-#include <cxxopts.hpp>
 #include <iostream>
 #include <sstream>
 
-auto CliParser::Parse(int argc, char* argv[], const std::string& default_config_path)
-    -> std::optional<CliOptions> {
+#include <cxxopts.hpp>
+
+std::optional<CliOptions> CliParser::Parse(const int argc,
+                                           char* argv[],
+                                           const std::string& default_config_path) const {
     try {
         cxxopts::Options options(
-            "cfd_numerical_solver",
-            "CFD Numerical Solver"
-        );
+                                 "cfd_numerical_solver",
+                                 "CFD Numerical Solver"
+                                );
 
         options.add_options()
             ("h,help", "Print help")
@@ -43,7 +45,7 @@ auto CliParser::Parse(int argc, char* argv[], const std::string& default_config_
     }
 }
 
-auto CliParser::SplitCommaSeparated(const std::string& value) -> std::vector<std::string> {
+std::vector<std::string> CliParser::SplitCommaSeparated(const std::string& value) {
     std::vector<std::string> result;
     std::istringstream ss(value);
     std::string item;

@@ -27,15 +27,15 @@ add_executable(${NAME}
 
     src/solver/SolverFactory.cpp
     src/solver/FiniteVolumeSolver.cpp
-    src/solver/EOS.cpp
+#    src/solver/EOS.cpp
 #    src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
     src/solver/TimeStepCalculator.cpp
     src/solver/PositivityLimiter.cpp
 
     src/time/ForwardEulerTimeIntegrator.cpp
-    src/time/MacCormackTimeIntegrator.cpp
-    src/time/MaderTimeIntegrator.cpp
+#    src/time/MacCormackTimeIntegrator.cpp
+#    src/time/MaderTimeIntegrator.cpp
     src/time/SSPRK3TimeIntegrator.cpp
     src/time/SSPRK2TimeIntegrator.cpp
     include/time/TimeIntegrator.hpp
@@ -43,36 +43,36 @@ add_executable(${NAME}
 #    src/limiter/GlobalLimiter.cpp
 #    src/limiter/VacuumFixLimiter.cpp
 
-    src/filter/SolutionFilter.cpp
+#    src/filter/SolutionFilter.cpp
 
-    src/viscosity/VNRArtificialViscosity.cpp
-    include/viscosity/ArtificialViscosity.hpp
+#    src/viscosity/VNRArtificialViscosity.cpp
+#    include/viscosity/ArtificialViscosity.hpp
 
-    src/spatial/ForwardEulerSpatialOperator.cpp
-    src/spatial/BackwardEulerSpatialOperator.cpp
-    src/spatial/FLICSpatialOperator.cpp
-    src/spatial/MaderSpatialOperator.cpp
+#    src/spatial/ForwardEulerSpatialOperator.cpp
+#    src/spatial/BackwardEulerSpatialOperator.cpp
+#    src/spatial/FLICSpatialOperator.cpp
+#    src/spatial/MaderSpatialOperator.cpp
     src/spatial/GodunovSpatialOperator.cpp
     src/spatial/GodunovKolganRodionovSpatialOperator.cpp
     include/spatial/SpatialOperator.hpp
 
     src/reconstruction/P0Reconstruction.cpp
     src/reconstruction/P1Reconstruction.cpp
-    src/reconstruction/ENOReconstruction.cpp
-    src/reconstruction/WENOReconstruction.cpp
+#    src/reconstruction/ENOReconstruction.cpp
+#    src/reconstruction/WENOReconstruction.cpp
     include/reconstruction/Reconstruction.hpp
 
     src/riemann/RusanovRiemannSolver.cpp
     src/riemann/HLLRiemannSolver.cpp
     src/riemann/HLLCRiemannSolver.cpp
     src/riemann/RoeRiemannSolver.cpp
-    src/riemann/OsherRiemannSolver.cpp
+#    src/riemann/OsherRiemannSolver.cpp
     src/riemann/ExactIdealGasRiemannSolver.cpp
-    src/riemann/AcousticRiemannSolver.cpp
+#    src/riemann/AcousticRiemannSolver.cpp
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
-    src/output/VTKRecomposer.cpp
+#    src/output/VTKRecomposer.cpp
 #    src/output/PNGWriter.cpp
 #    src/output/GIFWriter.cpp
 
@@ -80,20 +80,26 @@ add_executable(${NAME}
     src/data/Variables.cpp
     src/data/Workspace.cpp
 
-    src/data/Mesh.cpp
+    src/geometry/GmshMeshBuilder.cpp
+    src/geometry/StructuredMeshBuilder.cpp
+    src/geometry/Mesh.cpp
+    include/geometry/Node.hpp
+    include/geometry/Cell.hpp
+    src/geometry/Face.cpp
     include/data/geometry/GeometryPrimitive.hpp
     src/data/geometry/CircleGeometry.cpp
     src/data/geometry/RectangleGeometry.cpp
 
     src/parallel/MPIContext.cpp
-    src/parallel/HaloExchange.cpp
-    src/parallel/DomainDecomposition.cpp
+#    src/parallel/HaloExchange.cpp
+#    src/parallel/DomainDecomposition.cpp
 
     src/config/ConfigParser.cpp
     src/config/YamlConfigParser.cpp
     src/config/CliParser.cpp
     include/config/Settings.hpp
     include/config/InitialConditions.hpp
+    src/config/InitialConditionInitializer.cpp
 
     src/bc/BoundaryFactory.cpp
     src/bc/BoundaryManager.cpp
@@ -107,8 +113,8 @@ add_executable(${NAME}
     src/bc/WallBoundary.cpp
     include/bc/BoundaryCondition.hpp
 
-    include/bc/InternalBoundaryCondition.hpp
-    src/bc/SlipWallInternalBoundary.cpp
+#    include/bc/InternalBoundaryCondition.hpp
+#    src/bc/SlipWallInternalBoundary.cpp
 
     src/utils/StringUtils.cpp
 )
@@ -127,13 +133,24 @@ target_link_libraries(${NAME}
 
         VTK::CommonCore
         VTK::CommonDataModel
+        VTK::FiltersCore
+        VTK::FiltersGeneral
+        VTK::FiltersSources
+        VTK::IOCore
         VTK::IOLegacy
-        VTK::ChartsCore
-        VTK::ViewsContext2D
-        VTK::RenderingContext2D
         VTK::IOImage
-        VTK::RenderingContextOpenGL2
+        VTK::IOXML
+        VTK::InteractionWidgets
+        VTK::RenderingCore
+        VTK::RenderingFreeType
         VTK::RenderingOpenGL2
+        VTK::RenderingContext2D
+        VTK::RenderingContextOpenGL2
+        VTK::RenderingUI
+        VTK::ViewsCore
+        VTK::ViewsContext2D
 
         MPI::MPI_CXX
+
+        gmsh::gmsh
 )

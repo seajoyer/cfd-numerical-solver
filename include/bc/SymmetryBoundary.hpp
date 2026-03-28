@@ -5,19 +5,16 @@
 
 /**
  * @class SymmetryBoundary
- * @brief Symmetry boundary for conservative Euler state U.
+ * @brief Symmetry boundary.
  *
- * Ghost cells are filled by mirroring interior cells across the boundary.
- * The normal momentum component is inverted, tangential components and scalars are copied.
- *
- * For axis:
- *  - X: rhoU changes sign
- *  - Y: rhoV changes sign
- *  - Z: rhoW changes sign
+ * Equivalent to reflective slip boundary for Euler equations.
  */
 class SymmetryBoundary final : public BoundaryCondition {
 public:
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 };
 
 #endif  // SYMMETRYBOUNDARY_HPP

@@ -1,7 +1,11 @@
 #include "config/YamlConfigParser.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "utils/StringUtils.hpp"
 
@@ -20,14 +24,21 @@ namespace {
         }
     }
 
-    auto ReadLowerString(const YAML::Node& node, const char* key) -> std::optional<std::string> {
+    [[nodiscard]] std::string ReadLowerStringRequired(const YAML::Node& node, const char* key) {
+        if (!node[key]) {
+            throw std::runtime_error(std::string("Missing required key: ") + key);
+        }
+        return utils::ToLower(node[key].as<std::string>());
+    }
+
+    [[nodiscard]] std::optional<std::string> ReadLowerStringOptional(const YAML::Node& node, const char* key) {
         if (!node[key]) {
             return std::nullopt;
         }
         return utils::ToLower(node[key].as<std::string>());
     }
 
-    auto ParseBoundaryState(const YAML::Node& node) -> BoundaryStateSettings {
+    [[nodiscard]] BoundaryStateSettings ParseBoundaryState(const YAML::Node& node) {
         BoundaryStateSettings state;
         AssignIfPresent(node, "rho", state.rho);
         AssignIfPresent(node, "u", state.u);
@@ -36,9 +47,31 @@ namespace {
         AssignIfPresent(node, "p", state.p);
         return state;
     }
+
+    void SetStructuredBoundaryTag(BoundarySettings& boundary,
+                                  const int tag,
+                                  const std::string& type,
+                                  const std::optional<BoundaryStateSettings>& state) {
+        BoundaryConditionSettings bc;
+        bc.type = utils::ToLower(type);
+        bc.state = state;
+        boundary.by_tag[tag] = bc;
+    }
+
+    [[nodiscard]] bool IsStructuredMesh(const Settings& settings) {
+        return settings.mesh.source_type == MeshSourceType::StructuredCartesian;
+    }
+
+    [[nodiscard]] int EffectiveDim(const Settings& settings) {
+        return settings.mesh.dim;
+    }
+
+    [[nodiscard]] StructuredMeshSettings DefaultStructuredMeshSettings() {
+        return StructuredMeshSettings{};
+    }
 } // namespace
 
-auto YamlConfigParser::ParseFile(const std::string& filename) -> ParsedYamlConfig {
+ParsedYamlConfig YamlConfigParser::ParseFile(const std::string& filename) const {
     const YAML::Node root = YAML::LoadFile(filename);
 
     ParsedYamlConfig result;
@@ -53,6 +86,8 @@ auto YamlConfigParser::ParseFile(const std::string& filename) -> ParsedYamlConfi
     if (root["defaults"]) {
         ParseDefaults(root["defaults"], result.settings);
     }
+
+    ValidateSettingsConsistency(result.settings);
 
     if (!root["cases"]) {
         throw std::runtime_error("Missing 'cases' section in YAML config");
@@ -94,9 +129,6 @@ void YamlConfigParser::ParseDefaults(const YAML::Node& defaults_node, Settings& 
     if (defaults_node["boundary_conditions"]) {
         ParseBoundaryConditions(defaults_node["boundary_conditions"], settings);
     }
-    if (defaults_node["parallel"]) {
-        ParseParallel(defaults_node["parallel"], settings);
-    }
     if (defaults_node["stopping"]) {
         ParseStopping(defaults_node["stopping"], settings);
     }
@@ -106,15 +138,19 @@ void YamlConfigParser::ParseDefaults(const YAML::Node& defaults_node, Settings& 
     if (defaults_node["output"]) {
         ParseOutput(defaults_node["output"], settings);
     }
+    if (defaults_node["parallel"]) {
+        ParseParallel(defaults_node["parallel"], settings);
+    }
     if (defaults_node["immersed_boundaries"]) {
         ParseImmersedBoundaries(defaults_node["immersed_boundaries"], settings);
     }
+
+    ValidateSettingsConsistency(settings);
 }
 
-void YamlConfigParser::ParseCases(
-    const YAML::Node& cases_node,
-    std::map<std::string, InitialConditions>& initial_conditions,
-    const Settings& defaults) {
+void YamlConfigParser::ParseCases(const YAML::Node& cases_node,
+                                  std::map<std::string, InitialConditions>& initial_conditions,
+                                  const Settings& defaults) {
     for (const auto& entry : cases_node) {
         const std::string case_name = entry.first.as<std::string>();
         const YAML::Node case_node = entry.second;
@@ -124,75 +160,146 @@ void YamlConfigParser::ParseCases(
 
         ApplyCaseOverrides(case_node, ic);
 
-        const Settings effective_settings = MergeSettings(defaults, ic.overrides, CaseSettings{});
+        Settings effective_settings = MergeSettings(defaults, ic.overrides, CaseSettings{});
+        effective_settings.simulation_case = case_name;
+        ValidateSettingsConsistency(effective_settings);
 
         if (!case_node["initial_condition"]) {
             throw std::runtime_error("Case '" + case_name + "' does not contain 'initial_condition'");
         }
 
-        const YAML::Node ic_node = case_node["initial_condition"];
-        if (!ic_node["type"]) {
-            throw std::runtime_error("Case '" + case_name + "' initial_condition must contain 'type'");
-        }
-
-        const std::string initial_condition_type = utils::ToLower(ic_node["type"].as<std::string>());
-        ic.ic_type = initial_condition_type;
-
-        if (initial_condition_type == "structured_regions") {
-            ParseStructuredInitialCondition(ic_node, ic, effective_settings);
-        }
-        else if (initial_condition_type == "region_markers") {
-            throw std::runtime_error("initial_condition.type=region_markers is not implemented yet");
-        }
-        else {
-            throw std::runtime_error("Unsupported initial_condition.type: " + initial_condition_type);
-        }
-
+        ParseInitialCondition(case_node["initial_condition"], ic, effective_settings);
         initial_conditions[case_name] = ic;
     }
 }
 
 void YamlConfigParser::ParseMesh(const YAML::Node& node, Settings& settings) {
-    if (node["type"]) {
-        const std::string mesh_type = utils::ToLower(node["type"].as<std::string>());
-        if (mesh_type != "structured") {
-            throw std::runtime_error("Only mesh.type=structured is supported at the moment");
+    const std::string mesh_type =
+        node["type"] ? utils::ToLower(node["type"].as<std::string>()) : "structured";
+
+    AssignIfPresent(node, "dim", settings.mesh.dim);
+
+    if (mesh_type == "structured") {
+        settings.mesh.source_type = MeshSourceType::StructuredCartesian;
+
+        StructuredMeshSettings structured =
+            settings.mesh.structured.has_value()
+                ? *settings.mesh.structured
+                : DefaultStructuredMeshSettings();
+
+        if (node["cells"]) {
+            const YAML::Node cells = node["cells"];
+            AssignIfPresent(cells, "x", structured.nx);
+            AssignIfPresent(cells, "y", structured.ny);
+            AssignIfPresent(cells, "z", structured.nz);
         }
+
+        if (node["domain"]) {
+            const YAML::Node domain = node["domain"];
+
+            if (domain["x_min"]) {
+                structured.x_min = domain["x_min"].as<double>();
+            }
+            if (domain["x_max"]) {
+                structured.x_max = domain["x_max"].as<double>();
+            }
+            if (domain["y_min"]) {
+                structured.y_min = domain["y_min"].as<double>();
+            }
+            if (domain["y_max"]) {
+                structured.y_max = domain["y_max"].as<double>();
+            }
+            if (domain["z_min"]) {
+                structured.z_min = domain["z_min"].as<double>();
+            }
+            if (domain["z_max"]) {
+                structured.z_max = domain["z_max"].as<double>();
+            }
+
+            // Backward-compatible support
+            if (domain["x"]) {
+                structured.x_min = 0.0;
+                structured.x_max = domain["x"].as<double>();
+            }
+            if (domain["y"]) {
+                structured.y_min = 0.0;
+                structured.y_max = domain["y"].as<double>();
+            }
+            if (domain["z"]) {
+                structured.z_min = 0.0;
+                structured.z_max = domain["z"].as<double>();
+            }
+        }
+
+        settings.mesh.structured = structured;
+        settings.mesh.gmsh_file.reset();
+        return;
     }
 
-    AssignIfPresent(node, "dim", settings.dim);
+    if (mesh_type == "gmsh_file") {
+        settings.mesh.source_type = MeshSourceType::GmshFile;
 
-    if (node["cells"]) {
-        const YAML::Node cells = node["cells"];
-        AssignIfPresent(cells, "x", settings.Nx);
-        AssignIfPresent(cells, "y", settings.Ny);
-        AssignIfPresent(cells, "z", settings.Nz);
+        GmshFileMeshSettings gmsh_file;
+        if (settings.mesh.gmsh_file) {
+            gmsh_file = *settings.mesh.gmsh_file;
+        }
+
+        if (!node["source"]) {
+            throw std::runtime_error("mesh.type=gmsh_file requires mesh.source");
+        }
+
+        const YAML::Node source = node["source"];
+        if (!source["file"]) {
+            throw std::runtime_error("mesh.source.file is required for mesh.type=gmsh_file");
+        }
+
+        gmsh_file.file_path = source["file"].as<std::string>();
+        settings.mesh.gmsh_file = gmsh_file;
+        settings.mesh.structured.reset();
+        return;
     }
 
-    if (node["domain"]) {
-        const YAML::Node domain = node["domain"];
-        AssignIfPresent(domain, "x", settings.L_x);
-        AssignIfPresent(domain, "y", settings.L_y);
-        AssignIfPresent(domain, "z", settings.L_z);
+    if (mesh_type == "gmsh_geo") {
+        settings.mesh.source_type = MeshSourceType::GmshGeo;
+
+        GmshGeoMeshSettings gmsh_geo;
+        if (settings.mesh.gmsh_geo) {
+            gmsh_geo = *settings.mesh.gmsh_geo;
+        }
+
+        if (!node["source"]) {
+            throw std::runtime_error("mesh.type=gmsh_geo requires mesh.source");
+        }
+
+        const YAML::Node source = node["source"];
+        if (!source["file"]) {
+            throw std::runtime_error("mesh.source.file is required for mesh.type=gmsh_geo");
+        }
+
+        gmsh_geo.file_path = source["file"].as<std::string>();
+        settings.mesh.gmsh_geo = gmsh_geo;
+        settings.mesh.structured.reset();
+        settings.mesh.gmsh_file.reset();
+        return;
     }
 
-    if (node["source"]) {
-        throw std::runtime_error("Unstructured mesh source is not implemented yet");
-    }
+    throw std::runtime_error("Unsupported mesh.type: " + mesh_type);
 }
 
 void YamlConfigParser::ParsePhysics(const YAML::Node& node, Settings& settings) {
     if (node["eos"]) {
-        settings.EOS = utils::ToLower(node["eos"].as<std::string>());
+        settings.eos = utils::ToLower(node["eos"].as<std::string>());
     }
 
-    if (node["parameters"]) {
-        const YAML::Node parameters = node["parameters"];
-        AssignIfPresent(parameters, "gamma", settings.gamma);
+    if (!node["parameters"]) {
+        return;
+    }
 
-        if (parameters["reactant_mass_fraction"]) {
-            settings.Q_user = parameters["reactant_mass_fraction"].as<double>();
-        }
+    const YAML::Node parameters = node["parameters"];
+    AssignIfPresent(parameters, "gamma", settings.gamma);
+
+    if (parameters["reactant_mass_fraction"]) {
+        settings.Q_user = parameters["reactant_mass_fraction"].as<double>();
     }
 }
 
@@ -217,7 +324,7 @@ void YamlConfigParser::ParseNumerics(const YAML::Node& node, Settings& settings)
         settings.riemann_solver = utils::ToLower(parameters["riemann_solver"].as<std::string>());
     }
     if (parameters["transport_model"]) {
-        settings.mader_transport = utils::ToLower(parameters["transport_model"].as<std::string>());
+        settings.transport_model = utils::ToLower(parameters["transport_model"].as<std::string>());
     }
 
     AssignIfPresent(parameters, "cfl", settings.cfl);
@@ -228,37 +335,87 @@ void YamlConfigParser::ParseNumerics(const YAML::Node& node, Settings& settings)
 }
 
 void YamlConfigParser::ParseBoundaryConditions(const YAML::Node& node, Settings& settings) {
-    if (node["default"]) {
-        const std::string default_bc = utils::ToLower(node["default"].as<std::string>());
-        settings.left_boundary = default_bc;
-        settings.right_boundary = default_bc;
-        settings.bottom_boundary = default_bc;
-        settings.top_boundary = default_bc;
-        settings.back_boundary = default_bc;
-        settings.front_boundary = default_bc;
+    BoundarySettings boundary = settings.boundary;
+
+    if (node["tags"]) {
+        const YAML::Node tags_node = node["tags"];
+        if (!tags_node.IsMap()) {
+            throw std::runtime_error("'boundary_conditions.tags' must be a map");
+        }
+
+        for (const auto& entry : tags_node) {
+            const int tag = entry.first.as<int>();
+            const YAML::Node bc_node = entry.second;
+
+            BoundaryConditionSettings bc;
+            bc.type = ReadLowerStringRequired(bc_node, "type");
+
+            if (bc_node["state"]) {
+                bc.state = ParseBoundaryState(bc_node["state"]);
+            }
+
+            boundary.by_tag[tag] = bc;
+        }
     }
 
-    if (node["x_min"]) settings.left_boundary = utils::ToLower(node["x_min"].as<std::string>());
-    if (node["x_max"]) settings.right_boundary = utils::ToLower(node["x_max"].as<std::string>());
-    if (node["y_min"]) settings.bottom_boundary = utils::ToLower(node["y_min"].as<std::string>());
-    if (node["y_max"]) settings.top_boundary = utils::ToLower(node["y_max"].as<std::string>());
-    if (node["z_min"]) settings.back_boundary = utils::ToLower(node["z_min"].as<std::string>());
-    if (node["z_max"]) settings.front_boundary = utils::ToLower(node["z_max"].as<std::string>());
+    // Backward-compatible structured aliases
+    if (IsStructuredMesh(settings)) {
+        std::optional<BoundaryStateSettings> x_min_state;
+        std::optional<BoundaryStateSettings> x_max_state;
+        std::optional<BoundaryStateSettings> y_min_state;
+        std::optional<BoundaryStateSettings> y_max_state;
+        std::optional<BoundaryStateSettings> z_min_state;
+        std::optional<BoundaryStateSettings> z_max_state;
 
-    if (node["states"]) {
-        const YAML::Node states = node["states"];
+        if (node["states"]) {
+            const YAML::Node states = node["states"];
+            if (states["x_min"]) x_min_state = ParseBoundaryState(states["x_min"]);
+            if (states["x_max"]) x_max_state = ParseBoundaryState(states["x_max"]);
+            if (states["y_min"]) y_min_state = ParseBoundaryState(states["y_min"]);
+            if (states["y_max"]) y_max_state = ParseBoundaryState(states["y_max"]);
+            if (states["z_min"]) z_min_state = ParseBoundaryState(states["z_min"]);
+            if (states["z_max"]) z_max_state = ParseBoundaryState(states["z_max"]);
+        }
 
-        if (states["x_min"]) settings.boundary_states.x_min = ParseBoundaryState(states["x_min"]);
-        if (states["x_max"]) settings.boundary_states.x_max = ParseBoundaryState(states["x_max"]);
-        if (states["y_min"]) settings.boundary_states.y_min = ParseBoundaryState(states["y_min"]);
-        if (states["y_max"]) settings.boundary_states.y_max = ParseBoundaryState(states["y_max"]);
-        if (states["z_min"]) settings.boundary_states.z_min = ParseBoundaryState(states["z_min"]);
-        if (states["z_max"]) settings.boundary_states.z_max = ParseBoundaryState(states["z_max"]);
+        if (node["default"]) {
+            const std::string default_bc = utils::ToLower(node["default"].as<std::string>());
+
+            SetStructuredBoundaryTag(boundary, k_xmin_tag, default_bc, x_min_state);
+            SetStructuredBoundaryTag(boundary, k_xmax_tag, default_bc, x_max_state);
+
+            if (settings.mesh.dim >= 2) {
+                SetStructuredBoundaryTag(boundary, k_ymin_tag, default_bc, y_min_state);
+                SetStructuredBoundaryTag(boundary, k_ymax_tag, default_bc, y_max_state);
+            }
+            if (settings.mesh.dim >= 3) {
+                SetStructuredBoundaryTag(boundary, k_zmin_tag, default_bc, z_min_state);
+                SetStructuredBoundaryTag(boundary, k_zmax_tag, default_bc, z_max_state);
+            }
+        }
+
+        if (node["x_min"]) SetStructuredBoundaryTag(boundary, k_xmin_tag, node["x_min"].as<std::string>(), x_min_state);
+        if (node["x_max"]) SetStructuredBoundaryTag(boundary, k_xmax_tag, node["x_max"].as<std::string>(), x_max_state);
+
+        if (settings.mesh.dim >= 2) {
+            if (node["y_min"])
+                SetStructuredBoundaryTag(boundary, k_ymin_tag, node["y_min"].as<std::string>(),
+                                         y_min_state);
+            if (node["y_max"])
+                SetStructuredBoundaryTag(boundary, k_ymax_tag, node["y_max"].as<std::string>(),
+                                         y_max_state);
+        }
+
+        if (settings.mesh.dim >= 3) {
+            if (node["z_min"])
+                SetStructuredBoundaryTag(boundary, k_zmin_tag, node["z_min"].as<std::string>(),
+                                         z_min_state);
+            if (node["z_max"])
+                SetStructuredBoundaryTag(boundary, k_zmax_tag, node["z_max"].as<std::string>(),
+                                         z_max_state);
+        }
     }
-}
 
-void YamlConfigParser::ParseParallel(const YAML::Node& node, Settings& settings) {
-    AssignIfPresent(node, "mpi", settings.mpi_enabled);
+    settings.boundary = std::move(boundary);
 }
 
 void YamlConfigParser::ParseStopping(const YAML::Node& node, Settings& settings) {
@@ -276,9 +433,24 @@ void YamlConfigParser::ParseOutput(const YAML::Node& node, Settings& settings) {
         settings.output_formats = {utils::ToLower(node["format"].as<std::string>())};
     }
 
+    if (node["formats"]) {
+        if (!node["formats"].IsSequence()) {
+            throw std::runtime_error("'output.formats' must be a sequence");
+        }
+
+        settings.output_formats.clear();
+        for (const auto& item : node["formats"]) {
+            settings.output_formats.push_back(utils::ToLower(item.as<std::string>()));
+        }
+    }
+
     AssignIfPresent(node, "directory", settings.output_dir);
     AssignIfPresent(node, "every_steps", settings.output_every_steps);
     AssignIfPresent(node, "every_time", settings.output_every_time);
+}
+
+void YamlConfigParser::ParseParallel(const YAML::Node& node, Settings& settings) {
+    AssignIfPresent(node, "mpi", settings.mpi_enabled);
 }
 
 void YamlConfigParser::ParseImmersedBoundaries(const YAML::Node& node, Settings& settings) {
@@ -293,41 +465,16 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
     CaseSettings& overrides = ic.overrides;
 
     if (case_node["mesh"]) {
-        const YAML::Node mesh_node = case_node["mesh"];
-
-        if (mesh_node["type"]) {
-            const std::string mesh_type = utils::ToLower(mesh_node["type"].as<std::string>());
-            if (mesh_type != "structured") {
-                throw std::runtime_error("Only mesh.type=structured is supported at the moment");
-            }
-        }
-
-        AssignOptionalIfPresent(mesh_node, "dim", overrides.dim);
-
-        if (mesh_node["cells"]) {
-            const YAML::Node cells = mesh_node["cells"];
-            AssignOptionalIfPresent(cells, "x", overrides.Nx);
-            AssignOptionalIfPresent(cells, "y", overrides.Ny);
-            AssignOptionalIfPresent(cells, "z", overrides.Nz);
-        }
-
-        if (mesh_node["domain"]) {
-            const YAML::Node domain = mesh_node["domain"];
-            AssignOptionalIfPresent(domain, "x", overrides.L_x);
-            AssignOptionalIfPresent(domain, "y", overrides.L_y);
-            AssignOptionalIfPresent(domain, "z", overrides.L_z);
-        }
-
-        if (mesh_node["source"]) {
-            throw std::runtime_error("Unstructured mesh source is not implemented yet");
-        }
+        Settings tmp;
+        ParseMesh(case_node["mesh"], tmp);
+        overrides.mesh = tmp.mesh;
     }
 
     if (case_node["physics"]) {
         const YAML::Node physics_node = case_node["physics"];
 
         if (physics_node["eos"]) {
-            overrides.EOS = utils::ToLower(physics_node["eos"].as<std::string>());
+            overrides.eos = utils::ToLower(physics_node["eos"].as<std::string>());
         }
 
         if (physics_node["parameters"]) {
@@ -360,7 +507,7 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
                 overrides.riemann_solver = utils::ToLower(parameters["riemann_solver"].as<std::string>());
             }
             if (parameters["transport_model"]) {
-                overrides.mader_transport = utils::ToLower(parameters["transport_model"].as<std::string>());
+                overrides.transport_model = utils::ToLower(parameters["transport_model"].as<std::string>());
             }
 
             AssignOptionalIfPresent(parameters, "cfl", overrides.cfl);
@@ -372,43 +519,12 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
     }
 
     if (case_node["boundary_conditions"]) {
-        const YAML::Node bc_node = case_node["boundary_conditions"];
-
-        if (bc_node["default"]) {
-            const std::string default_bc = utils::ToLower(bc_node["default"].as<std::string>());
-            overrides.left_boundary = default_bc;
-            overrides.right_boundary = default_bc;
-            overrides.bottom_boundary = default_bc;
-            overrides.top_boundary = default_bc;
-            overrides.back_boundary = default_bc;
-            overrides.front_boundary = default_bc;
+        Settings tmp;
+        if (overrides.mesh) {
+            tmp.mesh = *overrides.mesh;
         }
-
-        if (bc_node["x_min"]) overrides.left_boundary = utils::ToLower(bc_node["x_min"].as<std::string>());
-        if (bc_node["x_max"]) overrides.right_boundary = utils::ToLower(bc_node["x_max"].as<std::string>());
-        if (bc_node["y_min"]) overrides.bottom_boundary = utils::ToLower(bc_node["y_min"].as<std::string>());
-        if (bc_node["y_max"]) overrides.top_boundary = utils::ToLower(bc_node["y_max"].as<std::string>());
-        if (bc_node["z_min"]) overrides.back_boundary = utils::ToLower(bc_node["z_min"].as<std::string>());
-        if (bc_node["z_max"]) overrides.front_boundary = utils::ToLower(bc_node["z_max"].as<std::string>());
-
-        if (bc_node["states"]) {
-            BoundaryStatesSettings states_override;
-
-            const YAML::Node states = bc_node["states"];
-            if (states["x_min"]) states_override.x_min = ParseBoundaryState(states["x_min"]);
-            if (states["x_max"]) states_override.x_max = ParseBoundaryState(states["x_max"]);
-            if (states["y_min"]) states_override.y_min = ParseBoundaryState(states["y_min"]);
-            if (states["y_max"]) states_override.y_max = ParseBoundaryState(states["y_max"]);
-            if (states["z_min"]) states_override.z_min = ParseBoundaryState(states["z_min"]);
-            if (states["z_max"]) states_override.z_max = ParseBoundaryState(states["z_max"]);
-
-            overrides.boundary_states = states_override;
-        }
-    }
-
-    if (case_node["parallel"]) {
-        const YAML::Node parallel_node = case_node["parallel"];
-        AssignOptionalIfPresent(parallel_node, "mpi", overrides.mpi_enabled);
+        ParseBoundaryConditions(case_node["boundary_conditions"], tmp);
+        overrides.boundary = tmp.boundary;
     }
 
     if (case_node["stopping"]) {
@@ -432,9 +548,26 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
             };
         }
 
+        if (output_node["formats"]) {
+            if (!output_node["formats"].IsSequence()) {
+                throw std::runtime_error("'output.formats' must be a sequence");
+            }
+
+            std::vector<std::string> formats;
+            for (const auto& item : output_node["formats"]) {
+                formats.push_back(utils::ToLower(item.as<std::string>()));
+            }
+            overrides.output_formats = formats;
+        }
+
         AssignOptionalIfPresent(output_node, "directory", overrides.output_dir);
         AssignOptionalIfPresent(output_node, "every_steps", overrides.output_every_steps);
         AssignOptionalIfPresent(output_node, "every_time", overrides.output_every_time);
+    }
+
+    if (case_node["parallel"]) {
+        const YAML::Node parallel_node = case_node["parallel"];
+        AssignOptionalIfPresent(parallel_node, "mpi", overrides.mpi_enabled);
     }
 
     if (case_node["immersed_boundaries"]) {
@@ -447,44 +580,79 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
     }
 }
 
-void YamlConfigParser::ParseStructuredInitialCondition(
-    const YAML::Node& ic_node,
-    InitialConditions& ic,
-    const Settings& effective_settings) {
-    ValidateStructuredShape(ic_node, effective_settings.dim);
+void YamlConfigParser::ParseInitialCondition(const YAML::Node& ic_node,
+                                             InitialConditions& ic,
+                                             const Settings& effective_settings) {
+    const std::string initial_condition_type = ReadLowerStringRequired(ic_node, "type");
 
-    const YAML::Node interfaces = ic_node["interfaces"];
-    ic.interfaces_x = interfaces["x"] ? ReadVectorDouble(interfaces["x"]) : std::vector<double>{};
-    ic.interfaces_y = interfaces["y"] ? ReadVectorDouble(interfaces["y"]) : std::vector<double>{};
-    ic.interfaces_z = interfaces["z"] ? ReadVectorDouble(interfaces["z"]) : std::vector<double>{};
-
-    if (!ic.interfaces_x.empty()) {
-        ic.overrides.x0 = ic.interfaces_x.front();
-    }
-    if (!ic.interfaces_y.empty()) {
-        ic.overrides.y0 = ic.interfaces_y.front();
-    }
-    if (!ic.interfaces_z.empty()) {
-        ic.overrides.z0 = ic.interfaces_z.front();
-    }
-
-    if (effective_settings.dim == 1) {
-        ParseStructured1D(ic_node, ic);
-        return;
-    }
-    if (effective_settings.dim == 2) {
-        ParseStructured2D(ic_node, ic);
-        return;
-    }
-    if (effective_settings.dim == 3) {
-        ParseStructured3D(ic_node, ic);
+    if (initial_condition_type == "structured_regions") {
+        ic.type = InitialConditionType::StructuredRegions;
+        ParseStructuredInitialCondition(ic_node, ic, effective_settings);
         return;
     }
 
-    throw std::runtime_error("Unsupported dimension in structured initial condition");
+    if (initial_condition_type == "constant") {
+        ic.type = InitialConditionType::Constant;
+        ParseConstantInitialCondition(ic_node, ic, effective_settings);
+        return;
+    }
+
+    if (initial_condition_type == "region_markers") {
+        ic.type = InitialConditionType::RegionMarkers;
+        throw std::runtime_error("initial_condition.type=region_markers is not implemented yet");
+    }
+
+    throw std::runtime_error("Unsupported initial_condition.type: " + initial_condition_type);
 }
 
-void YamlConfigParser::ParseStructured1D(const YAML::Node& ic_node, InitialConditions& ic) {
+void YamlConfigParser::ParseStructuredInitialCondition(const YAML::Node& ic_node,
+                                                       InitialConditions& ic,
+                                                       const Settings& effective_settings) {
+    ValidateStructuredShape(ic_node, effective_settings.mesh.dim);
+
+    StructuredRegionInitialCondition structured_ic;
+
+    const YAML::Node interfaces = ic_node["interfaces"];
+    structured_ic.interfaces_x = interfaces["x"] ? ReadVectorDouble(interfaces["x"]) : std::vector<double>{};
+    structured_ic.interfaces_y = interfaces["y"] ? ReadVectorDouble(interfaces["y"]) : std::vector<double>{};
+    structured_ic.interfaces_z = interfaces["z"] ? ReadVectorDouble(interfaces["z"]) : std::vector<double>{};
+
+    if (effective_settings.mesh.dim == 1) {
+        ParseStructured1D(ic_node, structured_ic);
+    }
+    else if (effective_settings.mesh.dim == 2) {
+        ParseStructured2D(ic_node, structured_ic);
+    }
+    else if (effective_settings.mesh.dim == 3) {
+        ParseStructured3D(ic_node, structured_ic);
+    }
+    else {
+        throw std::runtime_error("Unsupported dimension in structured initial condition");
+    }
+
+    ic.structured_regions = std::move(structured_ic);
+}
+
+void YamlConfigParser::ParseConstantInitialCondition(const YAML::Node& ic_node,
+                                                     InitialConditions& ic,
+                                                     const Settings& effective_settings) {
+    (void)effective_settings;
+
+    ConstantInitialCondition constant_ic;
+    AssignIfPresent(ic_node, "rho", constant_ic.rho);
+    AssignIfPresent(ic_node, "u", constant_ic.u);
+    AssignIfPresent(ic_node, "v", constant_ic.v);
+    AssignIfPresent(ic_node, "w", constant_ic.w);
+    AssignIfPresent(ic_node, "p", constant_ic.p);
+
+    if (ic_node["reactant_mass_fraction"]) {
+        constant_ic.reactant_mass_fraction = ic_node["reactant_mass_fraction"].as<double>();
+    }
+
+    ic.constant = constant_ic;
+}
+
+void YamlConfigParser::ParseStructured1D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic) {
     const auto rho_1d = ReadVectorDouble(ic_node["rho"]);
     const auto u_1d = ReadVectorDouble(ic_node["u"]);
     const auto v_1d = ReadVectorDouble(ic_node["v"]);
@@ -527,7 +695,7 @@ void YamlConfigParser::ParseStructured1D(const YAML::Node& ic_node, InitialCondi
     }
 }
 
-void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialConditions& ic) {
+void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic) {
     const std::size_t nx = ic.RegionCountX();
     const std::size_t ny = ic.RegionCountY();
 
@@ -548,7 +716,7 @@ void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialCondi
             throw std::runtime_error("2D y-only initial-condition arrays must match y-region count");
         }
 
-        auto lift_y_only = [&](const std::vector<double>& src) -> Field3DValues {
+        auto lift_y_only = [](const std::vector<double>& src) -> Field3DValues {
             Field3DValues dst;
             dst.values.resize(1);
             dst.values[0].resize(src.size());
@@ -616,7 +784,7 @@ void YamlConfigParser::ParseStructured2D(const YAML::Node& ic_node, InitialCondi
     }
 }
 
-void YamlConfigParser::ParseStructured3D(const YAML::Node& ic_node, InitialConditions& ic) {
+void YamlConfigParser::ParseStructured3D(const YAML::Node& ic_node, StructuredRegionInitialCondition& ic) {
     const std::size_t nx = ic.RegionCountX();
     const std::size_t ny = ic.RegionCountY();
     const std::size_t nz = ic.RegionCountZ();
@@ -666,7 +834,7 @@ void YamlConfigParser::ParseStructured3D(const YAML::Node& ic_node, InitialCondi
     }
 }
 
-void YamlConfigParser::ValidateStructuredShape(const YAML::Node& ic_node, int dim) {
+void YamlConfigParser::ValidateStructuredShape(const YAML::Node& ic_node, const int dim) {
     if (!ic_node["interfaces"]) {
         throw std::runtime_error("Missing 'interfaces' in structured initial condition");
     }
@@ -680,8 +848,67 @@ void YamlConfigParser::ValidateStructuredShape(const YAML::Node& ic_node, int di
     }
 }
 
-auto YamlConfigParser::ParseImmersedObjects(const YAML::Node& node)
-    -> std::vector<ImmersedObjectSettings> {
+void YamlConfigParser::ValidateSettingsConsistency(const Settings& settings) {
+    const int dim = settings.mesh.dim;
+    if (dim < 1 || dim > 3) {
+        throw std::runtime_error("mesh.dim must be 1, 2, or 3");
+    }
+
+    if (settings.mesh.source_type == MeshSourceType::StructuredCartesian) {
+        if (!settings.mesh.structured.has_value()) {
+            throw std::runtime_error("Structured mesh settings are missing");
+        }
+
+        const StructuredMeshSettings& s = *settings.mesh.structured;
+
+        if (s.nx <= 0) {
+            throw std::runtime_error("structured mesh nx must be positive");
+        }
+        if (dim >= 2 && s.ny <= 0) {
+            throw std::runtime_error("structured mesh ny must be positive for dim >= 2");
+        }
+        if (dim >= 3 && s.nz <= 0) {
+            throw std::runtime_error("structured mesh nz must be positive for dim >= 3");
+        }
+
+        if (!(s.x_max > s.x_min)) {
+            throw std::runtime_error("structured mesh requires x_max > x_min");
+        }
+        if (dim >= 2 && !(s.y_max > s.y_min)) {
+            throw std::runtime_error("structured mesh requires y_max > y_min for dim >= 2");
+        }
+        if (dim >= 3 && !(s.z_max > s.z_min)) {
+            throw std::runtime_error("structured mesh requires z_max > z_min for dim >= 3");
+        }
+    }
+
+    if (settings.mesh.source_type == MeshSourceType::GmshFile) {
+        if (!settings.mesh.gmsh_file.has_value()) {
+            throw std::runtime_error("Gmsh file mesh settings are missing");
+        }
+        if (settings.mesh.gmsh_file->file_path.empty()) {
+            throw std::runtime_error("gmsh mesh file path is empty");
+        }
+    }
+
+    if (settings.mesh.source_type == MeshSourceType::GmshGeo) {
+        if (!settings.mesh.gmsh_geo.has_value()) {
+            throw std::runtime_error("Gmsh geo mesh settings are missing");
+        }
+        if (settings.mesh.gmsh_geo->file_path.empty()) {
+            throw std::runtime_error("gmsh geo file path is empty");
+        }
+    }
+
+    if (settings.gamma <= 1.0) {
+        throw std::runtime_error("gamma must be greater than 1");
+    }
+    if (settings.cfl <= 0.0) {
+        throw std::runtime_error("cfl must be positive");
+    }
+}
+
+std::vector<ImmersedObjectSettings> YamlConfigParser::ParseImmersedObjects(const YAML::Node& node) {
     std::vector<ImmersedObjectSettings> objects;
 
     if (!node.IsSequence()) {
@@ -704,7 +931,7 @@ auto YamlConfigParser::ParseImmersedObjects(const YAML::Node& node)
     return objects;
 }
 
-auto YamlConfigParser::ReadVectorDouble(const YAML::Node& node) -> std::vector<double> {
+std::vector<double> YamlConfigParser::ReadVectorDouble(const YAML::Node& node) {
     if (!node.IsSequence()) {
         throw std::runtime_error("Expected 1D sequence");
     }
@@ -719,8 +946,7 @@ auto YamlConfigParser::ReadVectorDouble(const YAML::Node& node) -> std::vector<d
     return values;
 }
 
-auto YamlConfigParser::ReadMatrixDouble(const YAML::Node& node)
-    -> std::vector<std::vector<double>> {
+std::vector<std::vector<double>> YamlConfigParser::ReadMatrixDouble(const YAML::Node& node) {
     if (!node.IsSequence()) {
         throw std::runtime_error("Expected 2D sequence");
     }
@@ -735,8 +961,7 @@ auto YamlConfigParser::ReadMatrixDouble(const YAML::Node& node)
     return values;
 }
 
-auto YamlConfigParser::ReadTensorDouble(const YAML::Node& node)
-    -> std::vector<std::vector<std::vector<double>>> {
+std::vector<std::vector<std::vector<double>>> YamlConfigParser::ReadTensorDouble(const YAML::Node& node) {
     if (!node.IsSequence()) {
         throw std::runtime_error("Expected 3D sequence");
     }
@@ -751,6 +976,6 @@ auto YamlConfigParser::ReadTensorDouble(const YAML::Node& node)
     return values;
 }
 
-auto YamlConfigParser::HasKey(const YAML::Node& node, const char* key) -> bool {
+bool YamlConfigParser::HasKey(const YAML::Node& node, const char* key) {
     return static_cast<bool>(node[key]);
 }

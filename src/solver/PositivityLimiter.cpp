@@ -1,7 +1,7 @@
 #include "solver/PositivityLimiter.hpp"
 
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "geometry/Mesh.hpp"
 
 void PositivityLimiter::Apply(DataLayer& layer,
                               const Mesh& mesh,
@@ -14,61 +14,46 @@ void PositivityLimiter::Apply(DataLayer& layer,
 
     auto& U = layer.U();
 
-    const int i0 = mesh.GetCoreStartX();
-    const int i1 = mesh.GetCoreEndExclusiveX();
-    const int j0 = mesh.GetCoreStartY();
-    const int j1 = mesh.GetCoreEndExclusiveY();
-    const int k0 = mesh.GetCoreStartZ();
-    const int k1 = mesh.GetCoreEndExclusiveZ();
+    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+        double rho = U(cell_id, DataLayer::k_rho);
+        double rhoU = U(cell_id, DataLayer::k_rhoU);
+        double rhoV = U(cell_id, DataLayer::k_rhoV);
+        double rhoW = U(cell_id, DataLayer::k_rhoW);
+        double E = U(cell_id, DataLayer::k_E);
 
-    for (int k = k0; k < k1; ++k) {
-        for (int j = j0; j < j1; ++j) {
-            for (int i = i0; i < i1; ++i) {
-                if (!mesh.IsFluidCell(i, j, k)) {
-                    continue;
-                }
+        double u = 0.0;
+        double v = 0.0;
+        double w = 0.0;
 
-                double rho = U(DataLayer::k_rho, i, j, k);
-                double rhoU = U(DataLayer::k_rhoU, i, j, k);
-                double rhoV = U(DataLayer::k_rhoV, i, j, k);
-                double rhoW = U(DataLayer::k_rhoW, i, j, k);
-                double E = U(DataLayer::k_E, i, j, k);
+        if (rho > 0.0) {
+            const double inv_rho = 1.0 / rho;
+            u = rhoU * inv_rho;
+            v = rhoV * inv_rho;
+            w = rhoW * inv_rho;
+        }
 
-                double u = 0.0;
-                double v = 0.0;
-                double w = 0.0;
+        if (rho_min > 0.0 && rho < rho_min) {
+            rho = rho_min;
+            rhoU = rho * u;
+            rhoV = rho * v;
+            rhoW = rho * w;
+        }
 
-                if (rho > 0.0) {
-                    const double inv_rho = 1.0 / rho;
-                    u = rhoU * inv_rho;
-                    v = rhoV * inv_rho;
-                    w = rhoW * inv_rho;
-                }
+        if (p_min > 0.0) {
+            const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
+            const double internal_energy_density = E - kinetic;
+            const double P = (gamma - 1.0) * internal_energy_density;
 
-                if (rho_min > 0.0 && rho < rho_min) {
-                    rho = rho_min;
-                    rhoU = rho * u;
-                    rhoV = rho * v;
-                    rhoW = rho * w;
-                }
-
-                if (p_min > 0.0) {
-                    const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
-                    const double eint = E - kinetic;
-                    const double P = (gamma - 1.0) * eint;
-
-                    if (P < p_min) {
-                        const double eint_min = p_min / (gamma - 1.0);
-                        E = eint_min + kinetic;
-                    }
-                }
-
-                U(DataLayer::k_rho, i, j, k) = rho;
-                U(DataLayer::k_rhoU, i, j, k) = rhoU;
-                U(DataLayer::k_rhoV, i, j, k) = rhoV;
-                U(DataLayer::k_rhoW, i, j, k) = rhoW;
-                U(DataLayer::k_E, i, j, k) = E;
+            if (P < p_min) {
+                const double internal_energy_density_min = p_min / (gamma - 1.0);
+                E = internal_energy_density_min + kinetic;
             }
         }
+
+        U(cell_id, DataLayer::k_rho) = rho;
+        U(cell_id, DataLayer::k_rhoU) = rhoU;
+        U(cell_id, DataLayer::k_rhoV) = rhoV;
+        U(cell_id, DataLayer::k_rhoW) = rhoW;
+        U(cell_id, DataLayer::k_E) = E;
     }
 }

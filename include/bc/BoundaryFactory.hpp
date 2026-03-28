@@ -5,34 +5,28 @@
 #include <string>
 
 #include "config/Settings.hpp"
+#include "data/Variables.hpp"
 
 class BoundaryCondition;
-class MPIContext;
-
-/**
- * @struct FarfieldConservative
- * @brief Conservative far-field state (rho, rhoU, rhoV, rhoW, E).
- */
-struct FarfieldConservative final {
-    double rho  = 0.0;
-    double rhoU = 0.0;
-    double rhoV = 0.0;
-    double rhoW = 0.0;
-    double E    = 0.0;
-};
 
 /**
  * @class BoundaryFactory
- * @brief Factory for creating boundary condition instances by type.
+ * @brief Factory for creating boundary conditions by type.
  */
-class BoundaryFactory {
+class BoundaryFactory final {
 public:
-    static auto Create(const std::string& boundary_type) -> std::shared_ptr<BoundaryCondition>;
+    /**
+     * @brief Create boundary condition from one boundary-condition settings block.
+     */
+    [[nodiscard]] static std::shared_ptr<BoundaryCondition> Create(
+        const BoundaryConditionSettings& boundary_settings,
+        const Settings& settings
+    );
 
-    static auto Create(const std::string& boundary_type,
-                       const FarfieldConservative& farfield_U,
-                       const Settings& settings,
-                       int mpi_size) -> std::shared_ptr<BoundaryCondition>;
+private:
+    [[nodiscard]] static PrimitiveCell PrimitiveFromBoundaryState(
+        const BoundaryStateSettings& state
+    );
 };
 
 #endif  // BOUNDARYFACTORY_HPP

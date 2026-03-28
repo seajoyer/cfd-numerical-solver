@@ -5,7 +5,7 @@
 
 /**
  * @class ForwardEulerTimeIntegrator
- * @brief First-order explicit Euler time integration for conservative FV systems.
+ * @brief First-order explicit Euler time integration for generic FV systems.
  *
  * Implements:
  *   U^{n+1} = U^n + dt * RHS(U^n)

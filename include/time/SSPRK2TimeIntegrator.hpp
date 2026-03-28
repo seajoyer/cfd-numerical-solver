@@ -5,16 +5,16 @@
 
 /**
  * @class SSPRK2TimeIntegrator
- * @brief Strong-Stability-Preserving 2-stage Runge–Kutta (TVD RK2).
+ * @brief Strong-Stability-Preserving 2-stage Runge-Kutta integrator.
  *
  * Scheme:
- *  Stage 1: U1 = U^n + dt * L(U^n)
- *  Stage 2: U^{n+1} = 0.5 * U^n + 0.5 * (U1 + dt * L(U1))
+ *   Stage 1: U1       = U^n + dt * L(U^n)
+ *   Stage 2: U^{n+1}  = 0.5 * U^n + 0.5 * (U1 + dt * L(U1))
  *
  * Notes:
- *  - SpatialOperator handles halo + physical BC internally.
- *  - This integrator updates only fluid core cells.
- *  - PositivityLimiter is applied after the final stage.
+ * - Works on generic face-based meshes.
+ * - SpatialOperator handles face fluxes and boundary conditions internally.
+ * - PositivityLimiter is applied after the final stage.
  */
 class SSPRK2TimeIntegrator final : public TimeIntegrator {
 public:

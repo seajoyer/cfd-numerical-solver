@@ -5,17 +5,17 @@
 
 /**
  * @class SSPRK3TimeIntegrator
- * @brief Third-order strong-stability-preserving Runge–Kutta (SSPRK(3,3)).
+ * @brief Strong-Stability-Preserving 3-stage Runge-Kutta integrator.
  *
- * Scheme (Shu–Osher):
- *  U1 = U^n + dt * L(U^n)
- *  U2 = 3/4 U^n + 1/4 (U1 + dt * L(U1))
- *  U^{n+1} = 1/3 U^n + 2/3 (U2 + dt * L(U2))
+ * Scheme:
+ *   Stage 1: U1       = U^n + dt * L(U^n)
+ *   Stage 2: U2       = 3/4 U^n + 1/4 (U1 + dt * L(U1))
+ *   Stage 3: U^{n+1}  = 1/3 U^n + 2/3 (U2 + dt * L(U2))
  *
  * Notes:
- *  - SpatialOperator handles halo + physical BC internally.
- *  - Updates only fluid core cells.
- *  - PositivityLimiter is applied after the final stage.
+ * - Works on generic face-based meshes.
+ * - SpatialOperator handles face fluxes and boundary conditions internally.
+ * - PositivityLimiter is applied after the final stage.
  */
 class SSPRK3TimeIntegrator final : public TimeIntegrator {
 public:

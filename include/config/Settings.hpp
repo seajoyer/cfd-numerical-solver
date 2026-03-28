@@ -2,10 +2,92 @@
 #define SETTINGS_HPP
 
 #include <cstddef>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
 
+/**
+ * @brief Runtime mesh source type.
+ */
+enum class MeshSourceType {
+    StructuredCartesian,
+    GmshFile,
+    GmshGeo
+};
+
+/**
+ * @brief Structured Cartesian mesh settings.
+ */
+struct StructuredMeshSettings {
+    int nx = 200;
+    int ny = 1;
+    int nz = 1;
+
+    double x_min = 0.0;
+    double x_max = 1.0;
+    double y_min = 0.0;
+    double y_max = 1.0;
+    double z_min = 0.0;
+    double z_max = 1.0;
+};
+
+/**
+ * @brief External mesh loaded from Gmsh file.
+ */
+struct GmshFileMeshSettings {
+    std::string file_path;
+};
+
+/**
+ * @brief Geo file passed for mesh generation.
+ */
+struct GmshGeoMeshSettings {
+    std::string file_path;
+};
+
+/**
+ * @brief Generic mesh settings.
+ */
+struct MeshSettings {
+    int dim = 1;
+    MeshSourceType source_type = MeshSourceType::StructuredCartesian;
+
+    std::optional<StructuredMeshSettings> structured;
+    std::optional<GmshFileMeshSettings> gmsh_file;
+    std::optional<GmshGeoMeshSettings> gmsh_geo;
+};
+
+
+/**
+ * @brief One primitive boundary state.
+ */
+struct BoundaryStateSettings {
+    double rho = 0.0;
+    double u = 0.0;
+    double v = 0.0;
+    double w = 0.0;
+    double p = 0.0;
+};
+
+/**
+ * @brief One boundary-condition configuration for one boundary tag.
+ */
+struct BoundaryConditionSettings {
+    std::string type;
+    std::optional<BoundaryStateSettings> state;
+};
+
+/**
+ * @brief Boundary setup indexed by boundary tag.
+ */
+struct BoundarySettings {
+    std::map<int, BoundaryConditionSettings> by_tag;
+};
+
+/**
+ * @brief Immersed object settings reserved for future use.
+ */
 struct ImmersedObjectSettings {
     std::string type;
 
@@ -20,28 +102,8 @@ struct ImmersedObjectSettings {
     double size_z = 0.0;
 };
 
-
-
-struct BoundaryStateSettings {
-    double rho = 0.0;
-    double u = 0.0;
-    double v = 0.0;
-    double w = 0.0;
-    double p = 0.0;
-};
-
-struct BoundaryStatesSettings {
-    std::optional<BoundaryStateSettings> x_min;
-    std::optional<BoundaryStateSettings> x_max;
-    std::optional<BoundaryStateSettings> y_min;
-    std::optional<BoundaryStateSettings> y_max;
-    std::optional<BoundaryStateSettings> z_min;
-    std::optional<BoundaryStateSettings> z_max;
-};
-
 /**
- * @struct CaseSettings
- * @brief Optional per-case overrides applied over global settings
+ * @brief Optional per-case overrides applied over global settings.
  */
 struct CaseSettings {
     // Solver / numerics
@@ -49,25 +111,14 @@ struct CaseSettings {
     std::optional<std::string> time_integrator;
     std::optional<std::string> riemann_solver;
     std::optional<std::string> reconstruction;
-    std::optional<std::string> EOS;
-    std::optional<std::string> mader_transport;
+    std::optional<std::string> eos;
+    std::optional<std::string> transport_model;
+
+    // Mesh
+    std::optional<MeshSettings> mesh;
 
     // Boundary conditions
-    std::optional<std::string> left_boundary;
-    std::optional<std::string> right_boundary;
-    std::optional<std::string> bottom_boundary;
-    std::optional<std::string> top_boundary;
-    std::optional<std::string> back_boundary;
-    std::optional<std::string> front_boundary;
-
-    // Grid / geometry
-    std::optional<int> Nx;
-    std::optional<int> Ny;
-    std::optional<int> Nz;
-    std::optional<int> dim;
-    std::optional<double> L_x;
-    std::optional<double> L_y;
-    std::optional<double> L_z;
+    std::optional<BoundarySettings> boundary;
 
     // Physical / model parameters
     std::optional<double> gamma;
@@ -79,17 +130,6 @@ struct CaseSettings {
     std::optional<bool> vacuum_fix_limiter;
     std::optional<bool> viscosity;
     std::optional<bool> diffusion;
-    std::optional<bool> analytical;
-
-    // IC interfaces
-    std::optional<double> x0;
-    std::optional<double> y0;
-    std::optional<double> z0;
-
-    // Parallel / immersed
-    std::optional<bool> mpi_enabled;
-    std::optional<bool> immersed_enabled;
-    std::optional<std::vector<ImmersedObjectSettings>> immersed_objects;
 
     // Run control
     std::optional<double> t_end;
@@ -105,42 +145,31 @@ struct CaseSettings {
     std::optional<std::vector<std::string>> output_formats;
     std::optional<std::string> output_dir;
 
-    std::optional<BoundaryStatesSettings> boundary_states;
+    // Misc
+    std::optional<bool> analytical;
+    std::optional<bool> mpi_enabled;
+    std::optional<bool> immersed_enabled;
+    std::optional<std::vector<ImmersedObjectSettings>> immersed_objects;
 };
 
 /**
- * @struct Settings
- * @brief Runtime settings for one simulation case
+ * @brief Runtime settings for one simulation case.
  */
 struct Settings {
     // ==================== Solver / numerics ====================
     std::string solver = "godunov";
-    std::string riemann_solver = "exact";
+    std::string riemann_solver = "hllc";
     std::string reconstruction = "p0";
     std::string time_integrator = "euler";
 
-    std::optional<std::string> EOS;
-    std::optional<std::string> mader_transport;
+    std::optional<std::string> eos;
+    std::optional<std::string> transport_model;
+
+    // ==================== Mesh ====================
+    MeshSettings mesh;
 
     // ==================== Boundary conditions ====================
-    std::string left_boundary = "free_stream";
-    std::string right_boundary = "free_stream";
-    std::string bottom_boundary = "free_stream";
-    std::string top_boundary = "free_stream";
-    std::string back_boundary = "free_stream";
-    std::string front_boundary = "free_stream";
-
-    BoundaryStatesSettings boundary_states;
-
-    // ==================== Grid ====================
-    int Nx = 200;
-    int Ny = 1;
-    int Nz = 1;
-    int dim = 1;
-
-    double L_x = 1.0;
-    double L_y = 1.0;
-    double L_z = 1.0;
+    BoundarySettings boundary;
 
     // ==================== Physical / model parameters ====================
     double gamma = 1.4;
@@ -153,11 +182,8 @@ struct Settings {
     bool viscosity = false;
     bool diffusion = false;
 
-    // ==================== Initial-condition related ====================
+    // ==================== Case metadata ====================
     std::string simulation_case = "case";
-    double x0 = 0.5;
-    double y0 = 0.5;
-    double z0 = 0.5;
     bool analytical = false;
 
     // ==================== Run control ====================
@@ -179,20 +205,8 @@ struct Settings {
     bool immersed_enabled = false;
     std::vector<ImmersedObjectSettings> immersed_objects;
 
-    [[nodiscard]] auto GetNx() const -> int {
-        return Nx;
-    }
-
-    [[nodiscard]] auto GetNy() const -> int {
-        return Ny;
-    }
-
-    [[nodiscard]] auto GetNz() const -> int {
-        return Nz;
-    }
-
-    [[nodiscard]] auto HasOutputFormat(const std::string& format) const -> bool {
-        for (const auto& fmt : output_formats) {
+    [[nodiscard]] bool HasOutputFormat(const std::string& format) const {
+        for (const std::string& fmt : output_formats) {
             if (fmt == format) {
                 return true;
             }
@@ -202,44 +216,30 @@ struct Settings {
 };
 
 /**
- * @brief Merges case-specific overrides into global settings
+ * @brief Merge case-specific and CLI-specific overrides into one runtime settings object.
  */
-inline auto MergeSettings(const Settings& global,
-                          const CaseSettings& case_overrides,
-                          const CaseSettings& cli_overrides) -> Settings {
+inline Settings MergeSettings(const Settings& global,
+                              const CaseSettings& case_overrides,
+                              const CaseSettings& cli_overrides) {
     Settings merged = global;
 
-#define APPLY_OVERRIDE(field)                  \
-    if (case_overrides.field) {                \
-        merged.field = *case_overrides.field;  \
-    }                                          \
-    if (cli_overrides.field) {                 \
-        merged.field = *cli_overrides.field;   \
+#define APPLY_OVERRIDE(field)                 \
+    if (case_overrides.field) {               \
+        merged.field = *case_overrides.field; \
+    }                                         \
+    if (cli_overrides.field) {                \
+        merged.field = *cli_overrides.field;  \
     }
 
     APPLY_OVERRIDE(solver)
     APPLY_OVERRIDE(time_integrator)
     APPLY_OVERRIDE(riemann_solver)
     APPLY_OVERRIDE(reconstruction)
-    APPLY_OVERRIDE(EOS)
-    APPLY_OVERRIDE(mader_transport)
+    APPLY_OVERRIDE(eos)
+    APPLY_OVERRIDE(transport_model)
 
-    APPLY_OVERRIDE(left_boundary)
-    APPLY_OVERRIDE(right_boundary)
-    APPLY_OVERRIDE(bottom_boundary)
-    APPLY_OVERRIDE(top_boundary)
-    APPLY_OVERRIDE(back_boundary)
-    APPLY_OVERRIDE(front_boundary)
-
-    APPLY_OVERRIDE(boundary_states)
-
-    APPLY_OVERRIDE(Nx)
-    APPLY_OVERRIDE(Ny)
-    APPLY_OVERRIDE(Nz)
-    APPLY_OVERRIDE(dim)
-    APPLY_OVERRIDE(L_x)
-    APPLY_OVERRIDE(L_y)
-    APPLY_OVERRIDE(L_z)
+    APPLY_OVERRIDE(mesh)
+    APPLY_OVERRIDE(boundary)
 
     APPLY_OVERRIDE(gamma)
     APPLY_OVERRIDE(Q_user)
@@ -249,15 +249,6 @@ inline auto MergeSettings(const Settings& global,
     APPLY_OVERRIDE(vacuum_fix_limiter)
     APPLY_OVERRIDE(viscosity)
     APPLY_OVERRIDE(diffusion)
-
-    APPLY_OVERRIDE(x0)
-    APPLY_OVERRIDE(y0)
-    APPLY_OVERRIDE(z0)
-    APPLY_OVERRIDE(analytical)
-
-    APPLY_OVERRIDE(mpi_enabled)
-    APPLY_OVERRIDE(immersed_enabled)
-    APPLY_OVERRIDE(immersed_objects)
 
     APPLY_OVERRIDE(t_end)
     APPLY_OVERRIDE(step_end)
@@ -269,6 +260,11 @@ inline auto MergeSettings(const Settings& global,
     APPLY_OVERRIDE(output_every_time)
     APPLY_OVERRIDE(output_formats)
     APPLY_OVERRIDE(output_dir)
+
+    APPLY_OVERRIDE(analytical)
+    APPLY_OVERRIDE(mpi_enabled)
+    APPLY_OVERRIDE(immersed_enabled)
+    APPLY_OVERRIDE(immersed_objects)
 
 #undef APPLY_OVERRIDE
 

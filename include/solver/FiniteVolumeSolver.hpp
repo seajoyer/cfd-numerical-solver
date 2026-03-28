@@ -6,16 +6,17 @@
 #include <string>
 #include <utility>
 
-#include "bc/BoundaryManager.hpp"
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
 #include "data/Workspace.hpp"
-#include "filter/SolutionFilter.hpp"
+// #include "filter/SolutionFilter.hpp"
+#include "geometry/Mesh.hpp"
 #include "solver/Solver.hpp"
 #include "solver/TimeStepCalculator.hpp"
 #include "spatial/SpatialOperator.hpp"
 #include "time/TimeIntegrator.hpp"
+
+class MPIContext;
 
 class FiniteVolumeSolver final : public Solver {
 public:
@@ -37,7 +38,7 @@ private:
 
     std::shared_ptr<SpatialOperator> spatial_operator_;
     std::shared_ptr<TimeIntegrator> time_integrator_;
-    std::unique_ptr<SolutionFilter> diffusion_;
+    // std::unique_ptr<SolutionFilter> diffusion_;
 
     const MPIContext* mpi_context_ = nullptr;
 

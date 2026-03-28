@@ -1,61 +1,46 @@
 #include "bc/BoundaryManager.hpp"
 
+#include <stdexcept>
+
 #include "bc/BoundaryCondition.hpp"
 #include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
+#include "geometry/Face.hpp"
+#include "geometry/Mesh.hpp"
 
-BoundaryManager::BoundaryManager(std::shared_ptr<HaloExchange> halo_exchange)
-    : axes_(3), halo_exchange_(std::move(halo_exchange)) {}
+void BoundaryManager::Register(const int boundary_tag,
+                               std::shared_ptr<BoundaryCondition> boundary_condition) {
+    if (!boundary_condition) {
+        throw std::invalid_argument("BoundaryManager::Register: boundary_condition is null");
+    }
 
-void BoundaryManager::Set(const Axis axis,
-                          std::shared_ptr<BoundaryCondition> left_bc,
-                          std::shared_ptr<BoundaryCondition> right_bc) {
-    axes_.at(static_cast<std::size_t>(axis)).left_bc = std::move(left_bc);
-    axes_.at(static_cast<std::size_t>(axis)).right_bc = std::move(right_bc);
+    by_tag_[boundary_tag] = std::move(boundary_condition);
 }
 
-void BoundaryManager::UpdateHalo(DataLayer& layer, const Mesh& mesh) const {
-    if (!halo_exchange_) {
-        return;
-    }
-
-    halo_exchange_->Exchange(layer, mesh);
+bool BoundaryManager::Has(const int boundary_tag) const {
+    return by_tag_.find(boundary_tag) != by_tag_.end();
 }
 
-void BoundaryManager::ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const {
-    const int dim = mesh.GetDim();
-
-    {
-        const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::X)];
-        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::X, Side::Left)) {
-            bc.left_bc->Apply(layer, mesh, Axis::X, Side::Left);
-        }
-        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::X, Side::Right)) {
-            bc.right_bc->Apply(layer, mesh, Axis::X, Side::Right);
-        }
+const BoundaryCondition& BoundaryManager::Get(const int boundary_tag) const {
+    const auto it = by_tag_.find(boundary_tag);
+    if (it == by_tag_.end()) {
+        throw std::runtime_error(
+                                 "BoundaryManager::Get: no boundary condition registered for tag " +
+                                 std::to_string(boundary_tag)
+                                );
     }
 
-    if (dim >= 2) {
-        const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::Y)];
-        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::Y, Side::Left)) {
-            bc.left_bc->Apply(layer, mesh, Axis::Y, Side::Left);
-        }
-        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::Y, Side::Right)) {
-            bc.right_bc->Apply(layer, mesh, Axis::Y, Side::Right);
-        }
-    }
-
-    if (dim >= 3) {
-        const AxisBc& bc = axes_[static_cast<std::size_t>(Axis::Z)];
-        if (bc.left_bc && mesh.IsGlobalBoundary(Axis::Z, Side::Left)) {
-            bc.left_bc->Apply(layer, mesh, Axis::Z, Side::Left);
-        }
-        if (bc.right_bc && mesh.IsGlobalBoundary(Axis::Z, Side::Right)) {
-            bc.right_bc->Apply(layer, mesh, Axis::Z, Side::Right);
-        }
-    }
+    return *it->second;
 }
 
-const AxisBc& BoundaryManager::Get(const Axis axis) const {
-    return axes_.at(static_cast<std::size_t>(axis));
+PrimitiveCell BoundaryManager::BuildExteriorState(const DataLayer& layer,
+                                                  const Mesh& mesh,
+                                                  const Face& face,
+                                                  const PrimitiveCell& interior_state) const {
+    if (!face.IsBoundary()) {
+        throw std::runtime_error(
+                                 "BoundaryManager::BuildExteriorState: face is not a boundary face"
+                                );
+    }
+
+    return Get(face.boundary_tag).BuildExteriorState(layer, mesh, face, interior_state);
 }

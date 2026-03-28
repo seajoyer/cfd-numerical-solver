@@ -2,46 +2,43 @@
 #define WORKSPACE_HPP
 
 #include <cstddef>
+
 #include <xtensor.hpp>
 
 class Mesh;
 
 /**
- * @class Workspace
- * @brief Reusable scratch buffers for one local subdomain.
- *
- * This version is prepared for a staggered Mader / large-particle scheme.
+ * @brief Reusable scratch buffers for one unstructured single-process mesh.
  *
  * Cell-centered fields:
- *   Wc(var,i,j,k) : auxiliary primitive-like cell data
- *                   (rho, u_cell, v_cell, w_cell, P)
- *   rhs(var,i,j,k): conservative RHS (kept for compatibility)
- *   T(i,j,k)      : temperature
- *   I(i,j,k)      : specific internal energy
- *   Reactant(i,j,k): mass fraction of unreacted component
- *   Q(i,j,k)      : cell-centered artificial viscosity
- *   D(type,i,j,k) : transport accumulators
+ *   W(cell, var)          : auxiliary primitive-like cell data
+ *                           (rho, u, v, w, P)
+ *   rhs(cell, var)        : conservative RHS
+ *   temperature(cell)     : temperature
+ *   internal_energy(cell) : specific internal energy
+ *   q(cell)               : cell-centered artificial viscosity
+ *   D(cell, type)         : transport accumulators
  *
- * Face-centered velocity fields:
- *   Ux(i_face,j,k) : x-directed velocity on x-faces, shape (sx+1, sy, sz)
- *   Vy(i,j_face,k) : y-directed velocity on y-faces, shape (sx, sy+1, sz)
- *   Wz(i,j,k_face) : z-directed velocity on z-faces, shape (sx, sy, sz+1)
+ * Face-centered fields:
+ *   ux(face)              : x-component of face-centered velocity
+ *   vy(face)              : y-component of face-centered velocity
+ *   wz(face)              : z-component of face-centered velocity
  *
  * Old face-centered velocity fields:
- *   UxOld, VyOld, WzOld
+ *   ux_old(face), vy_old(face), wz_old(face)
  */
 class Workspace final {
 public:
     static constexpr std::size_t k_nvar = 5;
 
-    // Wc(var,i,j,k) indices
+    // W(cell,var) indices
     static constexpr std::size_t k_rho = 0;
     static constexpr std::size_t k_u = 1;
     static constexpr std::size_t k_v = 2;
     static constexpr std::size_t k_w = 3;
     static constexpr std::size_t k_p = 4;
 
-    // D(type,i,j,k) indices
+    // D(cell,type) indices
     static constexpr std::size_t k_ndelta = 5;
     static constexpr std::size_t k_dm = 0;
     static constexpr std::size_t k_de = 1;
@@ -52,70 +49,69 @@ public:
     Workspace() = default;
 
     /**
-     * @brief Resize all buffers to match Mesh padded sizes.
+     * @brief Resize all buffers to match mesh cell and face counts.
      * @details Allocates only if shape changed.
      */
     void ResizeFrom(const Mesh& mesh);
 
     // -------------------- cell-centered arrays --------------------
 
-    [[nodiscard]] xt::xtensor<double, 4>& W();
-    [[nodiscard]] const xt::xtensor<double, 4>& W() const;
+    [[nodiscard]] xt::xtensor<double, 2>& W();
+    [[nodiscard]] const xt::xtensor<double, 2>& W() const;
 
-    [[nodiscard]] xt::xtensor<double, 4>& Rhs();
-    [[nodiscard]] const xt::xtensor<double, 4>& Rhs() const;
+    [[nodiscard]] xt::xtensor<double, 2>& Rhs();
+    [[nodiscard]] const xt::xtensor<double, 2>& Rhs() const;
 
-    [[nodiscard]] xt::xtensor<double, 3>& Temperature();
-    [[nodiscard]] const xt::xtensor<double, 3>& Temperature() const;
+    [[nodiscard]] xt::xtensor<double, 1>& Temperature();
+    [[nodiscard]] const xt::xtensor<double, 1>& Temperature() const;
 
-    [[nodiscard]] xt::xtensor<double, 3>& InternalEnergy();
-    [[nodiscard]] const xt::xtensor<double, 3>& InternalEnergy() const;
-
-    /**
-     * @brief Cell-centered artificial viscosity q(i,j,k).
-     */
-    [[nodiscard]] xt::xtensor<double, 3>& Q();
-    [[nodiscard]] const xt::xtensor<double, 3>& Q() const;
+    [[nodiscard]] xt::xtensor<double, 1>& InternalEnergy();
+    [[nodiscard]] const xt::xtensor<double, 1>& InternalEnergy() const;
 
     /**
-     * @brief Transport accumulators D(type,i,j,k).
+     * @brief Cell-centered artificial viscosity q(cell).
      */
-    [[nodiscard]] xt::xtensor<double, 4>& D();
-    [[nodiscard]] const xt::xtensor<double, 4>& D() const;
+    [[nodiscard]] xt::xtensor<double, 1>& Q();
+    [[nodiscard]] const xt::xtensor<double, 1>& Q() const;
+
+    /**
+     * @brief Transport accumulators D(cell,type).
+     */
+    [[nodiscard]] xt::xtensor<double, 2>& D();
+    [[nodiscard]] const xt::xtensor<double, 2>& D() const;
 
     // -------------------- face-centered velocity arrays --------------------
 
     /**
-     * @brief X-face velocity Ux(i_face,j,k), shape (sx+1, sy, sz).
+     * @brief X-component of face-centered velocity. Shape (n_faces).
      */
-    [[nodiscard]] xt::xtensor<double, 3>& Ux();
-    [[nodiscard]] const xt::xtensor<double, 3>& Ux() const;
+    [[nodiscard]] xt::xtensor<double, 1>& Ux();
+    [[nodiscard]] const xt::xtensor<double, 1>& Ux() const;
 
     /**
-     * @brief Y-face velocity Vy(i,j_face,k), shape (sx, sy+1, sz).
+     * @brief Y-component of face-centered velocity. Shape (n_faces).
      */
-    [[nodiscard]] xt::xtensor<double, 3>& Vy();
-    [[nodiscard]] const xt::xtensor<double, 3>& Vy() const;
+    [[nodiscard]] xt::xtensor<double, 1>& Vy();
+    [[nodiscard]] const xt::xtensor<double, 1>& Vy() const;
 
     /**
-     * @brief Z-face velocity Wz(i,j,k_face), shape (sx, sy, sz+1).
-     * @details Included for completeness; in 2D can remain zero.
+     * @brief Z-component of face-centered velocity. Shape (n_faces).
      */
-    [[nodiscard]] xt::xtensor<double, 3>& Wz();
-    [[nodiscard]] const xt::xtensor<double, 3>& Wz() const;
+    [[nodiscard]] xt::xtensor<double, 1>& Wz();
+    [[nodiscard]] const xt::xtensor<double, 1>& Wz() const;
 
-    [[nodiscard]] xt::xtensor<double, 3>& UxOld();
-    [[nodiscard]] const xt::xtensor<double, 3>& UxOld() const;
+    [[nodiscard]] xt::xtensor<double, 1>& UxOld();
+    [[nodiscard]] const xt::xtensor<double, 1>& UxOld() const;
 
-    [[nodiscard]] xt::xtensor<double, 3>& VyOld();
-    [[nodiscard]] const xt::xtensor<double, 3>& VyOld() const;
+    [[nodiscard]] xt::xtensor<double, 1>& VyOld();
+    [[nodiscard]] const xt::xtensor<double, 1>& VyOld() const;
 
-    [[nodiscard]] xt::xtensor<double, 3>& WzOld();
-    [[nodiscard]] const xt::xtensor<double, 3>& WzOld() const;
+    [[nodiscard]] xt::xtensor<double, 1>& WzOld();
+    [[nodiscard]] const xt::xtensor<double, 1>& WzOld() const;
 
     // -------------------- zero helpers --------------------
 
-    void ZeroWc();
+    void ZeroW();
     void ZeroRhs();
     void ZeroTemperature();
     void ZeroInternalEnergy();
@@ -134,29 +130,31 @@ public:
 
     [[nodiscard]] bool IsAllocated() const;
 
+    [[nodiscard]] std::size_t GetCellCount() const;
+    [[nodiscard]] std::size_t GetFaceCount() const;
+
 private:
     // cell-centered
-    xt::xtensor<double, 4> W_;
-    xt::xtensor<double, 4> rhs_;
-    xt::xtensor<double, 3> temperature_;
-    xt::xtensor<double, 3> internal_energy_;
-    xt::xtensor<double, 3> q_;
-    xt::xtensor<double, 4> D_;
+    xt::xtensor<double, 2> W_;
+    xt::xtensor<double, 2> rhs_;
+    xt::xtensor<double, 1> temperature_;
+    xt::xtensor<double, 1> internal_energy_;
+    xt::xtensor<double, 1> q_;
+    xt::xtensor<double, 2> D_;
 
     // face-centered velocities
-    xt::xtensor<double, 3> ux_;
-    xt::xtensor<double, 3> vy_;
-    xt::xtensor<double, 3> wz_;
+    xt::xtensor<double, 1> ux_;
+    xt::xtensor<double, 1> vy_;
+    xt::xtensor<double, 1> wz_;
 
-    xt::xtensor<double, 3> ux_old_;
-    xt::xtensor<double, 3> vy_old_;
-    xt::xtensor<double, 3> wz_old_;
+    xt::xtensor<double, 1> ux_old_;
+    xt::xtensor<double, 1> vy_old_;
+    xt::xtensor<double, 1> wz_old_;
 
-    std::size_t sx_ = 0;
-    std::size_t sy_ = 0;
-    std::size_t sz_ = 0;
+    std::size_t n_cells_ = 0;
+    std::size_t n_faces_ = 0;
 
-    void Allocate(std::size_t sx, std::size_t sy, std::size_t sz);
+    void Allocate(std::size_t n_cells, std::size_t n_faces);
 };
 
 #endif  // WORKSPACE_HPP

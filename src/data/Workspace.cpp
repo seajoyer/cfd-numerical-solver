@@ -1,122 +1,128 @@
 #include "data/Workspace.hpp"
 
-#include "data/Mesh.hpp"
+#include "geometry/Mesh.hpp"
 
 void Workspace::ResizeFrom(const Mesh& mesh) {
-    const std::size_t sx = static_cast<std::size_t>(mesh.GetSx());
-    const std::size_t sy = static_cast<std::size_t>(mesh.GetSy());
-    const std::size_t sz = static_cast<std::size_t>(mesh.GetSz());
+    const std::size_t n_cells = mesh.GetCellCount();
+    const std::size_t n_faces = mesh.GetFaceCount();
 
-    if (sx == sx_ && sy == sy_ && sz == sz_ && IsAllocated()) {
+    if (n_cells == 0) {
+        throw std::invalid_argument("Workspace::ResizeFrom: mesh has zero cells");
+    }
+    if (n_faces == 0) {
+        throw std::invalid_argument("Workspace::ResizeFrom: mesh has zero faces");
+    }
+
+    if (n_cells == n_cells_ && n_faces == n_faces_ && IsAllocated()) {
         return;
     }
 
-    Allocate(sx, sy, sz);
+    Allocate(n_cells, n_faces);
 }
 
 // -------------------- cell-centered getters --------------------
 
-xt::xtensor<double, 4>& Workspace::W() {
+xt::xtensor<double, 2>& Workspace::W() {
     return W_;
 }
 
-const xt::xtensor<double, 4>& Workspace::W() const {
+const xt::xtensor<double, 2>& Workspace::W() const {
     return W_;
 }
 
-xt::xtensor<double, 4>& Workspace::Rhs() {
+xt::xtensor<double, 2>& Workspace::Rhs() {
     return rhs_;
 }
 
-const xt::xtensor<double, 4>& Workspace::Rhs() const {
+const xt::xtensor<double, 2>& Workspace::Rhs() const {
     return rhs_;
 }
 
-xt::xtensor<double, 3>& Workspace::Temperature() {
+xt::xtensor<double, 1>& Workspace::Temperature() {
     return temperature_;
 }
 
-const xt::xtensor<double, 3>& Workspace::Temperature() const {
+const xt::xtensor<double, 1>& Workspace::Temperature() const {
     return temperature_;
 }
 
-xt::xtensor<double, 3>& Workspace::InternalEnergy() {
+xt::xtensor<double, 1>& Workspace::InternalEnergy() {
     return internal_energy_;
 }
 
-const xt::xtensor<double, 3>& Workspace::InternalEnergy() const {
+const xt::xtensor<double, 1>& Workspace::InternalEnergy() const {
     return internal_energy_;
 }
 
-xt::xtensor<double, 3>& Workspace::Q() {
+xt::xtensor<double, 1>& Workspace::Q() {
     return q_;
 }
 
-const xt::xtensor<double, 3>& Workspace::Q() const {
+const xt::xtensor<double, 1>& Workspace::Q() const {
     return q_;
 }
 
-xt::xtensor<double, 4>& Workspace::D() {
+xt::xtensor<double, 2>& Workspace::D() {
     return D_;
 }
 
-const xt::xtensor<double, 4>& Workspace::D() const {
+const xt::xtensor<double, 2>& Workspace::D() const {
     return D_;
 }
 
 // -------------------- face-centered getters --------------------
 
-xt::xtensor<double, 3>& Workspace::Ux() {
+xt::xtensor<double, 1>& Workspace::Ux() {
     return ux_;
 }
 
-const xt::xtensor<double, 3>& Workspace::Ux() const {
+const xt::xtensor<double, 1>& Workspace::Ux() const {
     return ux_;
 }
 
-xt::xtensor<double, 3>& Workspace::Vy() {
+xt::xtensor<double, 1>& Workspace::Vy() {
     return vy_;
 }
 
-const xt::xtensor<double, 3>& Workspace::Vy() const {
+const xt::xtensor<double, 1>& Workspace::Vy() const {
     return vy_;
 }
 
-xt::xtensor<double, 3>& Workspace::Wz() {
+xt::xtensor<double, 1>& Workspace::Wz() {
     return wz_;
 }
 
-const xt::xtensor<double, 3>& Workspace::Wz() const {
+const xt::xtensor<double, 1>& Workspace::Wz() const {
     return wz_;
 }
 
-xt::xtensor<double, 3>& Workspace::UxOld() {
+xt::xtensor<double, 1>& Workspace::UxOld() {
     return ux_old_;
 }
 
-const xt::xtensor<double, 3>& Workspace::UxOld() const {
+const xt::xtensor<double, 1>& Workspace::UxOld() const {
     return ux_old_;
 }
 
-xt::xtensor<double, 3>& Workspace::VyOld() {
+xt::xtensor<double, 1>& Workspace::VyOld() {
     return vy_old_;
 }
 
-const xt::xtensor<double, 3>& Workspace::VyOld() const {
+const xt::xtensor<double, 1>& Workspace::VyOld() const {
     return vy_old_;
 }
 
-xt::xtensor<double, 3>& Workspace::WzOld() {
+xt::xtensor<double, 1>& Workspace::WzOld() {
     return wz_old_;
 }
 
-const xt::xtensor<double, 3>& Workspace::WzOld() const {
+const xt::xtensor<double, 1>& Workspace::WzOld() const {
     return wz_old_;
 }
 
 // -------------------- zero helpers --------------------
 
-void Workspace::ZeroWc() {
+void Workspace::ZeroW() {
     W_.fill(0.0);
 }
 
@@ -165,7 +171,7 @@ void Workspace::ZeroWzOld() {
 }
 
 void Workspace::ZeroAll() {
-    ZeroWc();
+    ZeroW();
     ZeroRhs();
     ZeroTemperature();
     ZeroInternalEnergy();
@@ -181,41 +187,49 @@ void Workspace::ZeroAll() {
 
 bool Workspace::IsAllocated() const {
     return
-        W_.dimension() == 4 &&
-        rhs_.dimension() == 4 &&
-        temperature_.dimension() == 3 &&
-        internal_energy_.dimension() == 3 &&
-        q_.dimension() == 3 &&
-        D_.dimension() == 4 &&
-        ux_.dimension() == 3 &&
-        vy_.dimension() == 3 &&
-        wz_.dimension() == 3 &&
-        ux_old_.dimension() == 3 &&
-        vy_old_.dimension() == 3 &&
-        wz_old_.dimension() == 3 &&
-        sx_ > 0 && sy_ > 0 && sz_ > 0;
+        W_.dimension() == 2 &&
+        rhs_.dimension() == 2 &&
+        temperature_.dimension() == 1 &&
+        internal_energy_.dimension() == 1 &&
+        q_.dimension() == 1 &&
+        D_.dimension() == 2 &&
+        ux_.dimension() == 1 &&
+        vy_.dimension() == 1 &&
+        wz_.dimension() == 1 &&
+        ux_old_.dimension() == 1 &&
+        vy_old_.dimension() == 1 &&
+        wz_old_.dimension() == 1 &&
+        n_cells_ > 0 &&
+        n_faces_ > 0;
 }
 
-void Workspace::Allocate(const std::size_t sx, const std::size_t sy, const std::size_t sz) {
-    sx_ = sx;
-    sy_ = sy;
-    sz_ = sz;
+std::size_t Workspace::GetCellCount() const {
+    return n_cells_;
+}
+
+std::size_t Workspace::GetFaceCount() const {
+    return n_faces_;
+}
+
+void Workspace::Allocate(const std::size_t n_cells, const std::size_t n_faces) {
+    n_cells_ = n_cells;
+    n_faces_ = n_faces;
 
     // cell-centered
-    W_ = xt::zeros<double>({k_nvar, sx_, sy_, sz_});
-    rhs_ = xt::zeros<double>({k_nvar, sx_, sy_, sz_});
+    W_ = xt::zeros<double>({n_cells_, k_nvar});
+    rhs_ = xt::zeros<double>({n_cells_, k_nvar});
 
-    temperature_ = xt::zeros<double>({sx_, sy_, sz_});
-    internal_energy_ = xt::zeros<double>({sx_, sy_, sz_});
-    q_ = xt::zeros<double>({sx_, sy_, sz_});
-    D_ = xt::zeros<double>({k_ndelta, sx_, sy_, sz_});
+    temperature_ = xt::zeros<double>({n_cells_});
+    internal_energy_ = xt::zeros<double>({n_cells_});
+    q_ = xt::zeros<double>({n_cells_});
+    D_ = xt::zeros<double>({n_cells_, k_ndelta});
 
     // face-centered velocities
-    ux_ = xt::zeros<double>({sx_ + 1, sy_, sz_});
-    vy_ = xt::zeros<double>({sx_, sy_ + 1, sz_});
-    wz_ = xt::zeros<double>({sx_, sy_, sz_ + 1});
+    ux_ = xt::zeros<double>({n_faces_});
+    vy_ = xt::zeros<double>({n_faces_});
+    wz_ = xt::zeros<double>({n_faces_});
 
-    ux_old_ = xt::zeros<double>({sx_ + 1, sy_, sz_});
-    vy_old_ = xt::zeros<double>({sx_, sy_ + 1, sz_});
-    wz_old_ = xt::zeros<double>({sx_, sy_, sz_ + 1});
+    ux_old_ = xt::zeros<double>({n_faces_});
+    vy_old_ = xt::zeros<double>({n_faces_});
+    wz_old_ = xt::zeros<double>({n_faces_});
 }

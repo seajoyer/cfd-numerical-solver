@@ -2,6 +2,7 @@
 #define GODUNOVKOLGANRODIONOVSPATIALOPERATOR_HPP
 
 #include <memory>
+#include <xtensor.hpp>
 
 #include "config/Settings.hpp"
 #include "data/Variables.hpp"
@@ -9,30 +10,30 @@
 
 class Reconstruction;
 class RiemannSolver;
-class ArtificialViscosity;
+class Face;
 
 /**
  * @class GodunovKolganRodionovSpatialOperator
- * @brief Second-order Godunov-Kolgan-Rodionov (MUSCL-Hancock) spatial operator (axis-aligned).
+ * @brief Face-based second-order Godunov-Kolgan-Rodionov type operator.
  *
- * Pipeline (per ComputeRHS):
- *  1) UpdateHalo(U) -> ApplyPhysicalBc(U)
- *  2) ConvertUtoW(U -> workspace.W) on full padded domain
- *  3) rhs = 0
- *  4) For each axis:
- *      - reconstruct face states (WL/WR)
- *      - predictor: evolve each cell's left/right edge conservative states by dt/2 using local flux difference
- *      - solve Riemann on predicted interface states
- *      - accumulate flux divergence into rhs
+ * Predictor-corrector workflow:
+ * - build primitive cache from current conservative state
+ * - compute first-order predictor RHS with piecewise-constant face states
+ * - build half-step conservative state U_half
+ * - rebuild primitive cache from U_half
+ * - compute final RHS using selected reconstruction (typically P1)
  *
- * dt is provided externally via ComputeRHS().
+ * Notes:
+ * - Works on generic face-based meshes.
+ * - No ghost cells.
+ * - Boundary handling is done face-by-face through BoundaryManager.
  */
 class GodunovKolganRodionovSpatialOperator final : public SpatialOperator {
 public:
     GodunovKolganRodionovSpatialOperator(const Settings& settings,
                                          std::shared_ptr<BoundaryManager> boundary_manager);
 
-    void ComputeRHS(DataLayer& layer,
+    void ComputeRHS(const DataLayer& layer,
                     const Mesh& mesh,
                     Workspace& workspace,
                     double gamma,
@@ -41,48 +42,67 @@ public:
 private:
     std::shared_ptr<Reconstruction> reconstruction_;
     std::shared_ptr<RiemannSolver> riemann_solver_;
-    std::shared_ptr<ArtificialViscosity> viscosity_;
 
     void InitializeReconstruction(const Settings& settings);
     void InitializeRiemannSolver(const Settings& settings);
 
-    void AccumulateAxis(DataLayer& layer,
-                        const Mesh& mesh,
-                        const xt::xtensor<double, 4>& W,
-                        xt::xtensor<double, 4>& rhs,
-                        double gamma,
-                        Axis axis,
-                        double dt) const;
+    void FillPrimitiveCacheFromConservative(const xt::xtensor<double, 2>& U,
+                                            const Mesh& mesh,
+                                            Workspace& workspace,
+                                            double gamma) const;
 
-    [[nodiscard]] double InvMetricAt(const Mesh& mesh, Axis axis, int i, int j, int k) const;
+    [[nodiscard]] PrimitiveCell LoadCellPrimitive
+    (
+    const Workspace &workspace,
+                                                  std::size_t cell_id
+    )
+    const;
 
-    static void ApplyPredictor(ConservativeCell& UL,
-                               ConservativeCell& UR,
-                               const FluxCell& FL,
-                               const FluxCell& FR,
-                               double half_dt_over_d);
+    [[nodiscard]] FaceNormal BuildFaceNormal(const Face& face) const;
 
-    void MapCellIndices(Axis axis, int s, int a, int b, int& i, int& j, int& k) const;
+    void ComputePredictorRhs(const DataLayer& layer,
+                             const Mesh& mesh,
+                             Workspace& workspace,
+                             double gamma) const;
 
-    void ComputeStarForCell(const xt::xtensor<double, 4>& W,
-                            double gamma,
-                            Axis axis,
-                            const AxisStride& st,
-                            const Mesh& mesh,
-                            int ci, int cj, int ck,
-                            PrimitiveCell& WL_face,
-                            PrimitiveCell& WR_face,
-                            PrimitiveCell& WLm_face,
-                            PrimitiveCell& WRm_face,
-                            ConservativeCell& UL_star,
-                            ConservativeCell& UR_star,
-                            double dt) const;
+    void AccumulatePredictorInternalFace(const DataLayer& layer,
+                                         const Mesh& mesh,
+                                         const Face& face,
+                                         Workspace& workspace,
+                                         double gamma) const;
 
-    static void AccumulateCellRhs(xt::xtensor<double, 4>& rhs,
-                                  int i, int j, int k,
-                                  double invd,
-                                  const FluxCell& Fp,
-                                  const FluxCell& Fm);
+    void AccumulatePredictorBoundaryFace(const DataLayer& layer,
+                                         const Mesh& mesh,
+                                         const Face& face,
+                                         Workspace& workspace,
+                                         double gamma) const;
+
+    void ComputeFinalRhs(const DataLayer& layer,
+                         const Mesh& mesh,
+                         Workspace& workspace,
+                         double gamma) const;
+
+    void AccumulateFinalInternalFace(const DataLayer& layer,
+                                     const Mesh& mesh,
+                                     const Face& face,
+                                     Workspace& workspace,
+                                     double gamma) const;
+
+    void AccumulateFinalBoundaryFace(const DataLayer& layer,
+                                     const Mesh& mesh,
+                                     const Face& face,
+                                     Workspace& workspace,
+                                     double gamma) const;
+
+    void AccumulateFluxToOwner(const Mesh& mesh,
+                               const Face& face,
+                               const ConservativeCell& flux,
+                               Workspace& workspace) const;
+
+    void AccumulateFluxToNeighbor(const Mesh& mesh,
+                                  const Face& face,
+                                  const ConservativeCell& flux,
+                                  Workspace& workspace) const;
 };
 
 #endif  // GODUNOVKOLGANRODIONOVSPATIALOPERATOR_HPP

@@ -2,31 +2,26 @@
 #define NONREFLECTIVEBOUNDARY_HPP
 
 #include "bc/BoundaryCondition.hpp"
-#include "bc/BoundaryFactory.hpp"
 
 /**
  * @class NonReflectiveBoundary
- * @brief Approximate characteristic open boundary for Euler equations.
+ * @brief Simple far-field non-reflective placeholder.
  *
- * Uses a simple 1D characteristic treatment along the boundary normal:
- * - supersonic outflow: extrapolate interior state
- * - supersonic inflow: impose far-field state
- * - subsonic: combine outgoing characteristic from interior with incoming
- *   characteristic from far-field
- *
- * Tangential velocities and entropy are taken:
- * - from interior for outflow
- * - from far-field for inflow
+ * Current version returns prescribed far-field exterior state.
+ * More advanced characteristic treatment can be added later.
  */
 class NonReflectiveBoundary final : public BoundaryCondition {
 public:
-    NonReflectiveBoundary(const FarfieldConservative& farfield_U, double gamma);
+    NonReflectiveBoundary(PrimitiveCell farfield_state, double gamma);
 
-    void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+    [[nodiscard]] PrimitiveCell BuildExteriorState(const DataLayer& layer,
+                                                   const Mesh& mesh,
+                                                   const Face& face,
+                                                   const PrimitiveCell& interior_state) const override;
 
 private:
-    FarfieldConservative farfield_U_;
-    double gamma_;
+    PrimitiveCell farfield_state_;
+    double gamma_ = 1.4;
 };
 
 #endif  // NONREFLECTIVEBOUNDARY_HPP

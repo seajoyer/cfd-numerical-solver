@@ -1,32 +1,49 @@
 #include "reconstruction/P0Reconstruction.hpp"
 
-namespace {
-    PrimitiveCell LoadCellW(const xt::xtensor<double, 4>& W, const int i, const int j, const int k) {
-        PrimitiveCell w;
-        w.rho = W(var::u_rho, i, j, k);
-        w.u = W(var::u_u, i, j, k);
-        w.v = W(var::u_v, i, j, k);
-        w.w = W(var::u_w, i, j, k);
-        w.P = W(var::u_P, i, j, k);
-        return w;
-    }
-} // namespace
+#include <stdexcept>
 
-void P0Reconstruction::ReconstructFace(const xt::xtensor<double, 4>& W,
-                                       const Axis axis,
-                                       const int i, const int j, const int k,
-                                       PrimitiveCell& WL,
-                                       PrimitiveCell& WR) const {
-    WL = LoadCellW(W, i, j, k);
+#include "data/Workspace.hpp"
+#include "geometry/Face.hpp"
+#include "geometry/Mesh.hpp"
 
-    if (axis == Axis::X) {
-        WR = LoadCellW(W, i + 1, j, k);
-        return;
+PrimitiveCell P0Reconstruction::LoadCellPrimitive(const Workspace& workspace,
+                                                  const std::size_t cell_id) const {
+    const auto& W = workspace.W();
+
+    PrimitiveCell state;
+    state.rho = W(cell_id, Workspace::k_rho);
+    state.u = W(cell_id, Workspace::k_u);
+    state.v = W(cell_id, Workspace::k_v);
+    state.w = W(cell_id, Workspace::k_w);
+    state.P = W(cell_id, Workspace::k_p);
+
+    return state;
+}
+
+void P0Reconstruction::ReconstructInteriorFace(const Mesh& mesh,
+                                               const Workspace& workspace,
+                                               const Face& face,
+                                               PrimitiveCell& owner_state,
+                                               PrimitiveCell& neighbor_state) const {
+    if (!face.IsInternal()) {
+        throw std::runtime_error(
+            "P0Reconstruction::ReconstructInteriorFace: face is not internal"
+        );
     }
-    if (axis == Axis::Y) {
-        WR = LoadCellW(W, i, j + 1, k);
-        return;
+
+    owner_state = LoadCellPrimitive(workspace, face.owner_cell_id);
+    neighbor_state = LoadCellPrimitive(workspace, face.neighbor_cell_id);
+}
+
+void P0Reconstruction::ReconstructBoundaryFaceInterior(const Mesh& mesh,
+                                                       const Workspace& workspace,
+                                                       const Face& face,
+                                                       PrimitiveCell& interior_state) const {
+    if (!face.IsBoundary()) {
+        throw std::runtime_error(
+            "P0Reconstruction::ReconstructBoundaryFaceInterior: face is not boundary"
+        );
     }
-    // Axis::Z
-    WR = LoadCellW(W, i, j, k + 1);
+
+    interior_state = LoadCellPrimitive(workspace, face.owner_cell_id);
 }

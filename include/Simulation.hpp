@@ -5,114 +5,104 @@
 #include <memory>
 #include <string>
 
-#include "bc/BoundaryManager.hpp"
-#include "bc/BoundaryFactory.hpp"
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
-#include "data/DataLayer.hpp"
-#include "data/Mesh.hpp"
-#include "output/StepWriter.hpp"
-#include "parallel/DomainDecomposition.hpp"
-#include "parallel/MPIContext.hpp"
-#include "solver/Solver.hpp"
+
+class BoundaryManager;
+class DataLayer;
+class Mesh;
+class Solver;
+class StepWriter;
+class Workspace;
 
 /**
  * @file Simulation.hpp
- * @brief Single-case simulation orchestrator
+ * @brief Single-case simulation orchestrator for generic meshes.
  */
 
 /**
  * @class Simulation
- * @brief Executes one simulation case from initialization to completion
+ * @brief Executes one simulation case from initialization to completion.
  *
  * Responsibilities:
- * - build runtime objects for one case
- * - initialize mesh and data
- * - apply initial and boundary conditions
+ * - validate case settings
+ * - build mesh
+ * - allocate runtime state
+ * - initialize solution fields
+ * - initialize boundary handling
+ * - initialize solver and writer
  * - run time loop
- * - write VTK output
  */
-class Simulation {
+class Simulation final {
 public:
-    explicit Simulation(Settings settings, const InitialConditions& initial_conditions);
+    explicit Simulation(Settings settings, InitialConditions initial_conditions);
+
+    ~Simulation();
 
     /**
-     * @brief Executes full simulation workflow
+     * @brief Execute full simulation workflow.
      */
     void Run();
 
     /**
-     * @brief Accesses main data layer
-     * @return Reference to initialized data layer
+     * @brief Access main data layer.
      */
-    auto GetDataLayer() -> DataLayer&;
+    [[nodiscard]] DataLayer& GetDataLayer();
 
     /**
-     * @brief Returns current step index
+     * @brief Current step index.
      */
-    [[nodiscard]] auto GetCurrentStep() const -> std::size_t;
+    [[nodiscard]] std::size_t GetCurrentStep() const;
 
     /**
-     * @brief Returns current physical time
+     * @brief Current physical time.
      */
-    [[nodiscard]] auto GetCurrentTime() const -> double;
+    [[nodiscard]] double GetCurrentTime() const;
 
 private:
     void Initialize();
-    void InitializeParallel();
-    void InitializeMesh();
-    void InitializeCoordinates();
-    void InitializeDataLayer();
-    void InitializeGeometry();
+    void ValidateConfiguration() const;
+    void ValidateBoundaryCoverage() const;
+
+    void BuildMesh();
+    void AllocateState();
+    void InitializeFields();
     void InitializeBoundaryConditions();
     void InitializeSolver();
     void InitializeWriter();
 
-    void ApplyInitialConditions(DataLayer& layer, Mesh& mesh);
+    [[nodiscard]] std::unique_ptr<Mesh> CreateMesh() const;
+    [[nodiscard]] std::unique_ptr<Solver> CreateSolver();
 
-    [[nodiscard]] auto DeterminePadding() const -> int;
-    void ValidateConfiguration() const;
-    auto PrimitiveToFarfieldConservative(const BoundaryStateSettings& s, double gamma) -> FarfieldConservative;
+    [[nodiscard]] bool IsKnownSolver(const std::string& solver) const;
+    [[nodiscard]] bool IsKnownTimeIntegrator(const std::string& time_integrator) const;
+    [[nodiscard]] bool IsKnownReconstruction(const std::string& reconstruction) const;
+    [[nodiscard]] bool IsKnownRiemannSolver(const std::string& riemann_solver) const;
+    [[nodiscard]] bool IsKnownOutputFormat(const std::string& format) const;
 
-    [[nodiscard]] auto IsKnownSolver(const std::string& solver) const -> bool;
-    [[nodiscard]] auto IsKnownTimeIntegrator(const std::string& time_integrator) const -> bool;
-    [[nodiscard]] auto IsKnownReconstruction(const std::string& reconstruction) const -> bool;
-    [[nodiscard]] auto IsKnownRiemannSolver(const std::string& riemann_solver) const -> bool;
-    [[nodiscard]] auto IsKnownBoundaryCondition(const std::string& bc) const -> bool;
-    [[nodiscard]] auto IsKnownOutputFormat(const std::string& format) const -> bool;
-
-    auto CreateSolver() -> std::unique_ptr<Solver>;
-
-    [[nodiscard]] auto ShouldWrite() const -> bool;
-    [[nodiscard]] auto ShouldLog() const -> bool;
-    [[nodiscard]] auto ShouldRun() const -> bool;
+    [[nodiscard]] bool ShouldWrite() const;
+    [[nodiscard]] bool ShouldLog() const;
+    [[nodiscard]] bool ShouldRun() const;
 
     void WriteInitialState() const;
-    void WriteStepState(double t_cur, std::size_t step_cur) const;
+    void WriteStepState() const;
     void PrintLog() const;
     void FinalizeWriter();
 
     Settings settings_;
     InitialConditions initial_conditions_;
 
+    std::unique_ptr<Mesh> mesh_;
+    std::unique_ptr<DataLayer> layer_;
+    std::unique_ptr<Workspace> workspace_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> vtk_writer_;
-
-    std::unique_ptr<DataLayer> layer_;
-    std::unique_ptr<Mesh> mesh_;
-
-    std::unique_ptr<MPIContext> mpi_context_;
-    std::unique_ptr<DomainDecomposition> decomposition_;
-
-    bool is_root_ = true;
 
     std::shared_ptr<BoundaryManager> boundary_manager_;
 
     double t_cur_ = 0.0;
     std::size_t step_cur_ = 0;
-    double dt_ = 1.0;
-
-    std::string case_output_dir_;
+    double dt_ = 0.0;
 };
 
 #endif  // SIMULATION_HPP
