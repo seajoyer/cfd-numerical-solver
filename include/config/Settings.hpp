@@ -73,7 +73,12 @@ struct CaseSettings {
     std::optional<double> gamma;
     std::optional<double> Q_user;
 
-    // Numerical flags
+    std::optional<bool> chemistry_enabled;
+    std::optional<double> chemistry_z_freq;
+    std::optional<double> chemistry_activation_energy;
+    std::optional<double> chemistry_gas_constant;
+    std::optional<double> chemistry_heat_release;
+
     std::optional<double> cfl;
     std::optional<bool> global_limiter;
     std::optional<bool> vacuum_fix_limiter;
@@ -146,7 +151,12 @@ struct Settings {
     double gamma = 1.4;
     double Q_user = 1.0;
 
-    // ==================== Numerical flags ====================
+    bool chemistry_enabled = false;
+    double chemistry_z_freq = 0.0;
+    double chemistry_activation_energy = 0.0;
+    double chemistry_gas_constant = 1.0;
+    double chemistry_heat_release = 0.0;
+
     double cfl = 0.5;
     bool global_limiter = false;
     bool vacuum_fix_limiter = false;
@@ -243,6 +253,12 @@ inline auto MergeSettings(const Settings& global,
 
     APPLY_OVERRIDE(gamma)
     APPLY_OVERRIDE(Q_user)
+
+    APPLY_OVERRIDE(chemistry_enabled)
+    APPLY_OVERRIDE(chemistry_z_freq)
+    APPLY_OVERRIDE(chemistry_activation_energy)
+    APPLY_OVERRIDE(chemistry_gas_constant)
+    APPLY_OVERRIDE(chemistry_heat_release)
 
     APPLY_OVERRIDE(cfl)
     APPLY_OVERRIDE(global_limiter)

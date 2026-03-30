@@ -10,6 +10,7 @@ void ReflectiveBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis ax
     }
 
     auto& U = layer.U();
+    auto& reactant = layer.ReactantMassFraction();
 
     const int i0 = mesh.GetCoreStartX();
     const int i1 = mesh.GetCoreEndExclusiveX();
@@ -26,6 +27,9 @@ void ReflectiveBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis ax
             xt::view(U, xt::all(), dst_i, xt::all(), xt::all()) =
                 xt::view(U, xt::all(), src_i, xt::all(), xt::all());
 
+            xt::view(reactant, dst_i, xt::all(), xt::all()) =
+                xt::view(reactant, src_i, xt::all(), xt::all());
+
             xt::view(U, DataLayer::k_rhoU, dst_i, xt::all(), xt::all()) *= -1.0;
             continue;
         }
@@ -37,6 +41,9 @@ void ReflectiveBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis ax
             xt::view(U, xt::all(), xt::all(), dst_j, xt::all()) =
                 xt::view(U, xt::all(), xt::all(), src_j, xt::all());
 
+            xt::view(reactant, xt::all(), dst_j, xt::all()) =
+                xt::view(reactant, xt::all(), src_j, xt::all());
+
             xt::view(U, DataLayer::k_rhoV, xt::all(), dst_j, xt::all()) *= -1.0;
             continue;
         }
@@ -46,6 +53,9 @@ void ReflectiveBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis ax
 
         xt::view(U, xt::all(), xt::all(), xt::all(), dst_k) =
             xt::view(U, xt::all(), xt::all(), xt::all(), src_k);
+
+        xt::view(reactant, xt::all(), xt::all(), dst_k) =
+            xt::view(reactant, xt::all(), xt::all(), src_k);
 
         xt::view(U, DataLayer::k_rhoW, xt::all(), xt::all(), dst_k) *= -1.0;
     }

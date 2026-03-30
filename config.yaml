@@ -18,7 +18,7 @@ defaults:
         eos: ideal_gas
         parameters:
             gamma: 1.4
-#            reactant_mass_fraction: 1.0
+            Q_user: 2.0
 
     numerics:
         method: mader
@@ -151,8 +151,16 @@ cases:
             v:   [0.0, 0.0]
             w:   [0.0, 0.0]
             p:   [1.0, 0.1]
+            reactant_mass_fraction: [1.0, 1.0]
         stopping:
             t_end: 0.2
+        output:
+            every_steps: 1
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
 
     sod1_2d:
         mesh:
@@ -366,12 +374,12 @@ cases:
                 y: 3
                 z: 1
             domain:
-                x: 1.0
-                y: 0.01
+                x: 10.0
+                y: 0.1
                 z: 1.0
 
         physics:
-            eos: ideal_gas
+            eos: hugoniot_gruneisen
             parameters:
                 gamma: 3.0
 
@@ -386,25 +394,36 @@ cases:
 
         boundary_conditions:
             x_min: reflective
-            x_max: reflective
+            x_max: outlet
             y_min: reflective
             y_max: reflective
+
+        chemistry:
+            enabled: true
+            z_freq: 5.0e9
+            activation_energy: 2.0e4
+            gas_constant: 1.0
+            heat_release: 0.0484
 
         initial_condition:
             type: structured_regions
             interfaces:
-                x: [ 0.02 ]
-                y: [ ]
-                z: [ ]
-            rho: [ 2.4533333333, 1.84 ]
-            u: [ 0.0, 0.0 ]
-            v: [ 0.0, 0.0 ]
-            w: [ 0.0, 0.0 ]
-            p: [ 0.7112533333, 1.0e-8 ]
-            reactant_mass_fraction: [ 0.0, 1.0 ]
+                x: [1.0]
+                y: []
+                z: []
+
+            rho: [2.4533333333, 1.84]
+            u:   [0.22, 0.0]
+            v:   [0.0, 0.0]
+            w:   [0.0, 0.0]
+            p:   [0.356224, 1.0e-6]
+            reactant_mass_fraction: [0.0, 1.0]
 
         stopping:
-            t_end: 0.2
+            t_end: 50
+
+        output:
+            every_steps: 10
 
 
     corner:
@@ -458,40 +477,3 @@ cases:
         stopping:
             t_end: 1000.0
             max_steps: 0
-
-
-#    gmsh_case_template:
-#        mesh:
-#            type: unstructured
-#            source:
-#                format: geo
-#                file: meshes/example.geo
-#                generator: gmsh
-#        physics:
-#            eos: ideal_gas
-#            parameters:
-#                gamma: 1.4
-#        numerics:
-#            method: godunov
-#            parameters:
-#                time_integrator: euler
-#                reconstruction: p0
-#                riemann_solver: hllc
-#                cfl: 0.4
-#        boundary_conditions:
-#            default: outlet
-#        initial_condition:
-#            type: region_markers
-#            regions:
-#                - marker: fluid_1
-#                  rho: 1.0
-#                  u: 0.0
-#                  v: 0.0
-#                  w: 0.0
-#                  p: 1.0
-#                - marker: fluid_2
-#                  rho: 0.125
-#                  u: 0.0
-#                  v: 0.0
-#                  w: 0.0
-#                  p: 0.1

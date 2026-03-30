@@ -88,6 +88,9 @@ void YamlConfigParser::ParseDefaults(const YAML::Node& defaults_node, Settings& 
     if (defaults_node["physics"]) {
         ParsePhysics(defaults_node["physics"], settings);
     }
+    if (defaults_node["chemistry"]) {
+        ParseChemistry(defaults_node["chemistry"], settings);
+    }
     if (defaults_node["numerics"]) {
         ParseNumerics(defaults_node["numerics"], settings);
     }
@@ -190,10 +193,18 @@ void YamlConfigParser::ParsePhysics(const YAML::Node& node, Settings& settings) 
         const YAML::Node parameters = node["parameters"];
         AssignIfPresent(parameters, "gamma", settings.gamma);
 
-        if (parameters["reactant_mass_fraction"]) {
-            settings.Q_user = parameters["reactant_mass_fraction"].as<double>();
+        if (parameters["Q_user"]) {
+            settings.Q_user = parameters["Q_user"].as<double>();
         }
     }
+}
+
+void YamlConfigParser::ParseChemistry(const YAML::Node& node, Settings& settings) {
+    AssignIfPresent(node, "enabled", settings.chemistry_enabled);
+    AssignIfPresent(node, "z_freq", settings.chemistry_z_freq);
+    AssignIfPresent(node, "activation_energy", settings.chemistry_activation_energy);
+    AssignIfPresent(node, "gas_constant", settings.chemistry_gas_constant);
+    AssignIfPresent(node, "heat_release", settings.chemistry_heat_release);
 }
 
 void YamlConfigParser::ParseNumerics(const YAML::Node& node, Settings& settings) {
@@ -338,6 +349,15 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
                 overrides.Q_user = parameters["reactant_mass_fraction"].as<double>();
             }
         }
+    }
+
+    if (case_node["chemistry"]) {
+        const YAML::Node chemistry_node = case_node["chemistry"];
+        AssignOptionalIfPresent(chemistry_node, "enabled", overrides.chemistry_enabled);
+        AssignOptionalIfPresent(chemistry_node, "z_freq", overrides.chemistry_z_freq);
+        AssignOptionalIfPresent(chemistry_node, "activation_energy", overrides.chemistry_activation_energy);
+        AssignOptionalIfPresent(chemistry_node, "gas_constant", overrides.chemistry_gas_constant);
+        AssignOptionalIfPresent(chemistry_node, "heat_release", overrides.chemistry_heat_release);
     }
 
     if (case_node["numerics"]) {

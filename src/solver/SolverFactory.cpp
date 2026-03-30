@@ -68,7 +68,7 @@ namespace {
         }
 
         if (solver == "mader") {
-            return std::make_shared<MaderSpatialOperator>(boundary_manager);
+            return std::make_shared<MaderSpatialOperator>(settings, boundary_manager);
         }
 
         throw std::runtime_error("Unknown solver type: " + settings.solver);

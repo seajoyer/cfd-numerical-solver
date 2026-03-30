@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "bc/BoundaryManager.hpp"
+#include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
 #include "data/Mesh.hpp"
 #include "data/Variables.hpp"
@@ -166,8 +167,18 @@ namespace {
     }
 } // namespace
 
-MaderSpatialOperator::MaderSpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager)
-    : SpatialOperator(std::move(boundary_manager)) {}
+MaderSpatialOperator::MaderSpatialOperator(const Settings& settings, std::shared_ptr<BoundaryManager> boundary_manager)
+    : SpatialOperator(std::move(boundary_manager)) {
+    MaderChemistryParameters chem;
+    chem.enabled = settings.chemistry_enabled;
+    chem.z_freq = settings.chemistry_z_freq;
+    chem.activation_energy = settings.chemistry_activation_energy;
+    chem.gas_constant = settings.chemistry_gas_constant;
+    chem.heat_release = settings.chemistry_heat_release;
+    settings_ = settings;
+
+    SetChemistryParameters(chem);
+}
 
 void MaderSpatialOperator::SetEos(const EOS& eos) {
     eos_ = eos;
@@ -333,6 +344,7 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                     W(Workspace::k_p, i, j, k) = 0.0;
                     T(i, j, k) = 0.0;
                     I(i, j, k) = 0.0;
+                    reactant(i, j, k) = chemistry_params_.reactant_floor;
                     continue;
                 }
 
@@ -352,10 +364,11 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                 const double kinetic = 0.5 * (u * u + v * v + w * w);
                 double I_cell = std::max(E_in * inv_rho - kinetic, 0.0);
 
-                double lambda_old = reactant(i, j, k);
-                if (lambda_old < chemistry_params_.reactant_floor) {
-                    lambda_old = chemistry_params_.reactant_initial;
-                }
+                const double lambda_old = std::clamp(
+                    reactant(i, j, k),
+                    chemistry_params_.reactant_floor,
+                    1.0
+                );
 
                 const EosCellInput eos_in_1{
                     .rho = rho,
@@ -380,12 +393,13 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                             chemistry_params_.z_freq * lambda_old * std::exp(exponent);
 
                         lambda_new = lambda_old - dt * reaction_rate;
+                        lambda_new = std::max(lambda_new, chemistry_params_.reactant_floor);
 
                         if (lambda_new < chemistry_params_.min_reactant) {
                             lambda_new = chemistry_params_.reactant_floor;
                         }
 
-                        lambda_new = std::max(lambda_new, chemistry_params_.reactant_floor);
+                        lambda_new = std::clamp(lambda_new, chemistry_params_.reactant_floor, 1.0);
                     }
                 }
 
@@ -618,13 +632,20 @@ void MaderSpatialOperator::RebuildConservativeEnergy(DataLayer& layer,
     auto& Ux = workspace.Ux();
     auto& Vy = workspace.Vy();
 
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
+    const int i0 = mesh.GetCoreStartX();
+    const int i1 = mesh.GetCoreEndExclusiveX();
+    const int j0 = mesh.GetCoreStartY();
+    const int j1 = mesh.GetCoreEndExclusiveY();
+    const int k0 = mesh.GetCoreStartZ();
+    const int k1 = mesh.GetCoreEndExclusiveZ();
 
-    for (int k = 0; k < sz; ++k) {
-        for (int j = 0; j < sy; ++j) {
-            for (int i = 0; i < sx; ++i) {
+    for (int k = k0; k < k1; ++k) {
+        for (int j = j0; j < j1; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    continue;
+                }
+
                 const double rho = std::max(W(Workspace::k_rho, i, j, k), k_eps);
 
                 const double u = 0.5 * (Ux(i, j, k) + Ux(i + 1, j, k));
@@ -905,6 +926,8 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
                                                                  const Mesh& mesh,
                                                                  Workspace& workspace,
                                                                  const double gamma) const {
+    (void)gamma;
+
     auto& U = layer.U();
     auto& W = workspace.W();
     auto& T = workspace.Temperature();
@@ -915,26 +938,54 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
     const int sy = mesh.GetSy();
     const int sz = mesh.GetSz();
 
+    const double rho_floor = GetRhoFloor(eos_);
+
     for (int k = 0; k < sz; ++k) {
         for (int j = 0; j < sy; ++j) {
             for (int i = 0; i < sx; ++i) {
-                const PrimitiveCell prim = PrimitiveFromConservative(U, i, j, k, gamma);
+                if (!mesh.IsFluidCell(i, j, k)) {
+                    W(Workspace::k_rho, i, j, k) = 0.0;
+                    W(Workspace::k_u, i, j, k) = 0.0;
+                    W(Workspace::k_v, i, j, k) = 0.0;
+                    W(Workspace::k_w, i, j, k) = 0.0;
+                    W(Workspace::k_p, i, j, k) = 0.0;
+                    I(i, j, k) = 0.0;
+                    T(i, j, k) = 0.0;
+                    reactant(i, j, k) = chemistry_params_.reactant_floor;
+                    continue;
+                }
 
-                W(Workspace::k_rho, i, j, k) = prim.rho;
-                W(Workspace::k_u, i, j, k) = prim.u;
-                W(Workspace::k_v, i, j, k) = prim.v;
-                W(Workspace::k_w, i, j, k) = prim.w;
-                W(Workspace::k_p, i, j, k) = prim.P;
+                const double rho = std::max(U(var::rho, i, j, k), rho_floor);
+                const double inv_rho = 1.0 / rho;
 
-                const double kinetic = 0.5 * (prim.u * prim.u + prim.v * prim.v + prim.w * prim.w);
-                I(i, j, k) = std::max(U(var::E, i, j, k) / std::max(prim.rho, k_eps) - kinetic, 0.0);
+                const double u = U(var::rhoU, i, j, k) * inv_rho;
+                const double v = U(var::rhoV, i, j, k) * inv_rho;
+                const double w = U(var::rhoW, i, j, k) * inv_rho;
+
+                const double kinetic = 0.5 * (u * u + v * v + w * w);
+                const double I_cell = std::max(U(var::E, i, j, k) * inv_rho - kinetic, 0.0);
+                const double lambda = std::clamp(
+                    reactant(i, j, k),
+                    chemistry_params_.reactant_floor,
+                    1.0
+                );
 
                 const EosCellInput eos_in{
-                    .rho = prim.rho,
-                    .I = I(i, j, k),
-                    .lambda = reactant(i, j, k)
+                    .rho = rho,
+                    .I = I_cell,
+                    .lambda = lambda
                 };
-                T(i, j, k) = eos_.Evaluate(eos_in).T;
+                const EosCellOutput eos_out = eos_.Evaluate(eos_in);
+
+                W(Workspace::k_rho, i, j, k) = rho;
+                W(Workspace::k_u, i, j, k) = u;
+                W(Workspace::k_v, i, j, k) = v;
+                W(Workspace::k_w, i, j, k) = w;
+                W(Workspace::k_p, i, j, k) = eos_out.P;
+
+                I(i, j, k) = I_cell;
+                T(i, j, k) = eos_out.T;
+                reactant(i, j, k) = lambda;
             }
         }
     }

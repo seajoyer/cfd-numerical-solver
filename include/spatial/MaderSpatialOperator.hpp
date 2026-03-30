@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "config/Settings.hpp"
 #include "solver/EOS.hpp"
 #include "spatial/SpatialOperator.hpp"
 
@@ -16,17 +17,17 @@ class BoundaryManager;
  * @brief Chemistry controls for Mader phase I.
  */
 struct MaderChemistryParameters final {
-    bool enabled = false;
+    bool enabled = true;
 
-    double z_freq = 0.0; // Arrhenius pre-exponential factor
-    double activation_energy = 0.0; // E*
+    double z_freq = 5.0e15; // Arrhenius pre-exponential factor
+    double activation_energy = 2.0e4; // E*
     double gas_constant = 1.0; // R_g
 
-    double heat_release = 0.0; // Q_chem
+    double heat_release = 4.84e6; // Q_chem
 
-    double min_temperature = 1000.0; // MINWT
-    double min_reactant = 0.02; // GASW
-    std::size_t delay_cycles = 25; // VCNT
+    double min_temperature = 1500.0; // MINWT
+    double min_reactant = 1.0e-6; // GASW
+    std::size_t delay_cycles = 0; // VCNT
 
     double reactant_floor = 0.0;
     double reactant_initial = 1.0;
@@ -90,7 +91,7 @@ struct MaderTransportParameters final {
  */
 class MaderSpatialOperator final : public SpatialOperator {
 public:
-    explicit MaderSpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager);
+    explicit MaderSpatialOperator(const Settings& settings, std::shared_ptr<BoundaryManager> boundary_manager);
 
     /**
      * @brief Compatibility stub.
@@ -297,6 +298,7 @@ private:
                                                Workspace& workspace,
                                                double gamma) const;
 
+    Settings settings_;
     EOS eos_;
     MaderChemistryParameters chemistry_params_;
     MaderViscosityParameters viscosity_params_;

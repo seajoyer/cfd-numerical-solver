@@ -19,6 +19,7 @@ void OutletBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis axis, 
     }
 
     auto& U = layer.U();
+    auto& reactant = layer.ReactantMassFraction();
 
     const int i0 = mesh.GetCoreStartX();
     const int i1 = mesh.GetCoreEndExclusiveX();
@@ -34,6 +35,10 @@ void OutletBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis axis, 
 
             xt::view(U, xt::all(), dst_i, xt::all(), xt::all()) =
                 xt::view(U, xt::all(), src_i, xt::all(), xt::all());
+
+            xt::view(reactant, dst_i, xt::all(), xt::all()) =
+                xt::view(reactant, src_i, xt::all(), xt::all());
+
             continue;
         }
 
@@ -43,6 +48,10 @@ void OutletBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis axis, 
 
             xt::view(U, xt::all(), xt::all(), dst_j, xt::all()) =
                 xt::view(U, xt::all(), xt::all(), src_j, xt::all());
+
+            xt::view(reactant, xt::all(), dst_j, xt::all()) =
+                xt::view(reactant, xt::all(), src_j, xt::all());
+
             continue;
         }
 
@@ -51,5 +60,8 @@ void OutletBoundary::Apply(DataLayer& layer, const Mesh& mesh, const Axis axis, 
 
         xt::view(U, xt::all(), xt::all(), xt::all(), dst_k) =
             xt::view(U, xt::all(), xt::all(), xt::all(), src_k);
+
+        xt::view(reactant, xt::all(), xt::all(), dst_k) =
+            xt::view(reactant, xt::all(), xt::all(), src_k);
     }
 }

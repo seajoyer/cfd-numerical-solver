@@ -33,6 +33,7 @@ private:
 
     static void ParseMesh(const YAML::Node& node, Settings& settings);
     static void ParsePhysics(const YAML::Node& node, Settings& settings);
+    static void ParseChemistry(const YAML::Node& node, Settings& settings);
     static void ParseNumerics(const YAML::Node& node, Settings& settings);
     static void ParseBoundaryConditions(const YAML::Node& node, Settings& settings);
     static void ParseParallel(const YAML::Node& node, Settings& settings);
