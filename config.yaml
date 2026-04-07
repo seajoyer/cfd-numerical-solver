@@ -21,11 +21,11 @@ defaults:
 #            reactant_mass_fraction: 1.0
 
     numerics:
-        method: godunov-kolgan-rodionov
+        method: godunov
         parameters:
-            time_integrator: ssprk2
-            reconstruction: p1
-            riemann_solver: roe
+            time_integrator: euler
+            reconstruction: p0
+            riemann_solver: hllc
             cfl: 0.2
             global_limiter: false
             viscosity: false
@@ -93,13 +93,7 @@ cases:
                 2:
                     type: outlet
                 3:
-                    type: free_stream
-                    state:
-                        rho: 1.0
-                        u: 0.2
-                        v: 0.0
-                        w: 0.0
-                        p: 1.0
+                    type: outlet
                 4:
                     type: wall
 
@@ -113,13 +107,13 @@ cases:
             p: 1.0
 
         mesh:
-            type: gmsh_geo
+            type: delaunay_geo
             dim: 2
             source:
-                file: ../data/NACA.geo
+                file: ../data/NACA_0012.geo
 
         stopping:
-            t_end: 10
+            t_end: 0.12
 
     test_gmsh_rect_2d:
         initial_condition:

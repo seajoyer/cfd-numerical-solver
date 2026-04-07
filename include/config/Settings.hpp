@@ -13,7 +13,8 @@
 enum class MeshSourceType {
     StructuredCartesian,
     GmshFile,
-    GmshGeo
+    GmshGeo,
+    DelaunayGeo
 };
 
 /**
@@ -40,6 +41,13 @@ struct GmshFileMeshSettings {
 };
 
 /**
+ * @brief Geo file passed for in-house Delaunay mesh generation.
+ */
+struct DelaunayGeoMeshSettings {
+    std::string file_path;
+};
+
+/**
  * @brief Geo file passed for mesh generation.
  */
 struct GmshGeoMeshSettings {
@@ -56,6 +64,7 @@ struct MeshSettings {
     std::optional<StructuredMeshSettings> structured;
     std::optional<GmshFileMeshSettings> gmsh_file;
     std::optional<GmshGeoMeshSettings> gmsh_geo;
+    std::optional<DelaunayGeoMeshSettings> delaunay_geo;
 };
 
 

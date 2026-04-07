@@ -283,6 +283,32 @@ void YamlConfigParser::ParseMesh(const YAML::Node& node, Settings& settings) {
         return;
     }
 
+    if (mesh_type == "delaunay_geo") {
+        settings.mesh.source_type = MeshSourceType::DelaunayGeo;
+
+        DelaunayGeoMeshSettings delaunay_geo;
+        if (settings.mesh.delaunay_geo) {
+            delaunay_geo = *settings.mesh.delaunay_geo;
+        }
+
+        if (!node["source"]) {
+            throw std::runtime_error("mesh.type=delaunay_geo requires mesh.source");
+        }
+
+        const YAML::Node source = node["source"];
+        if (!source["file"]) {
+            throw std::runtime_error("mesh.source.file is required for mesh.type=delaunay_geo");
+        }
+
+        delaunay_geo.file_path = source["file"].as<std::string>();
+
+        settings.mesh.delaunay_geo = delaunay_geo;
+        settings.mesh.structured.reset();
+        settings.mesh.gmsh_file.reset();
+        settings.mesh.gmsh_geo.reset();
+        return;
+    }
+
     throw std::runtime_error("Unsupported mesh.type: " + mesh_type);
 }
 

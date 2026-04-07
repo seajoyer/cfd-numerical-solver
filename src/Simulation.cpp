@@ -21,6 +21,7 @@
 #include "solver/Solver.hpp"
 #include "solver/SolverFactory.hpp"
 #include "utils/StringUtils.hpp"
+#include "geometry/DelaunayMeshBuilder.hpp"
 
 Simulation::Simulation(Settings settings, InitialConditions initial_conditions)
     : settings_(std::move(settings)),
@@ -296,6 +297,19 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
         return std::make_unique<Mesh>(
             GmshMeshBuilder::BuildFromGeoFile(
                 settings_.mesh.gmsh_geo->file_path,
+                settings_.mesh.dim
+            )
+        );
+    }
+    
+    if (settings_.mesh.source_type == MeshSourceType::DelaunayGeo) {
+        if (!settings_.mesh.delaunay_geo.has_value()) {
+            throw std::runtime_error("Simulation: delaunay geo settings are missing");
+        }
+
+        return std::make_unique<Mesh>(
+            DelaunayMeshBuilder::BuildFromGeoFile(
+                settings_.mesh.delaunay_geo->file_path,
                 settings_.mesh.dim
             )
         );

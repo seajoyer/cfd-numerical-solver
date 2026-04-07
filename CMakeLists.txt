@@ -81,6 +81,9 @@ add_executable(${NAME}
     src/data/Workspace.cpp
 
     src/geometry/GmshMeshBuilder.cpp
+    src/geometry/DelaunayMeshBuilder.cpp
+    src/geometry/DelaunayTriangulator.cpp
+    src/geometry/PointCloudBuilder.cpp
     src/geometry/StructuredMeshBuilder.cpp
     src/geometry/Mesh.cpp
     include/geometry/Node.hpp
