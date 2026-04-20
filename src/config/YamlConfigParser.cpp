@@ -158,7 +158,7 @@ void YamlConfigParser::ParseCases(const YAML::Node& cases_node,
         InitialConditions ic;
         ic.overrides = CaseSettings{};
 
-        ApplyCaseOverrides(case_node, ic);
+        ApplyCaseOverrides(case_node, ic, defaults);
 
         Settings effective_settings = MergeSettings(defaults, ic.overrides, CaseSettings{});
         effective_settings.simulation_case = case_name;
@@ -487,7 +487,9 @@ void YamlConfigParser::ParseImmersedBoundaries(const YAML::Node& node, Settings&
     }
 }
 
-void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialConditions& ic) {
+void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node,
+                                          InitialConditions& ic,
+                                          const Settings& defaults) {
     CaseSettings& overrides = ic.overrides;
 
     if (case_node["mesh"]) {
@@ -545,7 +547,7 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
     }
 
     if (case_node["boundary_conditions"]) {
-        Settings tmp;
+        Settings tmp = defaults;
         if (overrides.mesh) {
             tmp.mesh = *overrides.mesh;
         }

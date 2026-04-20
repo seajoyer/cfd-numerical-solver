@@ -5,6 +5,7 @@ class DataLayer;
 class Mesh;
 class Workspace;
 class SpatialOperator;
+class StateSynchronizer;
 
 /**
  * @class TimeIntegrator
@@ -12,11 +13,6 @@ class SpatialOperator;
  *
  * Integrators advance conservative cell-centered state U stored in DataLayer.
  * Boundary conditions and face flux construction are handled inside SpatialOperator.
- *
- * Contract:
- * - Works on generic face-based meshes.
- * - Does not use ghost cells or structured core ranges.
- * - Reuses caller-provided Workspace.
  */
 class TimeIntegrator {
 public:
@@ -31,13 +27,15 @@ public:
      * @param dt Time step size.
      * @param gamma Ratio of specific heats.
      * @param op Spatial operator providing RHS evaluations.
+     * @param halo_exchange Optional halo exchange used between RK stages.
      */
     virtual void Advance(DataLayer& layer,
                          const Mesh& mesh,
                          Workspace& workspace,
                          double dt,
                          double gamma,
-                         const SpatialOperator& op) const = 0;
+                         const SpatialOperator& op,
+                         const StateSynchronizer* halo_exchange) const = 0;
 
     /**
      * @brief Set positivity floors used after conservative update.

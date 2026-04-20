@@ -117,7 +117,7 @@ int MPIContext::GlobalSum(const int value) const {
 }
 
 auto MPIContext::BroadcastString(const std::string& value, const int root) const -> std::string {
-    int length = IsRoot() ? static_cast<int>(value.size()) : 0;
+    int length = rank_ == root ? static_cast<int>(value.size()) : 0;
     MPI_Bcast(&length, 1, MPI_INT, root, comm_);
 
     std::string result;

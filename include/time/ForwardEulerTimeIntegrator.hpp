@@ -19,7 +19,8 @@ public:
                  Workspace& workspace,
                  double dt,
                  double gamma,
-                 const SpatialOperator& op) const override;
+                 const SpatialOperator& op,
+                 const StateSynchronizer* halo_exchange) const override;
 };
 
 #endif  // FORWARDEULERTIMEINTEGRATOR_HPP

@@ -1,5 +1,5 @@
 run:
-    cases: [naca]
+    cases: [woodward_colella]
 
 defaults:
     mesh:
@@ -79,6 +79,54 @@ defaults:
         every_time: 0.0
 
 cases:
+    woodward_colella:
+        mesh:
+            type: gmsh_geo
+            dim: 2
+            source:
+                file: ../data/Woodward_Colella.geo
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+
+        numerics:
+            parameters:
+                cfl: 0.4
+
+        boundary_conditions:
+            tags:
+                1:
+                    type: inlet
+                    state:
+                        rho: 1.4
+                        u: 3.0
+                        v: 0.0
+                        w: 0.0
+                        p: 1.0
+                2:
+                    type: outlet
+                3:
+                    type: wall
+
+        initial_condition:
+            type: constant
+            rho: 1.4
+            u: 3.0
+            v: 0.0
+            w: 0.0
+            p: 1.0
+
+        stopping:
+            t_end: 4.0
+
+        output:
+            every_steps: 100
+
+        parallel:
+            mpi: true
+
     naca:
         boundary_conditions:
             tags:
@@ -107,13 +155,16 @@ cases:
             p: 1.0
 
         mesh:
-            type: delaunay_geo
+            type: gmsh_geo
             dim: 2
             source:
                 file: ../data/NACA_0012.geo
 
         stopping:
             t_end: 0.12
+
+        parallel:
+            mpi: true
 
     test_gmsh_rect_2d:
         initial_condition:

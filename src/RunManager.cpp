@@ -1,21 +1,13 @@
 #include "RunManager.hpp"
 
 #include <iostream>
+#include <stdexcept>
 
 #include "utils/StringUtils.hpp"
 
-
 void RunManager::ValidateRuntimeMode() const {
-    for (const std::string& case_name : cases_to_run_) {
-        const Settings case_settings = parser_.GetCaseSettings(case_name);
-
-        if (case_settings.mpi_enabled) {
-            throw std::runtime_error(
-                "RunManager: case '" + case_name +
-                "' requests mpi_enabled=true, but current generic mesh pipeline is single-process only"
-            );
-        }
-    }
+    // MPI mode is now allowed.
+    // Additional runtime checks can be added here later if needed.
 }
 
 auto RunManager::Run(int argc, char* argv[]) -> int {
@@ -30,15 +22,20 @@ auto RunManager::Run(int argc, char* argv[]) -> int {
     ValidateRuntimeMode();
 
     BuildRunDirectory();
+
     if (is_root_) {
         std::cout << "Configuration loaded from: " << parser_.GetConfigPath() << "\n\n";
     }
+
     PrintSelectedCases();
 
     return RunCases();
 }
 
 auto RunManager::LoadConfiguration(int argc, char* argv[]) -> bool {
+    mpi_ = std::make_unique<MPIContext>();
+    is_root_ = mpi_->IsRoot();
+
     auto result = parser_.Parse("../config.yaml", argc, argv);
 
     if (!result.has_value()) {
@@ -67,7 +64,9 @@ auto RunManager::ResolveCasesToRun() -> bool {
         cases_to_run_ = parser_.GetAllCaseNames();
 
         if (cases_to_run_.empty()) {
-            std::cerr << "Error: no cases defined in configuration\n";
+            if (is_root_) {
+                std::cerr << "Error: no cases defined in configuration\n";
+            }
             return false;
         }
 
@@ -78,10 +77,12 @@ auto RunManager::ResolveCasesToRun() -> bool {
 
     for (const auto& case_name : cases_to_run_) {
         if (!parser_.HasInitialCondition(case_name)) {
-            std::cerr << "Error: case '" << case_name << "' not found\n";
-            std::cerr << "Available cases:\n";
-            for (const auto& available_case : parser_.GetAllCaseNames()) {
-                std::cerr << "  - " << available_case << '\n';
+            if (is_root_) {
+                std::cerr << "Error: case '" << case_name << "' not found\n";
+                std::cerr << "Available cases:\n";
+                for (const auto& available_case : parser_.GetAllCaseNames()) {
+                    std::cerr << "  - " << available_case << '\n';
+                }
             }
             return false;
         }
@@ -95,18 +96,23 @@ void RunManager::BuildRunDirectory() {
         throw std::runtime_error("RunManager::BuildRunDirectory: no cases selected");
     }
 
-    const Settings first_case_settings = parser_.GetCaseSettings(cases_to_run_.front());
+    if (is_root_) {
+        const Settings first_case_settings = parser_.GetCaseSettings(cases_to_run_.front());
+        const std::string timestamp = utils::GetTimestamp();
+        run_dir_ = first_case_settings.output_dir + "/run_" + timestamp;
+        std::cout << "Run directory: " << run_dir_ << "\n\n";
+    }
 
-    const std::string timestamp = utils::GetTimestamp();
-    run_dir_ = first_case_settings.output_dir + "/run_" + timestamp;
-
-    is_root_ = true;
-
-    std::cout << "Run directory: " << run_dir_ << "\n\n";
+    if (mpi_ && mpi_->Size() > 1) {
+        run_dir_ = mpi_->BroadcastString(run_dir_, 0);
+    }
 }
 
 void RunManager::PrintSelectedCases() const {
-    if (!is_root_) return;
+    if (!is_root_) {
+        return;
+    }
+
     if (cases_to_run_.size() == 1) {
         std::cout << "Running 1 simulation case:\n";
     }
@@ -128,6 +134,7 @@ auto RunManager::RunCases() -> int {
             std::cout << "Starting simulation case: " << case_name << '\n';
             std::cout << "========================================\n\n";
         }
+
         Settings case_settings = parser_.GetCaseSettings(case_name);
         case_settings.simulation_case = case_name;
         case_settings.output_dir = run_dir_ + "/" + case_name;
@@ -145,6 +152,9 @@ auto RunManager::RunCases() -> int {
         std::cout << "========================================\n";
     }
 
-    if (is_root_) std::cout << "\nResults saved to: " << run_dir_ << '\n';
+    if (is_root_) {
+        std::cout << "\nResults saved to: " << run_dir_ << '\n';
+    }
+
     return 0;
 }

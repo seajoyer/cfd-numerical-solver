@@ -24,8 +24,9 @@
 
 GodunovSpatialOperator::GodunovSpatialOperator(
     const Settings& settings,
-    std::shared_ptr<BoundaryManager> boundary_manager
-) : SpatialOperator(std::move(boundary_manager)) {
+    std::shared_ptr<BoundaryManager> boundary_manager,
+    const StateSynchronizer* synchronizer
+) : SpatialOperator(std::move(boundary_manager), synchronizer) {
     InitializeReconstruction(settings);
     InitializeRiemannSolver(settings);
 
@@ -74,7 +75,7 @@ void GodunovSpatialOperator::InitializeRiemannSolver(const Settings& settings) {
     }
 
     if (name == "hll") {
-        riemann_solver_ = std::make_shared<HLLCRiemannSolver>();
+        riemann_solver_ = std::make_shared<HLLRiemannSolver>();
         return;
     }
 
@@ -213,12 +214,12 @@ void GodunovSpatialOperator::ComputeRHS(const DataLayer& layer,
     FillPrimitiveCache(layer, mesh, workspace, gamma);
 
     for (const Face& face : mesh.Faces()) {
-        if (face.IsInternal()) {
+        if (face.IsInternal() || face.IsMPIBoundary()) {
             AccumulateInternalFace(layer, mesh, face, workspace, gamma);
             continue;
         }
 
-        if (face.IsBoundary()) {
+        if (face.IsPhysicalBoundary()) {
             AccumulateBoundaryFace(layer, mesh, face, workspace, gamma);
             continue;
         }

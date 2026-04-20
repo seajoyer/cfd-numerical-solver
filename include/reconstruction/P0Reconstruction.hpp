@@ -7,11 +7,11 @@
  * @class P0Reconstruction
  * @brief Piecewise-constant face reconstruction on generic meshes.
  *
- * For internal face:
+ * For internal or MPI face:
  * - owner_state    = primitive state in owner cell
  * - neighbor_state = primitive state in neighbor cell
  *
- * For boundary face:
+ * For physical boundary face:
  * - interior_state = primitive state in owner cell
  */
 class P0Reconstruction final : public Reconstruction {

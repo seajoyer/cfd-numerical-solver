@@ -1,6 +1,7 @@
 #ifndef RUNMANAGER_HPP
 #define RUNMANAGER_HPP
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -8,7 +9,7 @@
 #include "config/ConfigParser.hpp"
 #include "config/InitialConditions.hpp"
 #include "config/Settings.hpp"
-// #include "parallel/MPIContext.hpp"
+#include "parallel/MPIContext.hpp"
 
 /**
  * @file RunManager.hpp
@@ -72,6 +73,8 @@ private:
     void ValidateRuntimeMode() const;
 
     bool is_root_ = true;
+    std::unique_ptr<MPIContext> mpi_;
+
     ConfigParser parser_;
     std::vector<std::string> cases_to_run_;
     std::string run_dir_;

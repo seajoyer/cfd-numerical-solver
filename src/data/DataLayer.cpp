@@ -7,10 +7,6 @@ DataLayer::DataLayer(const std::size_t n_cells) {
 }
 
 void DataLayer::Resize(const std::size_t n_cells) {
-    if (n_cells == 0) {
-        throw std::invalid_argument("DataLayer::Resize: n_cells must be > 0");
-    }
-
     if (n_cells == n_cells_ && IsAllocated()) {
         return;
     }
@@ -46,7 +42,9 @@ bool DataLayer::IsAllocated() const {
     return
         U_.dimension() == 2 &&
         reactant_mass_fraction_.dimension() == 1 &&
-        n_cells_ > 0;
+        U_.shape()[0] == n_cells_ &&
+        U_.shape()[1] == k_nvar &&
+        reactant_mass_fraction_.shape()[0] == n_cells_;
 }
 
 void DataLayer::Allocate(const std::size_t n_cells) {

@@ -472,6 +472,7 @@ void GmshMeshBuilder::BuildCellsAndFaces(
         for (std::size_t element_id = 0; element_id < element_count; ++element_id) {
             Cell cell;
             cell.id = cells.size();
+            cell.local_id = cells.size();
             cell.node_ids.reserve(static_cast<std::size_t>(node_count));
 
             for (int local_id = 0; local_id < node_count; ++local_id) {
@@ -508,8 +509,11 @@ void GmshMeshBuilder::BuildCellsAndFaces(
                     Face face;
                     face.id = faces.size();
                     face.node_ids = face_nodes;
-                    face.owner_cell_id = cell.id;
+                    face.owner_cell_id = cell.local_id;
                     face.neighbor_cell_id = Face::k_invalid_cell_id;
+                    face.kind = FaceKind::PhysicalBoundary;
+                    face.remote_rank = -1;
+                    face.remote_cell_id = Face::k_invalid_cell_id;
 
                     const Vec3 face_center = ComputePolygonCenter(face.node_ids, nodes);
                     face.center_x = face_center.x;
@@ -527,7 +531,7 @@ void GmshMeshBuilder::BuildCellsAndFaces(
 
                     faces.push_back(face);
                     face_key_to_face_id[key] = face.id;
-                    cells[cell.id].face_ids.push_back(face.id);
+                    cells[cell.local_id].face_ids.push_back(face.id);
                 }
                 else {
                     Face& face = faces[face_it->second];
@@ -536,9 +540,13 @@ void GmshMeshBuilder::BuildCellsAndFaces(
                         throw std::runtime_error("GmshMeshBuilder: non-manifold face detected");
                     }
 
-                    face.neighbor_cell_id = cell.id;
+                    face.neighbor_cell_id = cell.local_id;
+                    face.kind = FaceKind::Interior;
                     face.boundary_tag = -1;
-                    cells[cell.id].face_ids.push_back(face.id);
+                    face.remote_rank = -1;
+                    face.remote_cell_id = Face::k_invalid_cell_id;
+
+                    cells[cell.local_id].face_ids.push_back(face.id);
                 }
             }
         }
@@ -616,9 +624,9 @@ void GmshMeshBuilder::FinalizeFaceNormals(Mesh& mesh) {
             face.normal_z = normal.z;
         }
 
-        if (face.IsBoundary() && face.boundary_tag < 0) {
+        if (face.IsPhysicalBoundary() && face.boundary_tag < 0) {
             throw std::runtime_error(
-                "GmshMeshBuilder: boundary face has no physical boundary tag"
+                "GmshMeshBuilder: physical boundary face has no physical boundary tag"
             );
         }
     }
@@ -638,6 +646,9 @@ Mesh GmshMeshBuilder::BuildFromCurrentModel(const int dim) {
 
     BuildCellsAndFaces(mesh, dim, gmsh_to_internal_node, boundary_faces);
     FinalizeFaceNormals(mesh);
+
+    mesh.SetOwnedCellCount(mesh.GetCellCount());
+    mesh.SetGhostCellCount(0);
 
     mesh.Validate();
     return mesh;

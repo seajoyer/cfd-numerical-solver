@@ -36,7 +36,7 @@ PrimitiveCell BoundaryManager::BuildExteriorState(const DataLayer& layer,
                                                   const Mesh& mesh,
                                                   const Face& face,
                                                   const PrimitiveCell& interior_state) const {
-    if (!face.IsBoundary()) {
+    if (!face.IsPhysicalBoundary()) {
         throw std::runtime_error(
                                  "BoundaryManager::BuildExteriorState: face is not a boundary face"
                                 );

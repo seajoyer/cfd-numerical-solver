@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <stdexcept>
 
 #include "data/Workspace.hpp"
@@ -37,14 +36,14 @@ void P1Reconstruction::CollectNeighborCellIds(const Mesh& mesh,
     for (const std::size_t face_id : cell.face_ids) {
         const Face& face = mesh.GetFace(face_id);
 
-        if (face.IsBoundary()) {
+        if (face.IsPhysicalBoundary()) {
             continue;
         }
 
         const std::size_t neighbor_id =
-            (face.owner_cell_id == cell.id) ? face.neighbor_cell_id : face.owner_cell_id;
+            (face.owner_cell_id == cell.local_id) ? face.neighbor_cell_id : face.owner_cell_id;
 
-        if (neighbor_id == Face::k_invalid_cell_id || neighbor_id == cell.id) {
+        if (neighbor_id == Face::k_invalid_cell_id || neighbor_id == cell.local_id) {
             continue;
         }
 
@@ -120,7 +119,7 @@ double P1Reconstruction::SolveLeastSquaresComponent(const double a11,
 P1Reconstruction::PrimitiveGradient P1Reconstruction::ComputeGradient(const Mesh& mesh,
                                                                       const Workspace& workspace,
                                                                       const Cell& cell) const {
-    PrimitiveGradient gradient;
+    PrimitiveGradient gradient{};
 
     std::vector<std::size_t> neighbor_ids;
     CollectNeighborCellIds(mesh, cell, neighbor_ids);
@@ -129,7 +128,7 @@ P1Reconstruction::PrimitiveGradient P1Reconstruction::ComputeGradient(const Mesh
         return gradient;
     }
 
-    const PrimitiveCell wc = LoadCellPrimitive(workspace, cell.id);
+    const PrimitiveCell wc = LoadCellPrimitive(workspace, cell.local_id);
 
     double a11 = 0.0;
     double a12 = 0.0;
@@ -146,7 +145,7 @@ P1Reconstruction::PrimitiveGradient P1Reconstruction::ComputeGradient(const Mesh
 
     for (const std::size_t neighbor_id : neighbor_ids) {
         const Cell& neighbor = mesh.GetCell(neighbor_id);
-        const PrimitiveCell wn = LoadCellPrimitive(workspace, neighbor_id);
+        const PrimitiveCell wn = LoadCellPrimitive(workspace, neighbor.local_id);
 
         const double dx = neighbor.center_x - cell.center_x;
         const double dy = neighbor.center_y - cell.center_y;
@@ -168,15 +167,19 @@ P1Reconstruction::PrimitiveGradient P1Reconstruction::ComputeGradient(const Mesh
         b1_rho += dx * drho;
         b2_rho += dy * drho;
         b3_rho += dz * drho;
+
         b1_u += dx * du;
         b2_u += dy * du;
         b3_u += dz * du;
+
         b1_v += dx * dv;
         b2_v += dy * dv;
         b3_v += dz * dv;
+
         b1_w += dx * dw;
         b2_w += dy * dw;
         b3_w += dz * dw;
+
         b1_P += dx * dP;
         b2_P += dy * dP;
         b3_P += dz * dP;
@@ -237,7 +240,7 @@ double P1Reconstruction::ComputeLimiter(const Mesh& mesh,
         return 1.0;
     }
 
-    const PrimitiveCell wc = LoadCellPrimitive(workspace, cell.id);
+    const PrimitiveCell wc = LoadCellPrimitive(workspace, cell.local_id);
 
     PrimitiveCell w_min = wc;
     PrimitiveCell w_max = wc;
@@ -310,17 +313,17 @@ void P1Reconstruction::ReconstructInteriorFace(const Mesh& mesh,
                                                const Face& face,
                                                PrimitiveCell& owner_state,
                                                PrimitiveCell& neighbor_state) const {
-    if (!face.IsInternal()) {
+    if (!(face.IsInternal() || face.IsMPIBoundary())) {
         throw std::runtime_error(
-            "P1Reconstruction::ReconstructInteriorFace: face is not internal"
+            "P1Reconstruction::ReconstructInteriorFace: face is not internal or MPI boundary"
         );
     }
 
     const Cell& owner = mesh.GetCell(face.owner_cell_id);
     const Cell& neighbor = mesh.GetCell(face.neighbor_cell_id);
 
-    const PrimitiveCell owner_cell_state = LoadCellPrimitive(workspace, owner.id);
-    const PrimitiveCell neighbor_cell_state = LoadCellPrimitive(workspace, neighbor.id);
+    const PrimitiveCell owner_cell_state = LoadCellPrimitive(workspace, owner.local_id);
+    const PrimitiveCell neighbor_cell_state = LoadCellPrimitive(workspace, neighbor.local_id);
 
     const PrimitiveGradient owner_gradient = ComputeGradient(mesh, workspace, owner);
     const PrimitiveGradient neighbor_gradient = ComputeGradient(mesh, workspace, neighbor);
@@ -354,14 +357,14 @@ void P1Reconstruction::ReconstructBoundaryFaceInterior(const Mesh& mesh,
                                                        const Workspace& workspace,
                                                        const Face& face,
                                                        PrimitiveCell& interior_state) const {
-    if (!face.IsBoundary()) {
+    if (!face.IsPhysicalBoundary()) {
         throw std::runtime_error(
-            "P1Reconstruction::ReconstructBoundaryFaceInterior: face is not boundary"
+            "P1Reconstruction::ReconstructBoundaryFaceInterior: face is not physical boundary"
         );
     }
 
     const Cell& owner = mesh.GetCell(face.owner_cell_id);
-    const PrimitiveCell owner_cell_state = LoadCellPrimitive(workspace, owner.id);
+    const PrimitiveCell owner_cell_state = LoadCellPrimitive(workspace, owner.local_id);
     const PrimitiveGradient owner_gradient = ComputeGradient(mesh, workspace, owner);
 
     const double owner_limiter =

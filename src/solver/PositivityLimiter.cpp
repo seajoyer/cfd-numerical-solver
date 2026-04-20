@@ -14,7 +14,7 @@ void PositivityLimiter::Apply(DataLayer& layer,
 
     auto& U = layer.U();
 
-    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+    for (std::size_t cell_id = 0; cell_id < mesh.GetOwnedCellCount(); ++cell_id) {
         double rho = U(cell_id, DataLayer::k_rho);
         double rhoU = U(cell_id, DataLayer::k_rhoU);
         double rhoV = U(cell_id, DataLayer::k_rhoV);

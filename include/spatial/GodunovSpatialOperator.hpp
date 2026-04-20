@@ -31,7 +31,8 @@ class Face;
 class GodunovSpatialOperator final : public SpatialOperator {
 public:
     GodunovSpatialOperator(const Settings& settings,
-                           std::shared_ptr<BoundaryManager> boundary_manager);
+                           std::shared_ptr<BoundaryManager> boundary_manager,
+                           const StateSynchronizer* synchronizer = nullptr);
 
     void ComputeRHS(const DataLayer& layer,
                     const Mesh& mesh,

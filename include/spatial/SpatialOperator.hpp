@@ -7,6 +7,7 @@ class DataLayer;
 class Mesh;
 class Workspace;
 class BoundaryManager;
+class StateSynchronizer;
 
 /**
  * @class SpatialOperator
@@ -24,8 +25,10 @@ class BoundaryManager;
  */
 class SpatialOperator {
 public:
-    explicit SpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager)
-        : boundary_manager_(std::move(boundary_manager)) {}
+    explicit SpatialOperator(std::shared_ptr<BoundaryManager> boundary_manager,
+                             const StateSynchronizer* synchronizer = nullptr)
+        : boundary_manager_(std::move(boundary_manager)),
+          synchronizer_(synchronizer) {}
 
     virtual ~SpatialOperator() = default;
 
@@ -46,6 +49,7 @@ public:
 
 protected:
     std::shared_ptr<BoundaryManager> boundary_manager_;
+    const StateSynchronizer* synchronizer_ = nullptr;
 };
 
 #endif  // SPATIALOPERATOR_HPP

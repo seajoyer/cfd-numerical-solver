@@ -29,8 +29,11 @@ public:
 private:
     std::string output_dir_;
 
+    [[nodiscard]] std::string GenerateRankDirectory() const;
     [[nodiscard]] std::string GenerateFilename(std::size_t step,
                                                const Settings& settings) const;
+
+    void EnsureDirectoriesExist() const;
 
     void WriteUnstructuredGrid(const DataLayer& layer,
                                const Mesh& mesh,

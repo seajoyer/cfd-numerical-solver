@@ -519,6 +519,7 @@ Mesh DelaunayMeshBuilder::BuildMeshFromTriangles(
     for (const Triangle& triangle : triangles) {
         Cell cell;
         cell.id = cells.size();
+        cell.local_id = cells.size();
         cell.node_ids = {
             triangle.node_ids[0],
             triangle.node_ids[1],
@@ -552,8 +553,11 @@ Mesh DelaunayMeshBuilder::BuildMeshFromTriangles(
                 Face face;
                 face.id = faces.size();
                 face.node_ids = {na, nb};
-                face.owner_cell_id = cell.id;
+                face.owner_cell_id = cell.local_id;
                 face.neighbor_cell_id = Face::k_invalid_cell_id;
+                face.kind = FaceKind::PhysicalBoundary;
+                face.remote_rank = -1;
+                face.remote_cell_id = Face::k_invalid_cell_id;
                 face.center_x = 0.5 * (points[na].x + points[nb].x);
                 face.center_y = 0.5 * (points[na].y + points[nb].y);
                 face.center_z = 0.0;
@@ -561,7 +565,7 @@ Mesh DelaunayMeshBuilder::BuildMeshFromTriangles(
 
                 faces.push_back(face);
                 edge_to_face_id[key] = face.id;
-                cells[cell.id].face_ids.push_back(face.id);
+                cells[cell.local_id].face_ids.push_back(face.id);
             }
             else {
                 Face& face = faces[face_it->second];
@@ -570,14 +574,19 @@ Mesh DelaunayMeshBuilder::BuildMeshFromTriangles(
                     throw std::runtime_error("DelaunayMeshBuilder: non-manifold edge detected");
                 }
 
-                face.neighbor_cell_id = cell.id;
-                cells[cell.id].face_ids.push_back(face.id);
+                face.neighbor_cell_id = cell.local_id;
+                face.kind = FaceKind::Interior;
+                face.boundary_tag = -1;
+                face.remote_rank = -1;
+                face.remote_cell_id = Face::k_invalid_cell_id;
+
+                cells[cell.local_id].face_ids.push_back(face.id);
             }
         }
     }
 
     for (Face& face : faces) {
-        if (face.IsBoundary()) {
+        if (face.IsPhysicalBoundary()) {
             const Point2D a{
                 .id = 0,
                 .x = nodes[face.node_ids[0]].x,
@@ -599,6 +608,10 @@ Mesh DelaunayMeshBuilder::BuildMeshFromTriangles(
     }
 
     FinalizeFaceNormals(mesh);
+
+    mesh.SetOwnedCellCount(mesh.GetCellCount());
+    mesh.SetGhostCellCount(0);
+
     mesh.Validate();
     return mesh;
 }

@@ -8,7 +8,21 @@
  * @brief One control volume of an unstructured mesh.
  */
 struct Cell final {
+    static constexpr std::size_t k_invalid_local_id = static_cast<std::size_t>(-1);
+
+    /**
+     * @brief Original/global-like id produced by mesh builder.
+     * @details Kept unchanged to avoid rewriting mesh generators.
+     */
     std::size_t id = 0;
+
+    /**
+     * @brief Local id inside the current mesh container.
+     * @details
+     * - For original single-process meshes usually equals storage index.
+     * - For decomposed MPI-local meshes also equals storage index in local mesh.
+     */
+    std::size_t local_id = k_invalid_local_id;
 
     /** @brief Indices of nodes belonging to the cell. */
     std::vector<std::size_t> node_ids;

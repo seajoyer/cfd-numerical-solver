@@ -25,9 +25,11 @@ void P0Reconstruction::ReconstructInteriorFace(const Mesh& mesh,
                                                const Face& face,
                                                PrimitiveCell& owner_state,
                                                PrimitiveCell& neighbor_state) const {
-    if (!face.IsInternal()) {
+    (void)mesh;
+
+    if (!(face.IsInternal() || face.IsMPIBoundary())) {
         throw std::runtime_error(
-            "P0Reconstruction::ReconstructInteriorFace: face is not internal"
+            "P0Reconstruction::ReconstructInteriorFace: face is not internal or MPI boundary"
         );
     }
 
@@ -39,9 +41,11 @@ void P0Reconstruction::ReconstructBoundaryFaceInterior(const Mesh& mesh,
                                                        const Workspace& workspace,
                                                        const Face& face,
                                                        PrimitiveCell& interior_state) const {
-    if (!face.IsBoundary()) {
+    (void)mesh;
+
+    if (!face.IsPhysicalBoundary()) {
         throw std::runtime_error(
-            "P0Reconstruction::ReconstructBoundaryFaceInterior: face is not boundary"
+            "P0Reconstruction::ReconstructBoundaryFaceInterior: face is not physical boundary"
         );
     }
 

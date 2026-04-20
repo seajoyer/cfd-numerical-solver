@@ -1,14 +1,15 @@
 #include "output/VTKWriter.hpp"
 
-#include <vtkCellArray.h>
 #include <vtkCellData.h>
 #include <vtkDoubleArray.h>
 #include <vtkFieldData.h>
 #include <vtkIdList.h>
 #include <vtkIntArray.h>
 #include <vtkPoints.h>
+#include <vtkSmartPointer.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkUnsignedCharArray.h>
 
 #include <cstddef>
 #include <filesystem>
@@ -17,6 +18,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 
 #include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
@@ -24,9 +26,44 @@
 #include "geometry/Cell.hpp"
 #include "geometry/Mesh.hpp"
 #include "geometry/Node.hpp"
-#include "utils/StringUtils.hpp"
+#include "parallel/MPIContext.hpp"
+#include "output/VTKRecomposer.hpp"
 
 namespace {
+    vtkSmartPointer<vtkDoubleArray> CreateDoubleArray(const char* name, vtkIdType n_tuples, int n_comp = 1) {
+        auto arr = vtkSmartPointer<vtkDoubleArray>::New();
+        arr->SetName(name);
+        arr->SetNumberOfComponents(n_comp);
+        arr->SetNumberOfTuples(n_tuples);
+        return arr;
+    }
+
+    vtkSmartPointer<vtkIntArray> CreateIntArray(const char* name, vtkIdType n_tuples, int n_comp = 1) {
+        auto arr = vtkSmartPointer<vtkIntArray>::New();
+        arr->SetName(name);
+        arr->SetNumberOfComponents(n_comp);
+        arr->SetNumberOfTuples(n_tuples);
+        return arr;
+    }
+
+    template <typename T>
+    void AddFieldDataArray(vtkUnstructuredGrid* grid, const char* name, const T& value) {
+        if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+            auto arr = vtkSmartPointer<vtkDoubleArray>::New();
+            arr->SetName(name);
+            arr->SetNumberOfComponents(1);
+            arr->InsertNextValue(static_cast<double>(value));
+            grid->GetFieldData()->AddArray(arr);
+        }
+        else {
+            auto arr = vtkSmartPointer<vtkIntArray>::New();
+            arr->SetName(name);
+            arr->SetNumberOfComponents(1);
+            arr->InsertNextValue(static_cast<int>(value));
+            grid->GetFieldData()->AddArray(arr);
+        }
+    }
+
     [[nodiscard]] int DetectVtkCellType(const Mesh& mesh, const Cell& cell) {
         const std::size_t node_count = cell.node_ids.size();
         const int dim = mesh.GetDim();
@@ -91,23 +128,56 @@ void VTKWriter::Write(const DataLayer& layer,
 }
 
 bool VTKWriter::RequiresFinalization() const {
-    return false;
+    return true;
 }
 
 void VTKWriter::Finalize(const Settings& settings) {
-    (void)settings;
+    MPIContext mpi;
+
+    mpi.Barrier();
+
+    if (settings.mpi_enabled && mpi.Size() > 1 && mpi.IsRoot()) {
+        VTKRecomposer::RecomposeCaseDirectory(output_dir_, mpi.Size());
+    }
+
+    mpi.Barrier();
+}
+
+std::string VTKWriter::GenerateRankDirectory() const {
+    MPIContext mpi;
+
+    std::ostringstream oss;
+    oss << output_dir_
+        << "/rank_"
+        << std::setw(3) << std::setfill('0') << mpi.Rank();
+
+    return oss.str();
 }
 
 std::string VTKWriter::GenerateFilename(const std::size_t step,
                                         const Settings& settings) const {
     std::ostringstream oss;
-    oss << output_dir_
+    oss << GenerateRankDirectory()
         << "/"
         << settings.solver
         << "__R_" << settings.reconstruction
-        << "__step_" << std::setw(4) << std::setfill('0') << step
+        << "__step_" << std::setw(6) << std::setfill('0') << step
         << ".vtu";
     return oss.str();
+}
+
+void VTKWriter::EnsureDirectoriesExist() const {
+    MPIContext mpi;
+
+    if (mpi.IsRoot()) {
+        std::filesystem::create_directories(output_dir_);
+    }
+
+    mpi.Barrier();
+
+    std::filesystem::create_directories(GenerateRankDirectory());
+
+    mpi.Barrier();
 }
 
 void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
@@ -128,22 +198,39 @@ void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
         throw std::runtime_error("VTKWriter: DataLayer cell count does not match mesh cell count");
     }
 
-    std::filesystem::create_directories(output_dir_);
+    EnsureDirectoriesExist();
     const std::string filename = GenerateFilename(step, settings);
+
+    const std::size_t owned_cell_count = mesh.GetOwnedCellCount();
+
+    std::unordered_set<std::size_t> used_nodes_set;
+    for (std::size_t cell_id = 0; cell_id < owned_cell_count; ++cell_id) {
+        const Cell& cell = mesh.GetCell(cell_id);
+        for (std::size_t node_id : cell.node_ids) {
+            used_nodes_set.insert(node_id);
+        }
+    }
+
+    std::vector used_nodes(used_nodes_set.begin(), used_nodes_set.end());
+
+    std::unordered_map<std::size_t, vtkIdType> old_to_new_node_id;
+    for (std::size_t i = 0; i < used_nodes.size(); ++i) {
+        old_to_new_node_id[used_nodes[i]] = static_cast<vtkIdType>(i);
+    }
 
     vtkSmartPointer<vtkUnstructuredGrid> grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
 
-    points->SetNumberOfPoints(static_cast<vtkIdType>(mesh.GetNodeCount()));
+    const vtkIdType n_nodes = static_cast<vtkIdType>(used_nodes.size());
+    points->SetNumberOfPoints(n_nodes);
 
-    for (std::size_t node_id = 0; node_id < mesh.GetNodeCount(); ++node_id) {
-        const Node& node = mesh.GetNode(node_id);
-        points->SetPoint(static_cast<vtkIdType>(node_id), node.x, node.y, node.z);
+    for (std::size_t i = 0; i < used_nodes.size(); ++i) {
+        const Node& node = mesh.GetNode(used_nodes[i]);
+        points->SetPoint(static_cast<vtkIdType>(i), node.x, node.y, node.z);
     }
-
     grid->SetPoints(points);
 
-    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+    for (std::size_t cell_id = 0; cell_id < owned_cell_count; ++cell_id) {
         const Cell& cell = mesh.GetCell(cell_id);
         const int vtk_cell_type = DetectVtkCellType(mesh, cell);
 
@@ -151,53 +238,29 @@ void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
         ids->SetNumberOfIds(static_cast<vtkIdType>(cell.node_ids.size()));
 
         for (std::size_t local_node = 0; local_node < cell.node_ids.size(); ++local_node) {
-            ids->SetId(static_cast<vtkIdType>(local_node),
-                       static_cast<vtkIdType>(cell.node_ids[local_node]));
+            std::size_t old_node_id = cell.node_ids[local_node];
+            vtkIdType new_id = old_to_new_node_id.at(old_node_id);
+            ids->SetId(static_cast<vtkIdType>(local_node), new_id);
         }
 
         grid->InsertNextCell(vtk_cell_type, ids);
     }
 
-    const vtkIdType n_cells = static_cast<vtkIdType>(mesh.GetCellCount());
+    const vtkIdType n_cells = static_cast<vtkIdType>(owned_cell_count);
     const auto& U = layer.U();
     const double gamma = settings.gamma;
 
-    vtkSmartPointer<vtkDoubleArray> arr_rho = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_rho->SetName("density");
-    arr_rho->SetNumberOfComponents(1);
-    arr_rho->SetNumberOfTuples(n_cells);
+    vtkSmartPointer<vtkDoubleArray> arr_rho = CreateDoubleArray("density", n_cells);
+    vtkSmartPointer<vtkDoubleArray> arr_vel = CreateDoubleArray("velocity", n_cells, 3);
+    vtkSmartPointer<vtkDoubleArray> arr_p = CreateDoubleArray("pressure", n_cells);
+    vtkSmartPointer<vtkDoubleArray> arr_e = CreateDoubleArray("conserved_energy", n_cells);
+    vtkSmartPointer<vtkDoubleArray> arr_eint = CreateDoubleArray("internal_energy", n_cells);
+    vtkSmartPointer<vtkDoubleArray> arr_lambda = CreateDoubleArray("reactant_mass_fraction", n_cells);
 
-    vtkSmartPointer<vtkDoubleArray> arr_vel = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_vel->SetName("velocity");
-    arr_vel->SetNumberOfComponents(3);
-    arr_vel->SetNumberOfTuples(n_cells);
+    vtkSmartPointer<vtkIntArray> arr_cell_local_id = CreateIntArray("cell_local_id", n_cells);
+    vtkSmartPointer<vtkIntArray> arr_cell_original_id = CreateIntArray("cell_original_id", n_cells);
 
-    vtkSmartPointer<vtkDoubleArray> arr_p = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_p->SetName("pressure");
-    arr_p->SetNumberOfComponents(1);
-    arr_p->SetNumberOfTuples(n_cells);
-
-    vtkSmartPointer<vtkDoubleArray> arr_e = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_e->SetName("conserved_energy");
-    arr_e->SetNumberOfComponents(1);
-    arr_e->SetNumberOfTuples(n_cells);
-
-    vtkSmartPointer<vtkDoubleArray> arr_eint = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_eint->SetName("internal_energy");
-    arr_eint->SetNumberOfComponents(1);
-    arr_eint->SetNumberOfTuples(n_cells);
-
-    vtkSmartPointer<vtkDoubleArray> arr_lambda = vtkSmartPointer<vtkDoubleArray>::New();
-    arr_lambda->SetName("reactant_mass_fraction");
-    arr_lambda->SetNumberOfComponents(1);
-    arr_lambda->SetNumberOfTuples(n_cells);
-
-    vtkSmartPointer<vtkIntArray> arr_cell_id = vtkSmartPointer<vtkIntArray>::New();
-    arr_cell_id->SetName("cell_id");
-    arr_cell_id->SetNumberOfComponents(1);
-    arr_cell_id->SetNumberOfTuples(n_cells);
-
-    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+    for (std::size_t cell_id = 0; cell_id < owned_cell_count; ++cell_id) {
         const PrimitiveCell primitive = ConservativeRowToPrimitive(U, cell_id, gamma);
 
         const double rho = primitive.rho;
@@ -209,18 +272,17 @@ void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
         const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
         const double eint = rho > 0.0 ? (E - kinetic) / rho : 0.0;
 
-        arr_rho->SetValue(static_cast<vtkIdType>(cell_id), rho);
-
+        arr_rho->SetValue(cell_id, rho);
         double velocity[3] = {u, v, w};
-        arr_vel->SetTuple(static_cast<vtkIdType>(cell_id), velocity);
+        arr_vel->SetTuple(cell_id, velocity);
+        arr_p->SetValue(cell_id, P);
+        arr_e->SetValue(cell_id, E);
+        arr_eint->SetValue(cell_id, eint);
+        arr_lambda->SetValue(cell_id, layer.ReactantMassFraction()(cell_id));
 
-        arr_p->SetValue(static_cast<vtkIdType>(cell_id), P);
-        arr_e->SetValue(static_cast<vtkIdType>(cell_id), E);
-        arr_eint->SetValue(static_cast<vtkIdType>(cell_id), eint);
-        arr_lambda->SetValue(static_cast<vtkIdType>(cell_id),
-                             layer.ReactantMassFraction()(cell_id));
-        arr_cell_id->SetValue(static_cast<vtkIdType>(cell_id),
-                              static_cast<int>(cell_id));
+        const Cell& cell = mesh.GetCell(cell_id);
+        arr_cell_local_id->SetValue(cell_id, static_cast<int>(cell.local_id));
+        arr_cell_original_id->SetValue(cell_id, static_cast<int>(cell.id));
     }
 
     grid->GetCellData()->AddArray(arr_rho);
@@ -229,19 +291,15 @@ void VTKWriter::WriteUnstructuredGrid(const DataLayer& layer,
     grid->GetCellData()->AddArray(arr_e);
     grid->GetCellData()->AddArray(arr_eint);
     grid->GetCellData()->AddArray(arr_lambda);
-    grid->GetCellData()->AddArray(arr_cell_id);
+    grid->GetCellData()->AddArray(arr_cell_local_id);
+    grid->GetCellData()->AddArray(arr_cell_original_id);
 
-    vtkSmartPointer<vtkDoubleArray> time_array = vtkSmartPointer<vtkDoubleArray>::New();
-    time_array->SetName("TimeValue");
-    time_array->SetNumberOfComponents(1);
-    time_array->InsertNextValue(time);
-    grid->GetFieldData()->AddArray(time_array);
-
-    vtkSmartPointer<vtkIntArray> dim_array = vtkSmartPointer<vtkIntArray>::New();
-    dim_array->SetName("MeshDimension");
-    dim_array->SetNumberOfComponents(1);
-    dim_array->InsertNextValue(mesh.GetDim());
-    grid->GetFieldData()->AddArray(dim_array);
+    AddFieldDataArray<double>(grid, "TimeValue", time);
+    AddFieldDataArray<int>(grid, "MeshDimension", mesh.GetDim());
+    AddFieldDataArray<int>(grid, "OwnedCellCount", static_cast<int>(owned_cell_count));
+    AddFieldDataArray<int>(grid, "GhostCellCount", 0);
+    MPIContext mpi;
+    AddFieldDataArray<int>(grid, "Rank", mpi.Rank());
 
     vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
         vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();

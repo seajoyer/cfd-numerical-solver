@@ -10,7 +10,7 @@
 #include "geometry/Node.hpp"
 
 /**
- * @brief Single-process unstructured mesh owner for cell-centered finite volume methods.
+ * @brief Single-process or MPI-local unstructured mesh owner for cell-centered finite volume methods.
  *
  * Mesh owns:
  *  - nodes
@@ -18,9 +18,11 @@
  *  - cells
  *
  * Geometry and connectivity must already be constructed before use in solver code.
+ *
  * Face normal convention:
- *  - internal face: normal points from owner cell to neighbor cell
- *  - boundary face: normal points outward from owner cell
+ *  - interior face: normal points from owner cell to neighbor cell
+ *  - physical boundary face: normal points outward from owner cell
+ *  - MPI boundary face: normal points from owned cell to ghost neighbor
  */
 class Mesh final {
 public:
@@ -38,6 +40,15 @@ public:
 
     /** @brief Number of cells. */
     [[nodiscard]] std::size_t GetCellCount() const;
+
+    /** @brief Number of owned cells in MPI-local mesh. */
+    [[nodiscard]] std::size_t GetOwnedCellCount() const;
+
+    /** @brief Number of ghost cells in MPI-local mesh. */
+    [[nodiscard]] std::size_t GetGhostCellCount() const;
+
+    void SetOwnedCellCount(std::size_t count);
+    void SetGhostCellCount(std::size_t count);
 
     /** @brief Mutable node storage. */
     [[nodiscard]] std::vector<Node>& Nodes();
@@ -69,17 +80,20 @@ public:
     /** @brief Access one face by id. */
     [[nodiscard]] const Face& GetFace(std::size_t face_id) const;
 
-    /** @brief Access one cell by id. */
+    /** @brief Access one cell by local id. */
     [[nodiscard]] Cell& GetCell(std::size_t cell_id);
 
-    /** @brief Access one cell by id. */
+    /** @brief Access one cell by local id. */
     [[nodiscard]] const Cell& GetCell(std::size_t cell_id) const;
 
-    /** @brief Check whether a face is boundary face. */
-    [[nodiscard]] bool IsBoundaryFace(std::size_t face_id) const;
+    /** @brief Check whether a face is physical boundary face. */
+    [[nodiscard]] bool IsPhysicalBoundaryFace(std::size_t face_id) const;
 
-    /** @brief Check whether a face is internal face. */
+    /** @brief Check whether a face is interior face. */
     [[nodiscard]] bool IsInternalFace(std::size_t face_id) const;
+
+    /** @brief Check whether a face is MPI boundary face. */
+    [[nodiscard]] bool IsMPIBoundaryFace(std::size_t face_id) const;
 
     /**
      * @brief Remove all mesh entities.
@@ -100,10 +114,13 @@ private:
     std::vector<Face> faces_;
     std::vector<Cell> cells_;
 
+    std::size_t owned_cell_count_ = 0;
+    std::size_t ghost_cell_count_ = 0;
+
     void ValidateDimension() const;
     void ValidateNodeIds() const;
     void ValidateFaceIds() const;
-    void ValidateCellIds() const;
+    void ValidateCellLocalIds() const;
     void ValidateFaceConnectivity() const;
     void ValidateCellConnectivity() const;
     void ValidateGeometry() const;

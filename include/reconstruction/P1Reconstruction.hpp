@@ -30,17 +30,17 @@ enum class LimiterType : std::uint8_t {
  * - optionally limit reconstructed variation
  * - extrapolate from cell center to face center
  *
- * For internal face:
+ * For internal or MPI face:
  * - reconstruct owner-side state at face center
  * - reconstruct neighbor-side state at face center
  *
- * For boundary face:
+ * For physical boundary face:
  * - reconstruct owner-side interior state at face center
  *
  * Notes:
- * - No ghost cells.
- * - Uses only real mesh connectivity.
- * - This is a generic unstructured-friendly MUSCL-type reconstruction.
+ * - Supports local meshes with owned and ghost cells
+ * - Uses local face connectivity
+ * - Ghost cells may participate in gradients and stencils
  */
 class P1Reconstruction final : public Reconstruction {
 public:
@@ -88,13 +88,18 @@ private:
                                         double face_center_y,
                                         double face_center_z) const;
 
-    [[nodiscard]] PrimitiveCell ExtrapolateToPoint(const Cell& cell, const PrimitiveCell& cell_state,
-                                                   const PrimitiveGradient& gradient, double limiter,
-                                                   double x, double y, double z) const;
+    [[nodiscard]] PrimitiveCell ExtrapolateToPoint(const Cell& cell,
+                                                   const PrimitiveCell& cell_state,
+                                                   const PrimitiveGradient& gradient,
+                                                   double limiter,
+                                                   double x,
+                                                   double y,
+                                                   double z) const;
 
-    double SolveLeastSquaresComponent(double a11, double a12, double a13, double a22,
-                                      double a23, double a33, double b1, double b2,
-                                      double b3, int dim, double& gx, double& gy,
+    double SolveLeastSquaresComponent(double a11, double a12, double a13,
+                                      double a22, double a23, double a33,
+                                      double b1, double b2, double b3,
+                                      int dim, double& gx, double& gy,
                                       double& gz) const;
 
     [[nodiscard]] double ComputeBarthJespersenPhi(double w_cell, double w_min, double w_max,

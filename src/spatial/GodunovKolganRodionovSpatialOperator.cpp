@@ -12,6 +12,7 @@
 #include "geometry/Cell.hpp"
 #include "geometry/Face.hpp"
 #include "geometry/Mesh.hpp"
+#include "parallel/StateSynchronizer.hpp"
 #include "reconstruction/P0Reconstruction.hpp"
 #include "reconstruction/P1Reconstruction.hpp"
 #include "reconstruction/Reconstruction.hpp"
@@ -24,8 +25,9 @@
 
 GodunovKolganRodionovSpatialOperator::GodunovKolganRodionovSpatialOperator(
     const Settings& settings,
-    std::shared_ptr<BoundaryManager> boundary_manager
-) : SpatialOperator(std::move(boundary_manager)) {
+    std::shared_ptr<BoundaryManager> boundary_manager,
+    const StateSynchronizer* synchronizer
+) : SpatialOperator(std::move(boundary_manager), synchronizer) {
     InitializeReconstruction(settings);
     InitializeRiemannSolver(settings);
 
@@ -227,12 +229,12 @@ void GodunovKolganRodionovSpatialOperator::ComputePredictorRhs(const DataLayer& 
     workspace.ZeroRhs();
 
     for (const Face& face : mesh.Faces()) {
-        if (face.IsInternal()) {
+        if (face.IsInternal() || face.IsMPIBoundary()) {
             AccumulatePredictorInternalFace(layer, mesh, face, workspace, gamma);
             continue;
         }
 
-        if (face.IsBoundary()) {
+        if (face.IsPhysicalBoundary()) {
             AccumulatePredictorBoundaryFace(layer, mesh, face, workspace, gamma);
             continue;
         }
@@ -289,12 +291,12 @@ void GodunovKolganRodionovSpatialOperator::ComputeFinalRhs(const DataLayer& laye
     workspace.ZeroRhs();
 
     for (const Face& face : mesh.Faces()) {
-        if (face.IsInternal()) {
+        if (face.IsInternal() || face.IsMPIBoundary()) {
             AccumulateFinalInternalFace(layer, mesh, face, workspace, gamma);
             continue;
         }
 
-        if (face.IsBoundary()) {
+        if (face.IsPhysicalBoundary()) {
             AccumulateFinalBoundaryFace(layer, mesh, face, workspace, gamma);
             continue;
         }
@@ -325,16 +327,25 @@ void GodunovKolganRodionovSpatialOperator::ComputeRHS(const DataLayer& layer,
     ComputePredictorRhs(layer, mesh, workspace, gamma);
 
     const auto& rhs_predictor = workspace.Rhs();
-    xt::xtensor<double, 2> U_half = layer.U();
 
-    for (std::size_t cell_id = 0; cell_id < mesh.GetCellCount(); ++cell_id) {
+    DataLayer half_layer;
+    half_layer.Resize(mesh.GetCellCount());
+
+    half_layer.U() = layer.U();
+    half_layer.ReactantMassFraction() = layer.ReactantMassFraction();
+
+    for (std::size_t cell_id = 0; cell_id < mesh.GetOwnedCellCount(); ++cell_id) {
         for (std::size_t var = 0; var < DataLayer::k_nvar; ++var) {
-            U_half(cell_id, var) += 0.5 * dt * rhs_predictor(cell_id, var);
+            half_layer.U()(cell_id, var) += 0.5 * dt * rhs_predictor(cell_id, var);
         }
     }
 
-    // Step 3: primitive cache from U^{n+1/2}
-    FillPrimitiveCacheFromConservative(U_half, mesh, workspace, gamma);
+    if (synchronizer_) {
+        synchronizer_->Synchronize(half_layer);
+    }
+
+    // Step 3: primitive cache from synchronized U^{n+1/2}
+    FillPrimitiveCacheFromConservative(half_layer.U(), mesh, workspace, gamma);
 
     // Step 4: final RHS with selected reconstruction on predicted state
     ComputeFinalRhs(layer, mesh, workspace, gamma);

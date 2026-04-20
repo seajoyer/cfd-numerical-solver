@@ -1,427 +1,477 @@
 #include "parallel/DomainDecomposition.hpp"
 
+#include <algorithm>
 #include <cmath>
-#include <limits>
+#include <map>
+#include <set>
 #include <stdexcept>
-#include "utils/StringUtils.hpp"
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "geometry/Cell.hpp"
+#include "geometry/Face.hpp"
+#include "geometry/Mesh.hpp"
+#include "geometry/Node.hpp"
+#include "parallel/MPIContext.hpp"
 
 namespace {
-    [[nodiscard]] inline double Square(const double x) {
-        return x * x;
+    struct HaloAccumulator final {
+        int remote_rank = -1;
+
+        std::vector<std::size_t> send_local_ids;
+        std::vector<std::size_t> recv_local_ids;
+
+        std::unordered_set<std::size_t> send_seen;
+        std::unordered_set<std::size_t> recv_seen;
+    };
+
+    [[nodiscard]] std::vector<std::size_t> MakeAllCellIds(const Mesh& mesh) {
+        std::vector<std::size_t> ids(mesh.GetCellCount());
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            ids[i] = i;
+        }
+        return ids;
+    }
+
+    [[nodiscard]] double CellCoordByAxis(const Cell& cell, const int axis) {
+        if (axis == 0) {
+            return cell.center_x;
+        }
+        if (axis == 1) {
+            return cell.center_y;
+        }
+        return cell.center_z;
+    }
+
+    [[nodiscard]] int ChooseSplitAxis(const Mesh& mesh,
+                                      const std::vector<std::size_t>& cell_ids) {
+        double min_x = 0.0, max_x = 0.0;
+        double min_y = 0.0, max_y = 0.0;
+        double min_z = 0.0, max_z = 0.0;
+
+        bool first = true;
+        for (const std::size_t cell_id : cell_ids) {
+            const Cell& cell = mesh.GetCell(cell_id);
+
+            if (first) {
+                min_x = max_x = cell.center_x;
+                min_y = max_y = cell.center_y;
+                min_z = max_z = cell.center_z;
+                first = false;
+                continue;
+            }
+
+            min_x = std::min(min_x, cell.center_x);
+            max_x = std::max(max_x, cell.center_x);
+
+            min_y = std::min(min_y, cell.center_y);
+            max_y = std::max(max_y, cell.center_y);
+
+            min_z = std::min(min_z, cell.center_z);
+            max_z = std::max(max_z, cell.center_z);
+        }
+
+        const double span_x = max_x - min_x;
+        const double span_y = (mesh.GetDim() >= 2) ? (max_y - min_y) : -1.0;
+        const double span_z = (mesh.GetDim() >= 3) ? (max_z - min_z) : -1.0;
+
+        if (mesh.GetDim() == 1) {
+            return 0;
+        }
+
+        if (mesh.GetDim() == 2) {
+            return (span_x >= span_y) ? 0 : 1;
+        }
+
+        if (span_x >= span_y && span_x >= span_z) {
+            return 0;
+        }
+        if (span_y >= span_z) {
+            return 1;
+        }
+        return 2;
+    }
+
+    void BuildRCBRecursive(const Mesh& mesh,
+                           const std::vector<std::size_t>& cell_ids,
+                           const int proc_begin,
+                           const int proc_end,
+                           std::vector<int>& part) {
+        const int proc_count = proc_end - proc_begin;
+        if (proc_count <= 0) {
+            throw std::runtime_error("DomainDecomposition: invalid processor interval");
+        }
+
+        if (proc_count == 1) {
+            for (const std::size_t cell_id : cell_ids) {
+                part[cell_id] = proc_begin;
+            }
+            return;
+        }
+
+        if (cell_ids.empty()) {
+            return;
+        }
+
+        const int axis = ChooseSplitAxis(mesh, cell_ids);
+
+        std::vector<std::size_t> sorted = cell_ids;
+        std::stable_sort(sorted.begin(), sorted.end(),
+                         [&](const std::size_t lhs, const std::size_t rhs) {
+                             const Cell& a = mesh.GetCell(lhs);
+                             const Cell& b = mesh.GetCell(rhs);
+                             const double ca = CellCoordByAxis(a, axis);
+                             const double cb = CellCoordByAxis(b, axis);
+                             if (ca != cb) {
+                                 return ca < cb;
+                             }
+                             return lhs < rhs;
+                         });
+
+        const int left_proc_count = proc_count / 2;
+        const int right_proc_count = proc_count - left_proc_count;
+
+        const std::size_t n = sorted.size();
+        const std::size_t cut =
+            static_cast<std::size_t>(std::llround(
+                static_cast<double>(n) * static_cast<double>(left_proc_count) /
+                static_cast<double>(proc_count)
+            ));
+
+        const std::vector<std::size_t> left(
+            sorted.begin(),
+            sorted.begin() + static_cast<std::ptrdiff_t>(cut)
+        );
+        const std::vector<std::size_t> right(
+            sorted.begin() + static_cast<std::ptrdiff_t>(cut),
+            sorted.end()
+        );
+
+        BuildRCBRecursive(mesh, left, proc_begin, proc_begin + left_proc_count, part);
+        BuildRCBRecursive(mesh, right, proc_begin + left_proc_count, proc_end, part);
+    }
+
+    [[nodiscard]] std::vector<int> BuildRCBPartition(const Mesh& global_mesh,
+                                                     const int nproc) {
+        if (nproc <= 0) {
+            throw std::runtime_error("DomainDecomposition: MPI size must be positive");
+        }
+
+        std::vector<int> part(global_mesh.GetCellCount(), -1);
+        const std::vector<std::size_t> all_ids = MakeAllCellIds(global_mesh);
+
+        BuildRCBRecursive(global_mesh, all_ids, 0, nproc, part);
+
+        for (std::size_t i = 0; i < part.size(); ++i) {
+            if (part[i] < 0 || part[i] >= nproc) {
+                throw std::runtime_error("DomainDecomposition: invalid partition result");
+            }
+        }
+
+        return part;
+    }
+
+    [[nodiscard]] std::vector<std::size_t> CollectOwnedGlobalIds(const Mesh& global_mesh,
+                                                                 const std::vector<int>& part,
+                                                                 const int rank) {
+        std::vector<std::size_t> owned;
+        owned.reserve(global_mesh.GetCellCount());
+
+        for (std::size_t global_cell_id = 0; global_cell_id < global_mesh.GetCellCount(); ++global_cell_id) {
+            if (part[global_cell_id] == rank) {
+                owned.push_back(global_cell_id);
+            }
+        }
+
+        return owned;
+    }
+
+    [[nodiscard]] std::set<std::size_t> CollectGhostGlobalIds(const Mesh& global_mesh,
+                                                              const std::vector<int>& part,
+                                                              const int rank) {
+        std::set<std::size_t> ghosts;
+
+        for (const Face& face : global_mesh.Faces()) {
+            if (!face.IsInternal()) {
+                continue;
+            }
+
+            const int owner_rank = part[face.owner_cell_id];
+            const int neighbor_rank = part[face.neighbor_cell_id];
+
+            if (owner_rank == rank && neighbor_rank != rank) {
+                ghosts.insert(face.neighbor_cell_id);
+            }
+            else if (neighbor_rank == rank && owner_rank != rank) {
+                ghosts.insert(face.owner_cell_id);
+            }
+        }
+
+        return ghosts;
+    }
+
+    void CopyLocalCells(const Mesh& global_mesh,
+                        const std::vector<std::size_t>& owned_global_ids,
+                        const std::vector<std::size_t>& ghost_global_ids,
+                        DomainDecomposition::Result& result) {
+        auto& local_cells = result.local_mesh.Cells();
+
+        result.local_to_global_cell.clear();
+        result.global_to_local_cell.clear();
+
+        local_cells.reserve(owned_global_ids.size() + ghost_global_ids.size());
+        result.local_to_global_cell.reserve(owned_global_ids.size() + ghost_global_ids.size());
+
+        auto copy_one = [&](const std::size_t global_cell_id) {
+            Cell cell = global_mesh.GetCell(global_cell_id);
+            cell.local_id = local_cells.size();
+            cell.face_ids.clear();
+
+            result.global_to_local_cell[global_cell_id] = cell.local_id;
+            result.local_to_global_cell.push_back(global_cell_id);
+
+            local_cells.push_back(std::move(cell));
+        };
+
+        for (const std::size_t global_cell_id : owned_global_ids) {
+            copy_one(global_cell_id);
+        }
+        for (const std::size_t global_cell_id : ghost_global_ids) {
+            copy_one(global_cell_id);
+        }
+
+        result.n_owned_cells = owned_global_ids.size();
+        result.n_ghost_cells = ghost_global_ids.size();
+
+        result.local_mesh.SetOwnedCellCount(result.n_owned_cells);
+        result.local_mesh.SetGhostCellCount(result.n_ghost_cells);
+    }
+
+    void CopyLocalNodesAndRemapConnectivity(DomainDecomposition::Result& result,
+                                            const Mesh& global_mesh) {
+        std::set<std::size_t> used_global_node_ids;
+
+        for (const Cell& local_cell : result.local_mesh.Cells()) {
+            const std::size_t global_cell_id = result.local_to_global_cell[local_cell.local_id];
+            const Cell& global_cell = global_mesh.GetCell(global_cell_id);
+
+            for (const std::size_t global_node_id : global_cell.node_ids) {
+                used_global_node_ids.insert(global_node_id);
+            }
+        }
+
+        std::unordered_map<std::size_t, std::size_t> global_to_local_node;
+        auto& local_nodes = result.local_mesh.Nodes();
+        local_nodes.clear();
+        local_nodes.reserve(used_global_node_ids.size());
+
+        for (const std::size_t global_node_id : used_global_node_ids) {
+            Node node = global_mesh.GetNode(global_node_id);
+            node.id = local_nodes.size();
+            global_to_local_node[global_node_id] = node.id;
+            local_nodes.push_back(std::move(node));
+        }
+
+        for (Cell& local_cell : result.local_mesh.Cells()) {
+            const std::size_t global_cell_id = result.local_to_global_cell[local_cell.local_id];
+            const Cell& global_cell = global_mesh.GetCell(global_cell_id);
+
+            local_cell.node_ids.clear();
+            local_cell.node_ids.reserve(global_cell.node_ids.size());
+
+            for (const std::size_t global_node_id : global_cell.node_ids) {
+                local_cell.node_ids.push_back(global_to_local_node.at(global_node_id));
+            }
+        }
+    }
+
+    void AppendHaloId(std::vector<std::size_t>& ids,
+                      std::unordered_set<std::size_t>& seen,
+                      const std::size_t value) {
+        if (seen.insert(value).second) {
+            ids.push_back(value);
+        }
+    }
+
+    void BuildLocalFacesAndHalos(const Mesh& global_mesh,
+                                 const std::vector<int>& part,
+                                 const int rank,
+                                 DomainDecomposition::Result& result) {
+        auto& local_faces = result.local_mesh.Faces();
+        auto& local_cells = result.local_mesh.Cells();
+
+        std::map<int, HaloAccumulator> halos_by_rank;
+
+        std::unordered_map<std::size_t, std::size_t> global_to_local_node;
+
+        for (const Cell& local_cell : result.local_mesh.Cells()) {
+            const std::size_t global_cell_id = result.local_to_global_cell[local_cell.local_id];
+            const Cell& global_cell = global_mesh.GetCell(global_cell_id);
+
+            for (std::size_t k = 0; k < global_cell.node_ids.size(); ++k) {
+                global_to_local_node[global_cell.node_ids[k]] = local_cell.node_ids[k];
+            }
+        }
+
+        auto remap_face_nodes_to_local = [&](Face& face) {
+            for (std::size_t& node_id : face.node_ids) {
+                node_id = global_to_local_node.at(node_id);
+            }
+        };
+
+        auto add_local_face = [&](Face face) {
+            face.id = local_faces.size();
+            local_faces.push_back(face);
+
+            local_cells[face.owner_cell_id].face_ids.push_back(face.id);
+            if (face.IsInternal() || face.IsMPIBoundary()) {
+                local_cells[face.neighbor_cell_id].face_ids.push_back(face.id);
+            }
+        };
+
+        for (const Face& global_face : global_mesh.Faces()) {
+            if (global_face.IsPhysicalBoundary()) {
+                const int owner_rank = part[global_face.owner_cell_id];
+                if (owner_rank != rank) {
+                    continue;
+                }
+
+                Face local_face = global_face;
+                local_face.owner_cell_id = result.global_to_local_cell.at(global_face.owner_cell_id);
+                local_face.neighbor_cell_id = Face::k_invalid_cell_id;
+                local_face.kind = FaceKind::PhysicalBoundary;
+                local_face.remote_rank = -1;
+                local_face.remote_cell_id = Face::k_invalid_cell_id;
+
+                remap_face_nodes_to_local(local_face);
+                add_local_face(std::move(local_face));
+                continue;
+            }
+
+            if (!global_face.IsInternal()) {
+                continue;
+            }
+
+            const std::size_t global_owner = global_face.owner_cell_id;
+            const std::size_t global_neighbor = global_face.neighbor_cell_id;
+
+            const int owner_rank = part[global_owner];
+            const int neighbor_rank = part[global_neighbor];
+
+            if (owner_rank == rank && neighbor_rank == rank) {
+                Face local_face = global_face;
+                local_face.owner_cell_id = result.global_to_local_cell.at(global_owner);
+                local_face.neighbor_cell_id = result.global_to_local_cell.at(global_neighbor);
+                local_face.kind = FaceKind::Interior;
+                local_face.remote_rank = -1;
+                local_face.remote_cell_id = Face::k_invalid_cell_id;
+
+                remap_face_nodes_to_local(local_face);
+                add_local_face(std::move(local_face));
+                continue;
+            }
+
+            if (owner_rank == rank && neighbor_rank != rank) {
+                Face local_face = global_face;
+                local_face.owner_cell_id = result.global_to_local_cell.at(global_owner);
+                local_face.neighbor_cell_id = result.global_to_local_cell.at(global_neighbor);
+                local_face.kind = FaceKind::MPIBoundary;
+                local_face.boundary_tag = -1;
+                local_face.remote_rank = neighbor_rank;
+                local_face.remote_cell_id = global_neighbor;
+
+                remap_face_nodes_to_local(local_face);
+                add_local_face(local_face);
+
+                HaloAccumulator& halo = halos_by_rank[neighbor_rank];
+                halo.remote_rank = neighbor_rank;
+                AppendHaloId(halo.send_local_ids, halo.send_seen, local_face.owner_cell_id);
+                AppendHaloId(halo.recv_local_ids, halo.recv_seen, local_face.neighbor_cell_id);
+                continue;
+            }
+
+            if (neighbor_rank == rank && owner_rank != rank) {
+                Face local_face = global_face;
+                local_face.owner_cell_id = result.global_to_local_cell.at(global_neighbor);
+                local_face.neighbor_cell_id = result.global_to_local_cell.at(global_owner);
+                local_face.kind = FaceKind::MPIBoundary;
+                local_face.boundary_tag = -1;
+                local_face.remote_rank = owner_rank;
+                local_face.remote_cell_id = global_owner;
+
+                local_face.normal_x *= -1.0;
+                local_face.normal_y *= -1.0;
+                local_face.normal_z *= -1.0;
+
+                remap_face_nodes_to_local(local_face);
+                add_local_face(local_face);
+
+                HaloAccumulator& halo = halos_by_rank[owner_rank];
+                halo.remote_rank = owner_rank;
+                AppendHaloId(halo.send_local_ids, halo.send_seen, local_face.owner_cell_id);
+                AppendHaloId(halo.recv_local_ids, halo.recv_seen, local_face.neighbor_cell_id);
+                continue;
+            }
+        }
+
+        result.halos.clear();
+        result.halos.reserve(halos_by_rank.size());
+
+        for (auto& [remote_rank, halo_acc] : halos_by_rank) {
+            (void)remote_rank;
+            DomainDecomposition::NeighborHalo halo;
+            halo.remote_rank = halo_acc.remote_rank;
+            halo.send_local_ids = std::move(halo_acc.send_local_ids);
+            halo.recv_local_ids = std::move(halo_acc.recv_local_ids);
+            result.halos.push_back(std::move(halo));
+        }
+
+        std::sort(result.halos.begin(), result.halos.end(),
+                  [](const DomainDecomposition::NeighborHalo& a,
+                     const DomainDecomposition::NeighborHalo& b) {
+                      return a.remote_rank < b.remote_rank;
+                  });
     }
 } // namespace
 
-DomainDecomposition::DomainDecomposition(const Settings& settings, const MPIContext& mpi)
-    : dim_(settings.dim),
-      global_nx_(settings.GetNx()),
-      global_ny_(settings.dim >= 2 ? settings.GetNy() : 1),
-      global_nz_(settings.dim >= 3 ? settings.GetNz() : 1) {
-    if (dim_ < 1 || dim_ > 3) {
-        throw std::invalid_argument("DomainDecomposition: dim must be 1..3");
-    }
 
-    if (global_nx_ <= 0) {
-        throw std::invalid_argument("DomainDecomposition: global_nx must be > 0");
-    }
-    if (dim_ >= 2 && global_ny_ <= 0) {
-        throw std::invalid_argument("DomainDecomposition: global_ny must be > 0 for dim >= 2");
-    }
-    if (dim_ >= 3 && global_nz_ <= 0) {
-        throw std::invalid_argument("DomainDecomposition: global_nz must be > 0 for dim >= 3");
-    }
-
-    periodic_[0] =
-        utils::ToLower(settings.left_boundary) == "periodic" &&
-        utils::ToLower(settings.right_boundary) == "periodic";
-
-    periodic_[1] =
-        dim_ >= 2 &&
-        utils::ToLower(settings.bottom_boundary) == "periodic" &&
-        utils::ToLower(settings.top_boundary) == "periodic";
-
-    periodic_[2] =
-        dim_ >= 3 &&
-        utils::ToLower(settings.back_boundary) == "periodic" &&
-        utils::ToLower(settings.front_boundary) == "periodic";
-
-    BuildCartesianTopology(mpi);
-    ComputeLocalSizesAndOffsets();
-    ComputeNeighbors();
-    ComputeGlobalBoundaryFlags();
+std::vector<int> DomainDecomposition::BuildRCBPartition(const Mesh& global_mesh,
+                                                        const int nproc) {
+    return ::BuildRCBPartition(global_mesh, nproc);
 }
 
-DomainDecomposition::~DomainDecomposition() {
-    if (cart_comm_ != MPI_COMM_NULL) {
-        MPI_Comm_free(&cart_comm_);
-        cart_comm_ = MPI_COMM_NULL;
+DomainDecomposition::Result DomainDecomposition::BuildLocalResultForRank(
+    const Mesh& global_mesh,
+    const std::vector<int>& global_part,
+    const int rank
+) {
+    Result result;
+    result.local_mesh = Mesh(global_mesh.GetDim());
+    result.global_part = global_part;
+    result.owned_global_ids = CollectOwnedGlobalIds(global_mesh, result.global_part, rank);
+
+    {
+        const std::set<std::size_t> ghost_set =
+            CollectGhostGlobalIds(global_mesh, result.global_part, rank);
+        result.ghost_global_ids.assign(ghost_set.begin(), ghost_set.end());
     }
+
+    CopyLocalCells(global_mesh,
+                   result.owned_global_ids,
+                   result.ghost_global_ids,
+                   result);
+
+    CopyLocalNodesAndRemapConnectivity(result, global_mesh);
+    BuildLocalFacesAndHalos(global_mesh, result.global_part, rank, result);
+
+    result.local_mesh.Validate();
+    return result;
 }
 
-int DomainDecomposition::Dim() const {
-    return dim_;
-}
-
-int DomainDecomposition::GlobalNx() const {
-    return global_nx_;
-}
-
-int DomainDecomposition::GlobalNy() const {
-    return global_ny_;
-}
-
-int DomainDecomposition::GlobalNz() const {
-    return global_nz_;
-}
-
-int DomainDecomposition::LocalNx() const {
-    return local_nx_;
-}
-
-int DomainDecomposition::LocalNy() const {
-    return local_ny_;
-}
-
-int DomainDecomposition::LocalNz() const {
-    return local_nz_;
-}
-
-int DomainDecomposition::OffsetX() const {
-    return offset_x_;
-}
-
-int DomainDecomposition::OffsetY() const {
-    return offset_y_;
-}
-
-int DomainDecomposition::OffsetZ() const {
-    return offset_z_;
-}
-
-int DomainDecomposition::ProcCountX() const {
-    return proc_dims_[0];
-}
-
-int DomainDecomposition::ProcCountY() const {
-    return proc_dims_[1];
-}
-
-int DomainDecomposition::ProcCountZ() const {
-    return proc_dims_[2];
-}
-
-int DomainDecomposition::CoordX() const {
-    return coords_[0];
-}
-
-int DomainDecomposition::CoordY() const {
-    return coords_[1];
-}
-
-int DomainDecomposition::CoordZ() const {
-    return coords_[2];
-}
-
-int DomainDecomposition::NeighborRank(const Axis axis, const Side side) const {
-    const auto a = static_cast<int>(static_cast<std::uint8_t>(axis));
-    const auto s = static_cast<int>(static_cast<std::uint8_t>(side));
-    return neighbor_rank_[a][s];
-}
-
-bool DomainDecomposition::IsGlobalBoundary(const Axis axis, const Side side) const {
-    const auto a = static_cast<int>(static_cast<std::uint8_t>(axis));
-    const auto s = static_cast<int>(static_cast<std::uint8_t>(side));
-    return is_global_boundary_[a][s];
-}
-
-MPI_Comm DomainDecomposition::CartComm() const {
-    return cart_comm_;
-}
-
-int DomainDecomposition::CartRank() const {
-    return cart_rank_;
-}
-
-void DomainDecomposition::ApplyToMesh(Mesh& mesh) const {
-    mesh.SetGlobalDecomposition(global_nx_, global_ny_, global_nz_,
-                                offset_x_, offset_y_, offset_z_);
-
-    mesh.SetNeighborRank(Axis::X, Side::Left, neighbor_rank_[0][0]);
-    mesh.SetNeighborRank(Axis::X, Side::Right, neighbor_rank_[0][1]);
-    mesh.SetGlobalBoundary(Axis::X, Side::Left, is_global_boundary_[0][0]);
-    mesh.SetGlobalBoundary(Axis::X, Side::Right, is_global_boundary_[0][1]);
-
-    if (dim_ >= 2) {
-        mesh.SetNeighborRank(Axis::Y, Side::Left, neighbor_rank_[1][0]);
-        mesh.SetNeighborRank(Axis::Y, Side::Right, neighbor_rank_[1][1]);
-        mesh.SetGlobalBoundary(Axis::Y, Side::Left, is_global_boundary_[1][0]);
-        mesh.SetGlobalBoundary(Axis::Y, Side::Right, is_global_boundary_[1][1]);
-    }
-
-    if (dim_ >= 3) {
-        mesh.SetNeighborRank(Axis::Z, Side::Left, neighbor_rank_[2][0]);
-        mesh.SetNeighborRank(Axis::Z, Side::Right, neighbor_rank_[2][1]);
-        mesh.SetGlobalBoundary(Axis::Z, Side::Left, is_global_boundary_[2][0]);
-        mesh.SetGlobalBoundary(Axis::Z, Side::Right, is_global_boundary_[2][1]);
-    }
-}
-
-void DomainDecomposition::BuildCartesianTopology(const MPIContext& mpi) {
-    ChooseProcessGridFromCells(mpi.Size());
-
-    int periods[3] = {
-        periodic_[0] ? 1 : 0,
-        periodic_[1] ? 1 : 0,
-        periodic_[2] ? 1 : 0
-    };
-
-    MPI_Cart_create(mpi.Comm(), 3, proc_dims_, periods, 0, &cart_comm_);
-    if (cart_comm_ == MPI_COMM_NULL) {
-        throw std::runtime_error("DomainDecomposition: MPI_Cart_create failed");
-    }
-
-    MPI_Comm_rank(cart_comm_, &cart_rank_);
-    MPI_Cart_coords(cart_comm_, cart_rank_, 3, coords_);
-}
-
-void DomainDecomposition::ChooseProcessGridFromCells(const int world_size) {
-    if (world_size <= 0) {
-        throw std::invalid_argument("DomainDecomposition: world_size must be > 0");
-    }
-
-    proc_dims_[0] = 1;
-    proc_dims_[1] = 1;
-    proc_dims_[2] = 1;
-
-    // 1D
-    if (dim_ == 1) {
-        if (world_size > global_nx_) {
-            throw std::runtime_error(
-                "DomainDecomposition: number of MPI ranks exceeds global_nx in 1D");
-        }
-
-        proc_dims_[0] = world_size;
-        proc_dims_[1] = 1;
-        proc_dims_[2] = 1;
-        return;
-    }
-
-    double best_score = std::numeric_limits<double>::infinity();
-    bool found = false;
-
-    // 2D
-    if (dim_ == 2) {
-        for (int px = 1; px <= world_size; ++px) {
-            if (world_size % px != 0) {
-                continue;
-            }
-
-            const int py = world_size / px;
-
-            if (px > global_nx_ || py > global_ny_) {
-                continue;
-            }
-
-            const double score = ComputeProcessGridScore(px, py, 1);
-
-            if (!found || score < best_score) {
-                best_score = score;
-                proc_dims_[0] = px;
-                proc_dims_[1] = py;
-                proc_dims_[2] = 1;
-                found = true;
-            }
-        }
-
-        if (!found) {
-            throw std::runtime_error(
-                "DomainDecomposition: cannot build valid 2D process grid "
-                "(too many ranks for available cells)");
-        }
-
-        return;
-    }
-
-    // 3D
-    for (int px = 1; px <= world_size; ++px) {
-        if (world_size % px != 0) {
-            continue;
-        }
-
-        const int rem_xy = world_size / px;
-
-        for (int py = 1; py <= rem_xy; ++py) {
-            if (rem_xy % py != 0) {
-                continue;
-            }
-
-            const int pz = rem_xy / py;
-
-            if (px > global_nx_ || py > global_ny_ || pz > global_nz_) {
-                continue;
-            }
-
-            const double score = ComputeProcessGridScore(px, py, pz);
-
-            if (!found || score < best_score) {
-                best_score = score;
-                proc_dims_[0] = px;
-                proc_dims_[1] = py;
-                proc_dims_[2] = pz;
-                found = true;
-            }
-        }
-    }
-
-    if (!found) {
-        throw std::runtime_error(
-            "DomainDecomposition: cannot build valid 3D process grid "
-            "(too many ranks for available cells)");
-    }
-}
-
-double DomainDecomposition::ComputeProcessGridScore(const int px,
-                                                    const int py,
-                                                    const int pz) const {
-    if (px <= 0 || py <= 0 || pz <= 0) {
-        return std::numeric_limits<double>::infinity();
-    }
-
-    const double lx = static_cast<double>(global_nx_) / static_cast<double>(px);
-    const double ly = static_cast<double>(global_ny_) / static_cast<double>(py);
-    const double lz = static_cast<double>(global_nz_) / static_cast<double>(pz);
-
-    // Оцениваем, насколько "похожи" локальные размеры по осям.
-    // Используем логарифмы отношений, чтобы оценка была симметричной:
-    // lx=100, ly=10 и lx=10, ly=100 дают одинаковый штраф.
-    if (dim_ == 1) {
-        return 0.0;
-    }
-
-    if (dim_ == 2) {
-        const double rxy = std::log(lx / ly);
-        return Square(rxy);
-    }
-
-    const double rxy = std::log(lx / ly);
-    const double rxz = std::log(lx / lz);
-    const double ryz = std::log(ly / lz);
-
-    return Square(rxy) + Square(rxz) + Square(ryz);
-}
-
-void DomainDecomposition::ComputeLocalSizesAndOffsets() {
-    ComputeBalancedPartition(global_nx_, proc_dims_[0], coords_[0], local_nx_, offset_x_);
-
-    if (dim_ >= 2) {
-        ComputeBalancedPartition(global_ny_, proc_dims_[1], coords_[1], local_ny_, offset_y_);
-    }
-    else {
-        local_ny_ = 1;
-        offset_y_ = 0;
-    }
-
-    if (dim_ >= 3) {
-        ComputeBalancedPartition(global_nz_, proc_dims_[2], coords_[2], local_nz_, offset_z_);
-    }
-    else {
-        local_nz_ = 1;
-        offset_z_ = 0;
-    }
-}
-
-void DomainDecomposition::ComputeNeighbors() {
-    int src = -1;
-    int dst = -1;
-
-    MPI_Cart_shift(cart_comm_, 0, 1, &src, &dst);
-    neighbor_rank_[0][0] = src;
-    neighbor_rank_[0][1] = dst;
-
-    if (dim_ >= 2) {
-        MPI_Cart_shift(cart_comm_, 1, 1, &src, &dst);
-        neighbor_rank_[1][0] = src;
-        neighbor_rank_[1][1] = dst;
-    }
-    else {
-        neighbor_rank_[1][0] = -1;
-        neighbor_rank_[1][1] = -1;
-    }
-
-    if (dim_ >= 3) {
-        MPI_Cart_shift(cart_comm_, 2, 1, &src, &dst);
-        neighbor_rank_[2][0] = src;
-        neighbor_rank_[2][1] = dst;
-    }
-    else {
-        neighbor_rank_[2][0] = -1;
-        neighbor_rank_[2][1] = -1;
-    }
-}
-
-void DomainDecomposition::ComputeGlobalBoundaryFlags() {
-    if (periodic_[0]) {
-        is_global_boundary_[0][0] = false;
-        is_global_boundary_[0][1] = false;
-    }
-    else {
-        is_global_boundary_[0][0] = coords_[0] == 0;
-        is_global_boundary_[0][1] = coords_[0] == proc_dims_[0] - 1;
-    }
-
-    if (dim_ >= 2) {
-        if (periodic_[1]) {
-            is_global_boundary_[1][0] = false;
-            is_global_boundary_[1][1] = false;
-        }
-        else {
-            is_global_boundary_[1][0] = coords_[1] == 0;
-            is_global_boundary_[1][1] = coords_[1] == proc_dims_[1] - 1;
-        }
-    }
-    else {
-        is_global_boundary_[1][0] = false;
-        is_global_boundary_[1][1] = false;
-    }
-
-    if (dim_ >= 3) {
-        if (periodic_[2]) {
-            is_global_boundary_[2][0] = false;
-            is_global_boundary_[2][1] = false;
-        }
-        else {
-            is_global_boundary_[2][0] = coords_[2] == 0;
-            is_global_boundary_[2][1] = coords_[2] == proc_dims_[2] - 1;
-        }
-    }
-    else {
-        is_global_boundary_[2][0] = false;
-        is_global_boundary_[2][1] = false;
-    }
-}
-
-void DomainDecomposition::ComputeBalancedPartition(const int global_n,
-                                                   const int proc_n,
-                                                   const int coord,
-                                                   int& local_n,
-                                                   int& offset) {
-    if (global_n <= 0) {
-        throw std::invalid_argument("DomainDecomposition: global_n must be > 0");
-    }
-    if (proc_n <= 0) {
-        throw std::invalid_argument("DomainDecomposition: proc_n must be > 0");
-    }
-    if (coord < 0 || coord >= proc_n) {
-        throw std::invalid_argument("DomainDecomposition: coord is out of range");
-    }
-    if (proc_n > global_n) {
-        throw std::invalid_argument(
-            "DomainDecomposition: proc_n must not exceed global_n "
-            "(empty subdomains are not allowed)");
-    }
-
-    const int base = global_n / proc_n;
-    const int rem = global_n % proc_n;
-
-    local_n = base + (coord < rem ? 1 : 0);
-    offset = coord * base + (coord < rem ? coord : rem);
+DomainDecomposition::Result DomainDecomposition::BuildRCB(const Mesh& global_mesh,
+                                                          const MPIContext& mpi) {
+    const std::vector<int> global_part = BuildRCBPartition(global_mesh, mpi.Size());
+    return BuildLocalResultForRank(global_mesh, global_part, mpi.Rank());
 }

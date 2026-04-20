@@ -46,7 +46,9 @@ private:
     static void ParseParallel(const YAML::Node& node, Settings& settings);
     static void ParseImmersedBoundaries(const YAML::Node& node, Settings& settings);
 
-    static void ApplyCaseOverrides(const YAML::Node& case_node, InitialConditions& ic);
+    static void ApplyCaseOverrides(const YAML::Node& case_node,
+                               InitialConditions& ic,
+                               const Settings& defaults);
 
     static void ParseInitialCondition(const YAML::Node& ic_node,
                                       InitialConditions& ic,

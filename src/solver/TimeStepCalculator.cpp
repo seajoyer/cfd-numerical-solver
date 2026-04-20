@@ -18,7 +18,7 @@ double TimeStepCalculator::ComputeDt(const DataLayer& layer,
         return 0.0;
     }
 
-    if (mesh.GetCellCount() == 0 || mesh.GetFaceCount() == 0) {
+    if (mesh.GetOwnedCellCount() == 0 || mesh.GetFaceCount() == 0) {
         return 0.0;
     }
 
@@ -40,7 +40,9 @@ double TimeStepCalculator::ComputeDt(const DataLayer& layer,
     double dt_min = std::numeric_limits<double>::infinity();
     bool has_valid_dt = false;
 
-    for (const Cell& cell : mesh.Cells()) {
+    for (std::size_t cell_id = 0; cell_id < mesh.GetOwnedCellCount(); ++cell_id) {
+        const Cell& cell = mesh.GetCell(cell_id);
+
         double spectral_sum = 0.0;
 
         for (const std::size_t face_id : cell.face_ids) {
@@ -51,13 +53,13 @@ double TimeStepCalculator::ComputeDt(const DataLayer& layer,
             normal.y = face.normal_y;
             normal.z = face.normal_z;
 
-            if (face.owner_cell_id != cell.id) {
+            if (face.owner_cell_id != cell.local_id) {
                 normal.x = -normal.x;
                 normal.y = -normal.y;
                 normal.z = -normal.z;
             }
 
-            const PrimitiveCell& w = primitive_by_cell[cell.id];
+            const PrimitiveCell& w = primitive_by_cell[cell.local_id];
             const double un = NormalVelocity(w, normal);
             const double c = SoundSpeed(w, gamma);
 

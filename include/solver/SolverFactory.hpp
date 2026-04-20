@@ -9,6 +9,7 @@
 #include "solver/Solver.hpp"
 
 class MPIContext;
+class StateSynchronizer;
 
 /**
  * @class SolverFactory
@@ -34,9 +35,10 @@ public:
      * @return Constructed solver instance.
      */
     static std::unique_ptr<Solver> Create(const Settings& settings,
-                                          Mesh mesh,
+                                          const std::shared_ptr<Mesh>& mesh,
                                           const std::shared_ptr<BoundaryManager>& boundary_manager,
-                                          const MPIContext* mpi_context);
+                                          const MPIContext* mpi_context,
+                                          const StateSynchronizer* halo_exchange);
 };
 
 #endif  // SOLVERFACTORY_HPP

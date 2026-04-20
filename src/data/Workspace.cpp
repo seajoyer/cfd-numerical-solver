@@ -6,13 +6,6 @@ void Workspace::ResizeFrom(const Mesh& mesh) {
     const std::size_t n_cells = mesh.GetCellCount();
     const std::size_t n_faces = mesh.GetFaceCount();
 
-    if (n_cells == 0) {
-        throw std::invalid_argument("Workspace::ResizeFrom: mesh has zero cells");
-    }
-    if (n_faces == 0) {
-        throw std::invalid_argument("Workspace::ResizeFrom: mesh has zero faces");
-    }
-
     if (n_cells == n_cells_ && n_faces == n_faces_ && IsAllocated()) {
         return;
     }
@@ -199,8 +192,21 @@ bool Workspace::IsAllocated() const {
         ux_old_.dimension() == 1 &&
         vy_old_.dimension() == 1 &&
         wz_old_.dimension() == 1 &&
-        n_cells_ > 0 &&
-        n_faces_ > 0;
+        W_.shape()[0] == n_cells_ &&
+        W_.shape()[1] == k_nvar &&
+        rhs_.shape()[0] == n_cells_ &&
+        rhs_.shape()[1] == k_nvar &&
+        temperature_.shape()[0] == n_cells_ &&
+        internal_energy_.shape()[0] == n_cells_ &&
+        q_.shape()[0] == n_cells_ &&
+        D_.shape()[0] == n_cells_ &&
+        D_.shape()[1] == k_ndelta &&
+        ux_.shape()[0] == n_faces_ &&
+        vy_.shape()[0] == n_faces_ &&
+        wz_.shape()[0] == n_faces_ &&
+        ux_old_.shape()[0] == n_faces_ &&
+        vy_old_.shape()[0] == n_faces_ &&
+        wz_old_.shape()[0] == n_faces_;
 }
 
 std::size_t Workspace::GetCellCount() const {

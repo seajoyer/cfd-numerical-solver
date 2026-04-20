@@ -1,9 +1,13 @@
 #include "geometry/Face.hpp"
 
-bool Face::IsBoundary() const {
-    return neighbor_cell_id == k_invalid_cell_id;
+bool Face::IsPhysicalBoundary() const {
+    return kind == FaceKind::PhysicalBoundary;
 }
 
 bool Face::IsInternal() const {
-    return !IsBoundary();
+    return kind == FaceKind::Interior;
+}
+
+bool Face::IsMPIBoundary() const {
+    return kind == FaceKind::MPIBoundary;
 }

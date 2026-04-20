@@ -1,438 +1,171 @@
 #include "parallel/HaloExchange.hpp"
 
+#include <cstddef>
 #include <stdexcept>
+#include <vector>
 
-HaloExchange::HaloExchange(MPI_Comm comm, int size, bool exchange_reactant_mass_fraction)
-    : comm_(comm),
-      size_(size),
-      exchange_reactant_mass_fraction_(exchange_reactant_mass_fraction) {}
+#include <mpi.h>
 
-void HaloExchange::Exchange(DataLayer& layer, const Mesh& mesh) const {
-    const int ng = mesh.GetPadding();
-    if (ng <= 0 || size_ <= 1) {
+#include "data/DataLayer.hpp"
+#include "parallel/MPIContext.hpp"
+
+HaloExchange::HaloExchange(const MPIContext& mpi,
+                           std::vector<DomainDecomposition::NeighborHalo> halos)
+    : mpi_(&mpi),
+      halos_(std::move(halos)) {
+    if (!mpi_) {
+        throw std::runtime_error("HaloExchange: mpi context is null");
+    }
+
+    CreatePacketType();
+}
+
+HaloExchange::~HaloExchange() {
+    DestroyPacketType();
+}
+
+void HaloExchange::CreatePacketType() {
+    if (packet_type_ != MPI_DATATYPE_NULL) {
         return;
     }
 
-    ExchangeX(layer, mesh);
+    CellStatePacket sample{};
 
-    if (mesh.GetDim() >= 2) {
-        ExchangeY(layer, mesh);
-    }
+    int block_lengths[2] = {5, 1};
+    MPI_Aint displacements[2] = {};
+    MPI_Datatype types[2] = {MPI_DOUBLE, MPI_DOUBLE};
 
-    if (mesh.GetDim() >= 3) {
-        ExchangeZ(layer, mesh);
+    MPI_Aint base_address = 0;
+    MPI_Aint u_address = 0;
+    MPI_Aint lambda_address = 0;
+
+    MPI_Get_address(&sample, &base_address);
+    MPI_Get_address(&sample.U[0], &u_address);
+    MPI_Get_address(&sample.lambda, &lambda_address);
+
+    displacements[0] = u_address - base_address;
+    displacements[1] = lambda_address - base_address;
+
+    MPI_Type_create_struct(2, block_lengths, displacements, types, &packet_type_);
+    MPI_Type_commit(&packet_type_);
+}
+
+void HaloExchange::DestroyPacketType() {
+    if (packet_type_ != MPI_DATATYPE_NULL) {
+        MPI_Type_free(&packet_type_);
+        packet_type_ = MPI_DATATYPE_NULL;
     }
 }
 
-void HaloExchange::ExchangeX(DataLayer& layer, const Mesh& mesh) const {
-    const int left_rank = mesh.GetNeighborRank(Axis::X, Side::Left);
-    const int right_rank = mesh.GetNeighborRank(Axis::X, Side::Right);
-
-    const int i0 = mesh.GetCoreStartX();
-    const int i1 = mesh.GetCoreEndExclusiveX();
-    const int ng = mesh.GetPadding();
-    (void)ng;
-
-    if (left_rank >= 0) {
-        const std::vector<double> send_left = PackX(layer, mesh, i0);
-        std::vector<double> recv_left(send_left.size(), 0.0);
-
-        MPI_Sendrecv(send_left.data(),
-                     static_cast<int>(send_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     100,
-                     recv_left.data(),
-                     static_cast<int>(recv_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     101,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackX(layer, mesh, i0 - mesh.GetPadding(), recv_left);
-    }
-
-    if (right_rank >= 0) {
-        const std::vector<double> send_right = PackX(layer, mesh, i1 - mesh.GetPadding());
-        std::vector<double> recv_right(send_right.size(), 0.0);
-
-        MPI_Sendrecv(send_right.data(),
-                     static_cast<int>(send_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     101,
-                     recv_right.data(),
-                     static_cast<int>(recv_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     100,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackX(layer, mesh, i1, recv_right);
-    }
-}
-
-void HaloExchange::ExchangeY(DataLayer& layer, const Mesh& mesh) const {
-    const int left_rank = mesh.GetNeighborRank(Axis::Y, Side::Left);
-    const int right_rank = mesh.GetNeighborRank(Axis::Y, Side::Right);
-
-    const int j0 = mesh.GetCoreStartY();
-    const int j1 = mesh.GetCoreEndExclusiveY();
-
-    if (left_rank >= 0) {
-        const std::vector<double> send_left = PackY(layer, mesh, j0);
-        std::vector<double> recv_left(send_left.size(), 0.0);
-
-        MPI_Sendrecv(send_left.data(),
-                     static_cast<int>(send_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     200,
-                     recv_left.data(),
-                     static_cast<int>(recv_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     201,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackY(layer, mesh, j0 - mesh.GetPadding(), recv_left);
-    }
-
-    if (right_rank >= 0) {
-        const std::vector<double> send_right = PackY(layer, mesh, j1 - mesh.GetPadding());
-        std::vector<double> recv_right(send_right.size(), 0.0);
-
-        MPI_Sendrecv(send_right.data(),
-                     static_cast<int>(send_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     201,
-                     recv_right.data(),
-                     static_cast<int>(recv_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     200,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackY(layer, mesh, j1, recv_right);
-    }
-}
-
-void HaloExchange::ExchangeZ(DataLayer& layer, const Mesh& mesh) const {
-    const int left_rank = mesh.GetNeighborRank(Axis::Z, Side::Left);
-    const int right_rank = mesh.GetNeighborRank(Axis::Z, Side::Right);
-
-    const int k0 = mesh.GetCoreStartZ();
-    const int k1 = mesh.GetCoreEndExclusiveZ();
-
-    if (left_rank >= 0) {
-        const std::vector<double> send_left = PackZ(layer, mesh, k0);
-        std::vector<double> recv_left(send_left.size(), 0.0);
-
-        MPI_Sendrecv(send_left.data(),
-                     static_cast<int>(send_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     300,
-                     recv_left.data(),
-                     static_cast<int>(recv_left.size()),
-                     MPI_DOUBLE,
-                     left_rank,
-                     301,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackZ(layer, mesh, k0 - mesh.GetPadding(), recv_left);
-    }
-
-    if (right_rank >= 0) {
-        const std::vector<double> send_right = PackZ(layer, mesh, k1 - mesh.GetPadding());
-        std::vector<double> recv_right(send_right.size(), 0.0);
-
-        MPI_Sendrecv(send_right.data(),
-                     static_cast<int>(send_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     301,
-                     recv_right.data(),
-                     static_cast<int>(recv_right.size()),
-                     MPI_DOUBLE,
-                     right_rank,
-                     300,
-                     comm_,
-                     MPI_STATUS_IGNORE);
-
-        UnpackZ(layer, mesh, k1, recv_right);
-    }
-}
-
-std::vector<double> HaloExchange::PackX(const DataLayer& layer, const Mesh& mesh, const int i_begin) const {
-    const int ng = mesh.GetPadding();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t count =
-        n_fields *
-        static_cast<std::size_t>(ng) *
-        static_cast<std::size_t>(sy) *
-        static_cast<std::size_t>(sz);
-
-    std::vector<double> buffer(count, 0.0);
-
+std::vector<HaloExchange::CellStatePacket> HaloExchange::PackSendBuffer(
+    const DataLayer& layer,
+    const std::vector<std::size_t>& send_local_ids
+) const {
     const auto& U = layer.U();
-    std::size_t p = 0;
+    const auto& lambda = layer.ReactantMassFraction();
 
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = i_begin; i < i_begin + ng; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    buffer[p++] = U(v, i, j, k);
-                }
-            }
-        }
-    }
+    std::vector<CellStatePacket> buffer(send_local_ids.size());
 
-    if (exchange_reactant_mass_fraction_) {
-        const auto& lambda = layer.ReactantMassFraction();
+    for (std::size_t i = 0; i < send_local_ids.size(); ++i) {
+        const std::size_t cell_id = send_local_ids[i];
 
-        for (int i = i_begin; i < i_begin + ng; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    buffer[p++] = lambda(i, j, k);
-                }
-            }
-        }
+        buffer[i].U[0] = U(cell_id, DataLayer::k_rho);
+        buffer[i].U[1] = U(cell_id, DataLayer::k_rhoU);
+        buffer[i].U[2] = U(cell_id, DataLayer::k_rhoV);
+        buffer[i].U[3] = U(cell_id, DataLayer::k_rhoW);
+        buffer[i].U[4] = U(cell_id, DataLayer::k_E);
+        buffer[i].lambda = lambda(cell_id);
     }
 
     return buffer;
 }
 
-std::vector<double> HaloExchange::PackY(const DataLayer& layer, const Mesh& mesh, const int j_begin) const {
-    const int ng = mesh.GetPadding();
-    const int sx = mesh.GetSx();
-    const int sz = mesh.GetSz();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t count =
-        n_fields *
-        static_cast<std::size_t>(sx) *
-        static_cast<std::size_t>(ng) *
-        static_cast<std::size_t>(sz);
-
-    std::vector<double> buffer(count, 0.0);
-
-    const auto& U = layer.U();
-    std::size_t p = 0;
-
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = 0; i < sx; ++i) {
-            for (int j = j_begin; j < j_begin + ng; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    buffer[p++] = U(v, i, j, k);
-                }
-            }
-        }
-    }
-
-    if (exchange_reactant_mass_fraction_) {
-        const auto& lambda = layer.ReactantMassFraction();
-
-        for (int i = 0; i < sx; ++i) {
-            for (int j = j_begin; j < j_begin + ng; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    buffer[p++] = lambda(i, j, k);
-                }
-            }
-        }
-    }
-
-    return buffer;
-}
-
-std::vector<double> HaloExchange::PackZ(const DataLayer& layer, const Mesh& mesh, const int k_begin) const {
-    const int ng = mesh.GetPadding();
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t count =
-        n_fields *
-        static_cast<std::size_t>(sx) *
-        static_cast<std::size_t>(sy) *
-        static_cast<std::size_t>(ng);
-
-    std::vector<double> buffer(count, 0.0);
-
-    const auto& U = layer.U();
-    std::size_t p = 0;
-
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = 0; i < sx; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = k_begin; k < k_begin + ng; ++k) {
-                    buffer[p++] = U(v, i, j, k);
-                }
-            }
-        }
-    }
-
-    if (exchange_reactant_mass_fraction_) {
-        const auto& lambda = layer.ReactantMassFraction();
-
-        for (int i = 0; i < sx; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = k_begin; k < k_begin + ng; ++k) {
-                    buffer[p++] = lambda(i, j, k);
-                }
-            }
-        }
-    }
-
-    return buffer;
-}
-
-void HaloExchange::UnpackX(DataLayer& layer, const Mesh& mesh, const int i_begin,
-                           const std::vector<double>& buffer) const {
-    const int ng = mesh.GetPadding();
-    const int sy = mesh.GetSy();
-    const int sz = mesh.GetSz();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t expected =
-        n_fields *
-        static_cast<std::size_t>(ng) *
-        static_cast<std::size_t>(sy) *
-        static_cast<std::size_t>(sz);
-
-    if (buffer.size() != expected) {
-        throw std::runtime_error("HaloExchange::UnpackX: invalid buffer size");
+void HaloExchange::UnpackRecvBuffer(
+    DataLayer& layer,
+    const std::vector<std::size_t>& recv_local_ids,
+    const std::vector<CellStatePacket>& recv_buffer
+) const {
+    if (recv_local_ids.size() != recv_buffer.size()) {
+        throw std::runtime_error("HaloExchange::UnpackRecvBuffer: buffer size mismatch");
     }
 
     auto& U = layer.U();
-    std::size_t p = 0;
+    auto& lambda = layer.ReactantMassFraction();
 
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = i_begin; i < i_begin + ng; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    U(v, i, j, k) = buffer[p++];
-                }
-            }
-        }
-    }
+    for (std::size_t i = 0; i < recv_local_ids.size(); ++i) {
+        const std::size_t cell_id = recv_local_ids[i];
 
-    if (exchange_reactant_mass_fraction_) {
-        auto& lambda = layer.ReactantMassFraction();
-
-        for (int i = i_begin; i < i_begin + ng; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    lambda(i, j, k) = buffer[p++];
-                }
-            }
-        }
+        U(cell_id, DataLayer::k_rho) = recv_buffer[i].U[0];
+        U(cell_id, DataLayer::k_rhoU) = recv_buffer[i].U[1];
+        U(cell_id, DataLayer::k_rhoV) = recv_buffer[i].U[2];
+        U(cell_id, DataLayer::k_rhoW) = recv_buffer[i].U[3];
+        U(cell_id, DataLayer::k_E) = recv_buffer[i].U[4];
+        lambda(cell_id) = recv_buffer[i].lambda;
     }
 }
 
-void HaloExchange::UnpackY(DataLayer& layer, const Mesh& mesh, const int j_begin,
-                           const std::vector<double>& buffer) const {
-    const int ng = mesh.GetPadding();
-    const int sx = mesh.GetSx();
-    const int sz = mesh.GetSz();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t expected =
-        n_fields *
-        static_cast<std::size_t>(sx) *
-        static_cast<std::size_t>(ng) *
-        static_cast<std::size_t>(sz);
-
-    if (buffer.size() != expected) {
-        throw std::runtime_error("HaloExchange::UnpackY: invalid buffer size");
+void HaloExchange::Synchronize(DataLayer& layer) const {
+    if (!mpi_) {
+        throw std::runtime_error("HaloExchange::Exchange: mpi context is null");
     }
 
-    auto& U = layer.U();
-    std::size_t p = 0;
-
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = 0; i < sx; ++i) {
-            for (int j = j_begin; j < j_begin + ng; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    U(v, i, j, k) = buffer[p++];
-                }
-            }
-        }
+    if (packet_type_ == MPI_DATATYPE_NULL) {
+        throw std::runtime_error("HaloExchange::Exchange: packet MPI datatype is not initialized");
     }
 
-    if (exchange_reactant_mass_fraction_) {
-        auto& lambda = layer.ReactantMassFraction();
-
-        for (int i = 0; i < sx; ++i) {
-            for (int j = j_begin; j < j_begin + ng; ++j) {
-                for (int k = 0; k < sz; ++k) {
-                    lambda(i, j, k) = buffer[p++];
-                }
-            }
-        }
-    }
-}
-
-void HaloExchange::UnpackZ(DataLayer& layer, const Mesh& mesh, const int k_begin,
-                           const std::vector<double>& buffer) const {
-    const int ng = mesh.GetPadding();
-    const int sx = mesh.GetSx();
-    const int sy = mesh.GetSy();
-
-    const std::size_t n_fields =
-        DataLayer::k_nvar + (exchange_reactant_mass_fraction_ ? 1u : 0u);
-
-    const std::size_t expected =
-        n_fields *
-        static_cast<std::size_t>(sx) *
-        static_cast<std::size_t>(sy) *
-        static_cast<std::size_t>(ng);
-
-    if (buffer.size() != expected) {
-        throw std::runtime_error("HaloExchange::UnpackZ: invalid buffer size");
+    if (halos_.empty()) {
+        return;
     }
 
-    auto& U = layer.U();
-    std::size_t p = 0;
+    std::vector<std::vector<CellStatePacket>> send_buffers;
+    std::vector<std::vector<CellStatePacket>> recv_buffers;
+    std::vector<MPI_Request> requests;
 
-    for (std::size_t v = 0; v < DataLayer::k_nvar; ++v) {
-        for (int i = 0; i < sx; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = k_begin; k < k_begin + ng; ++k) {
-                    U(v, i, j, k) = buffer[p++];
-                }
-            }
-        }
+    send_buffers.reserve(halos_.size());
+    recv_buffers.reserve(halos_.size());
+    requests.reserve(2 * halos_.size());
+
+    constexpr int k_halo_tag = 1001;
+
+    for (const DomainDecomposition::NeighborHalo& halo : halos_) {
+        recv_buffers.emplace_back(halo.recv_local_ids.size());
+
+        MPI_Request recv_request = MPI_REQUEST_NULL;
+        MPI_Irecv(
+            recv_buffers.back().data(),
+            static_cast<int>(recv_buffers.back().size()),
+            packet_type_,
+            halo.remote_rank,
+            k_halo_tag,
+            mpi_->Comm(),
+            &recv_request
+        );
+        requests.push_back(recv_request);
     }
 
-    if (exchange_reactant_mass_fraction_) {
-        auto& lambda = layer.ReactantMassFraction();
+    for (const DomainDecomposition::NeighborHalo& halo : halos_) {
+        send_buffers.push_back(PackSendBuffer(layer, halo.send_local_ids));
 
-        for (int i = 0; i < sx; ++i) {
-            for (int j = 0; j < sy; ++j) {
-                for (int k = k_begin; k < k_begin + ng; ++k) {
-                    lambda(i, j, k) = buffer[p++];
-                }
-            }
-        }
+        MPI_Request send_request = MPI_REQUEST_NULL;
+        MPI_Isend(
+            send_buffers.back().data(),
+            static_cast<int>(send_buffers.back().size()),
+            packet_type_,
+            halo.remote_rank,
+            k_halo_tag,
+            mpi_->Comm(),
+            &send_request
+        );
+        requests.push_back(send_request);
+    }
+
+    MPI_Waitall(
+        static_cast<int>(requests.size()),
+        requests.data(),
+        MPI_STATUSES_IGNORE
+    );
+
+    for (std::size_t i = 0; i < halos_.size(); ++i) {
+        UnpackRecvBuffer(layer, halos_[i].recv_local_ids, recv_buffers[i]);
     }
 }

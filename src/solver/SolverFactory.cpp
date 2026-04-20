@@ -5,20 +5,25 @@
 #include <stdexcept>
 #include <string>
 
+#include "parallel/HaloExchange.hpp"
 #include "solver/FiniteVolumeSolver.hpp"
-#include "spatial/GodunovSpatialOperator.hpp"
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
+#include "spatial/GodunovSpatialOperator.hpp"
 #include "spatial/SpatialOperator.hpp"
 #include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/SSPRK2TimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
-#include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/TimeIntegrator.hpp"
 
 std::unique_ptr<Solver> SolverFactory::Create(const Settings& settings,
-                                              Mesh mesh,
+                                              const std::shared_ptr<Mesh>& mesh,
                                               const std::shared_ptr<BoundaryManager>& boundary_manager,
-                                              const MPIContext* mpi_context) {
+                                              const MPIContext* mpi_context,
+                                              const StateSynchronizer* halo_exchange) {
+    if (!mesh) {
+        throw std::runtime_error("SolverFactory::Create: mesh is null");
+    }
+
     if (!boundary_manager) {
         throw std::runtime_error("SolverFactory::Create: boundary_manager is null");
     }
@@ -34,11 +39,12 @@ std::unique_ptr<Solver> SolverFactory::Create(const Settings& settings,
     }
 
     std::shared_ptr<SpatialOperator> spatial_operator;
-    if (solver_name == "godunov" or solver_name == "godunov-kolgan") {
-        spatial_operator = std::make_shared<GodunovSpatialOperator>(settings, boundary_manager);
+    if (solver_name == "godunov" || solver_name == "godunov-kolgan") {
+        spatial_operator = std::make_shared<GodunovSpatialOperator>(settings, boundary_manager, halo_exchange);
     }
     else if (solver_name == "godunov-kolgan-rodionov") {
-        spatial_operator = std::make_shared<GodunovKolganRodionovSpatialOperator>(settings, boundary_manager);
+        spatial_operator = std::make_shared<GodunovKolganRodionovSpatialOperator>(
+            settings, boundary_manager, halo_exchange);
     }
     else {
         throw std::runtime_error(
@@ -65,9 +71,10 @@ std::unique_ptr<Solver> SolverFactory::Create(const Settings& settings,
 
     return std::make_unique<FiniteVolumeSolver>(
         settings,
-        std::move(mesh),
+        mesh,
         std::move(spatial_operator),
         std::move(time_integrator),
-        mpi_context
+        mpi_context,
+        halo_exchange
     );
 }

@@ -31,7 +31,8 @@ class Face;
 class GodunovKolganRodionovSpatialOperator final : public SpatialOperator {
 public:
     GodunovKolganRodionovSpatialOperator(const Settings& settings,
-                                         std::shared_ptr<BoundaryManager> boundary_manager);
+                                         std::shared_ptr<BoundaryManager> boundary_manager,
+                                         const StateSynchronizer* synchronizer = nullptr);
 
     void ComputeRHS(const DataLayer& layer,
                     const Mesh& mesh,
@@ -53,8 +54,8 @@ private:
 
     [[nodiscard]] PrimitiveCell LoadCellPrimitive
     (
-    const Workspace &workspace,
-                                                  std::size_t cell_id
+        const Workspace& workspace,
+        std::size_t cell_id
     )
     const;
 

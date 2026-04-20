@@ -72,7 +72,7 @@ add_executable(${NAME}
 
     src/output/WriterFactory.cpp
     src/output/VTKWriter.cpp
-#    src/output/VTKRecomposer.cpp
+    src/output/VTKRecomposer.cpp
 #    src/output/PNGWriter.cpp
 #    src/output/GIFWriter.cpp
 
@@ -94,8 +94,13 @@ add_executable(${NAME}
     src/data/geometry/RectangleGeometry.cpp
 
     src/parallel/MPIContext.cpp
-#    src/parallel/HaloExchange.cpp
-#    src/parallel/DomainDecomposition.cpp
+    src/parallel/HaloExchange.cpp
+    src/parallel/DomainDecomposition.cpp
+    src/parallel/MeshDistribution.cpp
+    src/parallel/MeshSerialization.cpp
+    src/parallel/HaloSerialization.cpp
+    src/parallel/DomainDecomposition.cpp
+    include/parallel/StateSynchronizer.hpp
 
     src/config/ConfigParser.cpp
     src/config/YamlConfigParser.cpp

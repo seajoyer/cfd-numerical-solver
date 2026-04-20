@@ -14,6 +14,8 @@ class Mesh;
 class Solver;
 class StepWriter;
 class Workspace;
+class MPIContext;
+class HaloExchange;
 
 /**
  * @file Simulation.hpp
@@ -71,7 +73,7 @@ private:
     void InitializeSolver();
     void InitializeWriter();
 
-    [[nodiscard]] std::unique_ptr<Mesh> CreateMesh() const;
+    [[nodiscard]] std::shared_ptr<Mesh> CreateMesh() const;
     [[nodiscard]] std::unique_ptr<Solver> CreateSolver();
 
     [[nodiscard]] bool IsKnownSolver(const std::string& solver) const;
@@ -89,16 +91,22 @@ private:
     void PrintLog() const;
     void FinalizeWriter();
 
+    [[nodiscard]] bool IsParallelRun() const;
+    [[nodiscard]] bool IsRootRank() const;
+
     Settings settings_;
     InitialConditions initial_conditions_;
 
-    std::unique_ptr<Mesh> mesh_;
+    std::shared_ptr<Mesh> mesh_;
     std::unique_ptr<DataLayer> layer_;
     std::unique_ptr<Workspace> workspace_;
     std::unique_ptr<Solver> solver_;
     std::unique_ptr<StepWriter> vtk_writer_;
 
     std::shared_ptr<BoundaryManager> boundary_manager_;
+
+    std::unique_ptr<MPIContext> mpi_context_;
+    std::unique_ptr<HaloExchange> halo_exchange_;
 
     double t_cur_ = 0.0;
     std::size_t step_cur_ = 0;

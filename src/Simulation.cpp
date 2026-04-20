@@ -7,21 +7,26 @@
 #include <stdexcept>
 #include <utility>
 
-#include "bc/BoundaryManager.hpp"
 #include "bc/BoundaryFactory.hpp"
+#include "bc/BoundaryManager.hpp"
 #include "config/InitialConditionInitializer.hpp"
 #include "data/DataLayer.hpp"
 #include "data/Workspace.hpp"
+#include "geometry/DelaunayMeshBuilder.hpp"
+#include "geometry/Face.hpp"
 #include "geometry/GmshMeshBuilder.hpp"
 #include "geometry/Mesh.hpp"
-#include "geometry/Face.hpp"
 #include "geometry/StructuredMeshBuilder.hpp"
 #include "output/StepWriter.hpp"
 #include "output/WriterFactory.hpp"
+#include "parallel/DomainDecomposition.hpp"
+#include "parallel/HaloExchange.hpp"
+#include "parallel/MPIContext.hpp"
 #include "solver/Solver.hpp"
 #include "solver/SolverFactory.hpp"
 #include "utils/StringUtils.hpp"
-#include "geometry/DelaunayMeshBuilder.hpp"
+#include "output/VTKRecomposer.hpp"
+#include "parallel/MeshDistribution.hpp"
 
 Simulation::Simulation(Settings settings, InitialConditions initial_conditions)
     : settings_(std::move(settings)),
@@ -49,14 +54,18 @@ void Simulation::Run() {
 
     WriteInitialState();
 
-    std::cout << "\nStarting simulation...\n";
+    if (IsRootRank()) {
+        std::cout << "\nStarting simulation...\n";
+    }
 
     std::chrono::duration<double> runtime{0.0};
     const auto start_wall = std::chrono::high_resolution_clock::now();
 
     while (ShouldRun()) {
         const auto start = std::chrono::high_resolution_clock::now();
+
         dt_ = solver_->Step(*layer_, t_cur_);
+
         const auto end = std::chrono::high_resolution_clock::now();
 
         runtime += end - start;
@@ -69,11 +78,13 @@ void Simulation::Run() {
     const auto end_wall = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> wall_time = end_wall - start_wall;
 
-    std::cout << "\n\nSimulation completed!\n";
-    std::cout << ">>> Final time:  " << t_cur_ << '\n';
-    std::cout << ">>> Total steps: " << step_cur_ << '\n';
-    std::cout << ">>> Wall time: " << wall_time.count() << "s\n";
-    std::cout << ">>> Computation time: " << runtime.count() << "s\n";
+    if (IsRootRank()) {
+        std::cout << "\n\nSimulation completed!\n";
+        std::cout << ">>> Final time:  " << t_cur_ << '\n';
+        std::cout << ">>> Total steps: " << step_cur_ << '\n';
+        std::cout << ">>> Wall time: " << wall_time.count() << "s\n";
+        std::cout << ">>> Computation time: " << runtime.count() << "s\n";
+    }
 
     FinalizeWriter();
 }
@@ -91,6 +102,17 @@ std::size_t Simulation::GetCurrentStep() const {
 
 double Simulation::GetCurrentTime() const {
     return t_cur_;
+}
+
+bool Simulation::IsParallelRun() const {
+    return settings_.mpi_enabled && mpi_context_ && mpi_context_->Size() > 1;
+}
+
+bool Simulation::IsRootRank() const {
+    if (!mpi_context_) {
+        return true;
+    }
+    return mpi_context_->IsRoot();
 }
 
 void Simulation::ValidateConfiguration() const {
@@ -183,7 +205,7 @@ void Simulation::ValidateBoundaryCoverage() const {
     }
 
     for (const Face& face : mesh_->Faces()) {
-        if (!face.IsBoundary()) {
+        if (!face.IsPhysicalBoundary()) {
             continue;
         }
 
@@ -202,9 +224,30 @@ void Simulation::ValidateBoundaryCoverage() const {
     }
 }
 
-
 void Simulation::BuildMesh() {
-    mesh_ = CreateMesh();
+    mpi_context_ = std::make_unique<MPIContext>();
+
+    if (!settings_.mpi_enabled || mpi_context_->Size() == 1) {
+        mesh_ = CreateMesh();
+        mesh_->Validate();
+        return;
+    }
+
+    MeshDistribution::LocalPartition local_partition;
+
+    if (mpi_context_->IsRoot()) {
+        std::shared_ptr<Mesh> global_mesh = CreateMesh();
+        local_partition =
+            MeshDistribution::DistributeFromRoot(global_mesh.get(), *mpi_context_);
+    }
+    else {
+        local_partition =
+            MeshDistribution::DistributeFromRoot(nullptr, *mpi_context_);
+    }
+
+    mesh_ = std::make_shared<Mesh>(std::move(local_partition.mesh));
+    halo_exchange_ = std::make_unique<HaloExchange>(*mpi_context_, std::move(local_partition.halos));
+
     mesh_->Validate();
 }
 
@@ -219,6 +262,10 @@ void Simulation::AllocateState() {
 void Simulation::InitializeFields() {
     InitialConditionInitializer initializer(settings_, initial_conditions_);
     initializer.Apply(*mesh_, *layer_);
+
+    if (halo_exchange_) {
+        halo_exchange_->Synchronize(*layer_);
+    }
 }
 
 void Simulation::InitializeBoundaryConditions() {
@@ -242,7 +289,7 @@ void Simulation::InitializeWriter() {
     vtk_writer_ = WriterFactory::Create("vtk", settings_.output_dir);
 }
 
-std::unique_ptr<Mesh> Simulation::CreateMesh() const {
+std::shared_ptr<Mesh> Simulation::CreateMesh() const {
     if (settings_.mesh.source_type == MeshSourceType::StructuredCartesian) {
         if (!settings_.mesh.structured.has_value()) {
             throw std::runtime_error("Simulation: structured mesh settings are missing");
@@ -251,7 +298,7 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
         const StructuredMeshSettings& s = *settings_.mesh.structured;
 
         if (settings_.mesh.dim == 2) {
-            return std::make_unique<Mesh>(
+            return std::make_shared<Mesh>(
                 StructuredMeshBuilder::BuildUniformCartesian2D(
                     s.nx, s.ny,
                     s.x_min, s.x_max,
@@ -261,7 +308,7 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
         }
 
         if (settings_.mesh.dim == 3) {
-            return std::make_unique<Mesh>(
+            return std::make_shared<Mesh>(
                 StructuredMeshBuilder::BuildUniformCartesian3D(
                     s.nx, s.ny, s.nz,
                     s.x_min, s.x_max,
@@ -281,7 +328,7 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
             throw std::runtime_error("Simulation: gmsh file settings are missing");
         }
 
-        return std::make_unique<Mesh>(
+        return std::make_shared<Mesh>(
             GmshMeshBuilder::BuildFromFile(
                 settings_.mesh.gmsh_file->file_path,
                 settings_.mesh.dim
@@ -294,20 +341,20 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
             throw std::runtime_error("Simulation: gmsh geo settings are missing");
         }
 
-        return std::make_unique<Mesh>(
+        return std::make_shared<Mesh>(
             GmshMeshBuilder::BuildFromGeoFile(
                 settings_.mesh.gmsh_geo->file_path,
                 settings_.mesh.dim
             )
         );
     }
-    
+
     if (settings_.mesh.source_type == MeshSourceType::DelaunayGeo) {
         if (!settings_.mesh.delaunay_geo.has_value()) {
             throw std::runtime_error("Simulation: delaunay geo settings are missing");
         }
 
-        return std::make_unique<Mesh>(
+        return std::make_shared<Mesh>(
             DelaunayMeshBuilder::BuildFromGeoFile(
                 settings_.mesh.delaunay_geo->file_path,
                 settings_.mesh.dim
@@ -319,7 +366,7 @@ std::unique_ptr<Mesh> Simulation::CreateMesh() const {
 }
 
 std::unique_ptr<Solver> Simulation::CreateSolver() {
-    return SolverFactory::Create(settings_, *mesh_, boundary_manager_, nullptr);
+    return SolverFactory::Create(settings_, mesh_, boundary_manager_, mpi_context_.get(), halo_exchange_.get());
 }
 
 bool Simulation::IsKnownSolver(const std::string& solver) const {
@@ -430,6 +477,10 @@ void Simulation::WriteStepState() const {
 
 void Simulation::PrintLog() const {
     if (!ShouldLog()) {
+        return;
+    }
+
+    if (!IsRootRank()) {
         return;
     }
 

@@ -1,49 +1,74 @@
 #ifndef HALOEXCHANGE_HPP
 #define HALOEXCHANGE_HPP
 
+#include <cstddef>
 #include <vector>
 
-#include "data/DataLayer.hpp"
-#include "data/Variables.hpp"
-#include "bc/BoundaryCondition.hpp"
-#include "../geometry/Mesh.hpp"
-#include "parallel/MPIContext.hpp"
+#include <mpi.h>
+
+#include "parallel/DomainDecomposition.hpp"
+#include "parallel/StateSynchronizer.hpp"
+
+class DataLayer;
+class MPIContext;
 
 /**
  * @class HaloExchange
- * @brief MPI halo exchange for conservative state U on structured Cartesian subdomains.
+ * @brief Exchanges ghost-cell conservative state between neighboring MPI ranks.
  *
- * Exchange is performed for ghost layers of width ng along each active axis.
- * Only conservative state U(var,i,j,k) is exchanged.
+ * Data packet sent per cell:
+ * - U[5] conservative variables
+ * - lambda reactant mass fraction
+ *
+ * Communication pattern:
+ * - post all Irecv
+ * - pack send buffers
+ * - post all Isend
+ * - wait all
+ * - unpack received ghost states
  */
-class HaloExchange final {
+class HaloExchange final : public StateSynchronizer {
 public:
-    HaloExchange(MPI_Comm comm, int size, bool exchange_reactant_mass_fraction);
+    struct CellStatePacket final {
+        double U[5];
+        double lambda = 0.0;
+    };
+
+    HaloExchange(const MPIContext& mpi,
+                 std::vector<DomainDecomposition::NeighborHalo> halos);
+
+    ~HaloExchange();
+
+    HaloExchange(const HaloExchange&) = delete;
+    HaloExchange& operator=(const HaloExchange&) = delete;
+
+    HaloExchange(HaloExchange&&) = delete;
+    HaloExchange& operator=(HaloExchange&&) = delete;
 
     /**
-     * @brief Exchange halo layers for conservative state U.
-     * @param layer Local conservative state storage.
-     * @param mesh Local mesh with neighbor metadata.
+     * @brief Exchange halo values and write them into local ghost cells.
      */
-    void Exchange(DataLayer& layer, const Mesh& mesh) const;
+    void Synchronize(DataLayer& layer) const override;
 
 private:
-    MPI_Comm comm_ = MPI_COMM_NULL;
-    int size_ = 1;
+    const MPIContext* mpi_ = nullptr;
+    std::vector<DomainDecomposition::NeighborHalo> halos_;
 
-    bool exchange_reactant_mass_fraction_ = false;
+    MPI_Datatype packet_type_ = MPI_DATATYPE_NULL;
 
-    void ExchangeX(DataLayer& layer, const Mesh& mesh) const;
-    void ExchangeY(DataLayer& layer, const Mesh& mesh) const;
-    void ExchangeZ(DataLayer& layer, const Mesh& mesh) const;
+    void CreatePacketType();
+    void DestroyPacketType();
 
-    [[nodiscard]] std::vector<double> PackX(const DataLayer& layer, const Mesh& mesh, int i_begin) const;
-    [[nodiscard]] std::vector<double> PackY(const DataLayer& layer, const Mesh& mesh, int j_begin) const;
-    [[nodiscard]] std::vector<double> PackZ(const DataLayer& layer, const Mesh& mesh, int k_begin) const;
+    [[nodiscard]] std::vector<CellStatePacket> PackSendBuffer(
+        const DataLayer& layer,
+        const std::vector<std::size_t>& send_local_ids
+    ) const;
 
-    void UnpackX(DataLayer& layer, const Mesh& mesh, int i_begin, const std::vector<double>& buffer) const;
-    void UnpackY(DataLayer& layer, const Mesh& mesh, int j_begin, const std::vector<double>& buffer) const;
-    void UnpackZ(DataLayer& layer, const Mesh& mesh, int k_begin, const std::vector<double>& buffer) const;
+    void UnpackRecvBuffer(
+        DataLayer& layer,
+        const std::vector<std::size_t>& recv_local_ids,
+        const std::vector<CellStatePacket>& recv_buffer
+    ) const;
 };
 
 #endif  // HALOEXCHANGE_HPP

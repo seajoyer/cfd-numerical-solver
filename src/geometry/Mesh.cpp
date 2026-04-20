@@ -23,6 +23,22 @@ std::size_t Mesh::GetCellCount() const {
     return cells_.size();
 }
 
+std::size_t Mesh::GetOwnedCellCount() const {
+    return owned_cell_count_;
+}
+
+std::size_t Mesh::GetGhostCellCount() const {
+    return ghost_cell_count_;
+}
+
+void Mesh::SetOwnedCellCount(const std::size_t count) {
+    owned_cell_count_ = count;
+}
+
+void Mesh::SetGhostCellCount(const std::size_t count) {
+    ghost_cell_count_ = count;
+}
+
 std::vector<Node>& Mesh::Nodes() {
     return nodes_;
 }
@@ -89,28 +105,38 @@ const Cell& Mesh::GetCell(const std::size_t cell_id) const {
     return cells_[cell_id];
 }
 
-bool Mesh::IsBoundaryFace(const std::size_t face_id) const {
-    return GetFace(face_id).IsBoundary();
+bool Mesh::IsPhysicalBoundaryFace(const std::size_t face_id) const {
+    return GetFace(face_id).IsPhysicalBoundary();
 }
 
 bool Mesh::IsInternalFace(const std::size_t face_id) const {
     return GetFace(face_id).IsInternal();
 }
 
+bool Mesh::IsMPIBoundaryFace(const std::size_t face_id) const {
+    return GetFace(face_id).IsMPIBoundary();
+}
+
 void Mesh::Clear() {
     nodes_.clear();
     faces_.clear();
     cells_.clear();
+    owned_cell_count_ = 0;
+    ghost_cell_count_ = 0;
 }
 
 void Mesh::Validate() const {
     ValidateDimension();
     ValidateNodeIds();
     ValidateFaceIds();
-    ValidateCellIds();
+    ValidateCellLocalIds();
     ValidateFaceConnectivity();
     ValidateCellConnectivity();
     ValidateGeometry();
+
+    if (owned_cell_count_ + ghost_cell_count_ > cells_.size()) {
+        throw std::runtime_error("Mesh::Validate: owned+ghost cell counts exceed total cell count");
+    }
 }
 
 void Mesh::ValidateDimension() const {
@@ -135,10 +161,10 @@ void Mesh::ValidateFaceIds() const {
     }
 }
 
-void Mesh::ValidateCellIds() const {
+void Mesh::ValidateCellLocalIds() const {
     for (std::size_t cell_id = 0; cell_id < cells_.size(); ++cell_id) {
-        if (cells_[cell_id].id != cell_id) {
-            throw std::runtime_error("Mesh::Validate: cell id does not match storage index");
+        if (cells_[cell_id].local_id != cell_id) {
+            throw std::runtime_error("Mesh::Validate: cell local_id does not match storage index");
         }
     }
 }
@@ -157,20 +183,47 @@ void Mesh::ValidateFaceConnectivity() const {
             throw std::runtime_error("Mesh::Validate: face owner_cell_id is out of range");
         }
 
-        if (face.IsInternal() && face.neighbor_cell_id >= cells_.size()) {
-            throw std::runtime_error("Mesh::Validate: internal face neighbor_cell_id is out of range");
+        if ((face.IsInternal() || face.IsMPIBoundary()) &&
+            face.neighbor_cell_id >= cells_.size()) {
+            throw std::runtime_error("Mesh::Validate: face neighbor_cell_id is out of range");
         }
 
-        if (face.IsInternal() && face.neighbor_cell_id == face.owner_cell_id) {
-            throw std::runtime_error("Mesh::Validate: internal face owner and neighbor are identical");
+        if ((face.IsInternal() || face.IsMPIBoundary()) &&
+            face.neighbor_cell_id == face.owner_cell_id) {
+            throw std::runtime_error("Mesh::Validate: face owner and neighbor are identical");
         }
 
-        if (face.IsBoundary() && face.boundary_tag < 0) {
-            throw std::runtime_error("Mesh::Validate: boundary face must have non-negative boundary_tag");
+        if (face.IsPhysicalBoundary()) {
+            if (face.neighbor_cell_id != Face::k_invalid_cell_id) {
+                throw std::runtime_error("Mesh::Validate: physical boundary face must have invalid neighbor");
+            }
+            if (face.boundary_tag < 0) {
+                throw std::runtime_error("Mesh::Validate: physical boundary face must have non-negative boundary_tag");
+            }
+            if (face.remote_rank >= 0) {
+                throw std::runtime_error("Mesh::Validate: physical boundary face must not have remote_rank");
+            }
         }
 
-        if (face.IsInternal() && face.boundary_tag >= 0) {
-            throw std::runtime_error("Mesh::Validate: internal face must not have boundary_tag");
+        if (face.IsInternal()) {
+            if (face.boundary_tag >= 0) {
+                throw std::runtime_error("Mesh::Validate: interior face must not have boundary_tag");
+            }
+            if (face.remote_rank >= 0) {
+                throw std::runtime_error("Mesh::Validate: interior face must not have remote_rank");
+            }
+        }
+
+        if (face.IsMPIBoundary()) {
+            if (face.boundary_tag >= 0) {
+                throw std::runtime_error("Mesh::Validate: MPI boundary face must not have boundary_tag");
+            }
+            if (face.remote_rank < 0) {
+                throw std::runtime_error("Mesh::Validate: MPI boundary face must have remote_rank");
+            }
+            if (face.neighbor_cell_id == Face::k_invalid_cell_id) {
+                throw std::runtime_error("Mesh::Validate: MPI boundary face must have ghost neighbor");
+            }
         }
 
         for (const std::size_t node_id : face.node_ids) {
@@ -203,7 +256,7 @@ void Mesh::ValidateCellConnectivity() const {
             }
 
             const Face& face = faces_[face_id];
-            if (face.owner_cell_id != cell.id && face.neighbor_cell_id != cell.id) {
+            if (face.owner_cell_id != cell.local_id && face.neighbor_cell_id != cell.local_id) {
                 throw std::runtime_error("Mesh::Validate: cell does not belong to one of its listed faces");
             }
         }
@@ -233,18 +286,6 @@ void Mesh::ValidateGeometry() const {
             throw std::runtime_error("Mesh::Validate: cell volume must be > 0");
         }
 
-        if (cell.face_ids.size() < 2) {
-            throw std::runtime_error("Mesh::Validate: cell must have at least 2 faces");
-        }
-
-        if (dim_ == 2 && cell.face_ids.size() < 3) {
-            throw std::runtime_error("Mesh::Validate: 2D cell must have at least 3 faces");
-        }
-
-        if (dim_ == 3 && cell.face_ids.size() < 4) {
-            throw std::runtime_error("Mesh::Validate: 3D cell must have at least 4 faces");
-        }
-
         const bool center_is_finite =
             std::isfinite(cell.center_x) &&
             std::isfinite(cell.center_y) &&
@@ -252,6 +293,27 @@ void Mesh::ValidateGeometry() const {
 
         if (!center_is_finite) {
             throw std::runtime_error("Mesh::Validate: cell center contains non-finite value");
+        }
+
+        const bool is_owned = cell.local_id < owned_cell_count_;
+
+        if (is_owned) {
+            if (cell.face_ids.size() < 2) {
+                throw std::runtime_error("Mesh::Validate: owned cell must have at least 2 faces");
+            }
+
+            if (dim_ == 2 && cell.face_ids.size() < 3) {
+                throw std::runtime_error("Mesh::Validate: 2D owned cell must have at least 3 faces");
+            }
+
+            if (dim_ == 3 && cell.face_ids.size() < 4) {
+                throw std::runtime_error("Mesh::Validate: 3D owned cell must have at least 4 faces");
+            }
+        }
+        else {
+            if (cell.face_ids.empty()) {
+                throw std::runtime_error("Mesh::Validate: ghost cell must have at least 1 local face");
+            }
         }
     }
 
