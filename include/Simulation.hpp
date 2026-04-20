@@ -15,6 +15,7 @@
 #include "parallel/DomainDecomposition.hpp"
 #include "parallel/MPIContext.hpp"
 #include "solver/Solver.hpp"
+#include "solver/EOS.hpp"
 
 /**
  * @file Simulation.hpp
@@ -67,13 +68,16 @@ private:
     void InitializeBoundaryConditions();
     void InitializeSolver();
     void InitializeWriter();
+    void InitializeEos();
 
     void ApplyInitialConditions(DataLayer& layer, Mesh& mesh);
+    void InitializePressureVelocityInitialConditions();
 
     [[nodiscard]] auto DeterminePadding() const -> int;
     void ValidateConfiguration() const;
-    auto PrimitiveToFarfieldConservative(const BoundaryStateSettings& s, double gamma) -> FarfieldConservative;
+    auto PrimitiveToFarfieldConservative(const BoundaryStateSettings& s) -> FarfieldConservative;
 
+    [[nodiscard]] auto IsPressureVelocitySolver() const -> bool;
     [[nodiscard]] auto IsKnownSolver(const std::string& solver) const -> bool;
     [[nodiscard]] auto IsKnownTimeIntegrator(const std::string& time_integrator) const -> bool;
     [[nodiscard]] auto IsKnownReconstruction(const std::string& reconstruction) const -> bool;
@@ -111,6 +115,8 @@ private:
     double t_cur_ = 0.0;
     std::size_t step_cur_ = 0;
     double dt_ = 1.0;
+
+    std::shared_ptr<EOS> eos_;
 
     std::string case_output_dir_;
 };

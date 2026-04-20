@@ -3,12 +3,14 @@
 
 #include <memory>
 
-#include "bc/BoundaryManager.hpp"
+#include "bc/BoundaryCondition.hpp"
 #include "bc/BoundaryFactory.hpp"
+#include "bc/BoundaryManager.hpp"
 #include "config/Settings.hpp"
 #include "data/Mesh.hpp"
 #include "data/Variables.hpp"
 #include "solver/Solver.hpp"
+#include "solver/EOS.hpp"
 
 /**
  * @class SolverFactory
@@ -26,14 +28,15 @@ public:
      *
      * @param settings Settings for solver construction.
      * @param mesh Structured mesh for solver construction.
-     * @param boundary_manager Boundary manager for spatial operator.
+     * @param boundary_manager Boundary manager for solver/spatial operator.
      * @return Unique pointer to the created solver.
      * @throws std::runtime_error if solver type is not recognized.
      */
     static auto Create(const Settings& settings,
                        Mesh mesh,
                        const std::shared_ptr<BoundaryManager>& boundary_manager,
-                       const MPIContext* mpi_context) -> std::unique_ptr<Solver>;
+                       const MPIContext* mpi_context,
+                       std::shared_ptr<EOS> eos) -> std::unique_ptr<Solver>;
 
     /** @brief Set boundary conditions for an axis. */
     void AddBoundary(Axis axis,

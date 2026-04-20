@@ -20,8 +20,6 @@ struct ImmersedObjectSettings {
     double size_z = 0.0;
 };
 
-
-
 struct BoundaryStateSettings {
     double rho = 0.0;
     double u = 0.0;
@@ -50,7 +48,25 @@ struct CaseSettings {
     std::optional<std::string> riemann_solver;
     std::optional<std::string> reconstruction;
     std::optional<std::string> EOS;
+    std::optional<double> hg_rho0;
+    std::optional<double> hg_C;
+    std::optional<double> hg_S;
+    std::optional<double> hg_gamma_s;
+    std::optional<double> hg_c_v;
     std::optional<std::string> mader_transport;
+
+    // Pressure-velocity solver parameters
+    std::optional<int> n_outer_correctors;
+    std::optional<int> n_pressure_correctors;
+    std::optional<double> velocity_relaxation;
+    std::optional<double> pressure_relaxation;
+    std::optional<double> steady_tolerance;
+    std::optional<double> pressure_tolerance;
+    std::optional<int> pressure_max_iterations;
+    std::optional<int> momentum_max_iterations;
+    std::optional<bool> momentum_predictor;
+    std::optional<double> density;
+    std::optional<double> kinematic_viscosity;
 
     // Boundary conditions
     std::optional<std::string> left_boundary;
@@ -111,6 +127,10 @@ struct CaseSettings {
     std::optional<std::string> output_dir;
 
     std::optional<BoundaryStatesSettings> boundary_states;
+
+
+    std::optional<double> alpha_u = 0.7;
+    std::optional<double> alpha_p = 0.3;
 };
 
 /**
@@ -125,7 +145,35 @@ struct Settings {
     std::string time_integrator = "euler";
 
     std::optional<std::string> EOS;
+    double hg_rho0 = 1.835;
+    double hg_C = 0.2;
+    double hg_S = 2.0;
+    double hg_gamma_s = 1.0;
+    double hg_c_v = 1.0;
     std::optional<std::string> mader_transport;
+    std::optional<bool> shargatov_correction = false;
+
+    // ==================== Pressure-velocity solver parameters ====================
+    int n_outer_correctors = 3;
+    int n_pressure_correctors = 2;
+
+    double velocity_relaxation = 0.7;
+    double pressure_relaxation = 0.3;
+
+    double steady_tolerance = 1e-6;
+    double pressure_tolerance = 1e-8;
+
+    int pressure_max_iterations = 500;
+    int momentum_max_iterations = 1;
+
+
+    double alpha_u = 0.7;
+    double alpha_p = 0.3;
+
+    bool momentum_predictor = true;
+
+    double density = 1.0;
+    double kinematic_viscosity = 1.0e-3;
 
     // ==================== Boundary conditions ====================
     std::string left_boundary = "free_stream";
@@ -232,7 +280,24 @@ inline auto MergeSettings(const Settings& global,
     APPLY_OVERRIDE(riemann_solver)
     APPLY_OVERRIDE(reconstruction)
     APPLY_OVERRIDE(EOS)
+    APPLY_OVERRIDE(hg_rho0)
+    APPLY_OVERRIDE(hg_C)
+    APPLY_OVERRIDE(hg_S)
+    APPLY_OVERRIDE(hg_gamma_s)
+    APPLY_OVERRIDE(hg_c_v)
     APPLY_OVERRIDE(mader_transport)
+
+    APPLY_OVERRIDE(n_outer_correctors)
+    APPLY_OVERRIDE(n_pressure_correctors)
+    APPLY_OVERRIDE(velocity_relaxation)
+    APPLY_OVERRIDE(pressure_relaxation)
+    APPLY_OVERRIDE(steady_tolerance)
+    APPLY_OVERRIDE(pressure_tolerance)
+    APPLY_OVERRIDE(pressure_max_iterations)
+    APPLY_OVERRIDE(momentum_max_iterations)
+    APPLY_OVERRIDE(momentum_predictor)
+    APPLY_OVERRIDE(density)
+    APPLY_OVERRIDE(kinematic_viscosity)
 
     APPLY_OVERRIDE(left_boundary)
     APPLY_OVERRIDE(right_boundary)

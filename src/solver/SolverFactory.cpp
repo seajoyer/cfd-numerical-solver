@@ -1,28 +1,23 @@
 #include "solver/SolverFactory.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "solver/FiniteVolumeSolver.hpp"
+#include "pressure_velocity/PimpleSolver.hpp"
+#include "pressure_velocity/PisoSolver.hpp"
+#include "pressure_velocity/SimpleSolver.hpp"
 #include "spatial/FLICSpatialOperator.hpp"
-#include "spatial/MaderSpatialOperator.hpp"
 #include "spatial/GodunovKolganRodionovSpatialOperator.hpp"
 #include "spatial/GodunovSpatialOperator.hpp"
+#include "spatial/MaderSpatialOperator.hpp"
 #include "time/ForwardEulerTimeIntegrator.hpp"
 #include "time/MacCormackTimeIntegrator.hpp"
 #include "time/MaderTimeIntegrator.hpp"
 #include "time/SSPRK2TimeIntegrator.hpp"
 #include "time/SSPRK3TimeIntegrator.hpp"
-
-#include "solver/SolverFactory.hpp"
-
-#include <memory>
-#include <stdexcept>
-#include <utility>
-
 #include "utils/StringUtils.hpp"
 
 namespace {
@@ -71,7 +66,12 @@ namespace {
             return std::make_shared<MaderSpatialOperator>(settings, boundary_manager);
         }
 
-        throw std::runtime_error("Unknown solver type: " + settings.solver);
+        throw std::runtime_error("Unknown finite-volume solver type: " + settings.solver);
+    }
+
+    [[nodiscard]] bool IsPressureVelocitySolver(const std::string& solver_name) {
+        const std::string s = utils::ToLower(solver_name);
+        return s == "simple" || s == "piso" || s == "pimple";
     }
 } // namespace
 
@@ -84,14 +84,47 @@ void SolverFactory::AddBoundary(const Axis axis,
 auto SolverFactory::Create(const Settings& settings,
                            Mesh mesh,
                            const std::shared_ptr<BoundaryManager>& boundary_manager,
-                           const MPIContext* mpi_context) -> std::unique_ptr<Solver> {
+                           const MPIContext* mpi_context,
+                           std::shared_ptr<EOS> eos) -> std::unique_ptr<Solver> {
+    const std::string solver = utils::ToLower(settings.solver);
+
+    if (IsPressureVelocitySolver(solver)) {
+        if (solver == "simple") {
+            return std::make_unique<SimpleSolver>(settings,
+                                                  std::move(mesh),
+                                                  boundary_manager,
+                                                  mpi_context);
+        }
+
+        if (solver == "piso") {
+            return std::make_unique<PisoSolver>(settings,
+                                                std::move(mesh),
+                                                boundary_manager,
+                                                mpi_context);
+        }
+
+        if (solver == "pimple") {
+            return std::make_unique<PimpleSolver>(settings,
+                                                  std::move(mesh),
+                                                  boundary_manager,
+                                                  mpi_context);
+        }
+
+        throw std::runtime_error("Unknown pressure-velocity solver type: " + settings.solver);
+    }
+
     auto spatial_operator = CreateSpatialOperator(settings, boundary_manager);
+
+    if (auto mader_op = std::dynamic_pointer_cast<MaderSpatialOperator>(spatial_operator)) {
+        mader_op->SetEos(eos);
+    }
+
     auto time_integrator = CreateTimeIntegrator(settings, boundary_manager);
 
     return std::make_unique<FiniteVolumeSolver>(settings,
                                                 std::move(mesh),
                                                 std::move(spatial_operator),
                                                 std::move(time_integrator),
-                                                mpi_context
-    );
+                                                mpi_context,
+                                                eos);
 }

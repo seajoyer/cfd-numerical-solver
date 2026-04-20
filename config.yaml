@@ -1,77 +1,15 @@
 run:
-    cases: [corner]
+    cases: [step_inlet]
 
 defaults:
-    mesh:
-        type: structured
-        dim: 2
-        cells:
-            x: 100
-            y: 3
-            z: 1
-        domain:
-            x: 1.0
-            y: 1.0
-            z: 1.0
-
-    physics:
-        eos: ideal_gas
-        parameters:
-            gamma: 1.4
-            Q_user: 2.0
-
-    numerics:
-        method: mader
-        parameters:
-            time_integrator: mader
-            reconstruction: p1
-            riemann_solver: hllc
-            cfl: 0.3
-            global_limiter: false
-            viscosity: false
-            diffusion: false
-
-    boundary_conditions:
-        x_min: inlet
-        x_max: outlet
-        y_min: free_stream
-        y_max: free_stream
-
-        states:
-            x_min:
-                rho: 5.0
-                u: 10.0
-                v: 0.0
-                w: 0.0
-                p: 1.0
-            y_min:
-                rho: 1.0
-                u: 0.0
-                v: 0.5
-                w: 0.0
-                p: 1.0
-            y_max:
-                rho: 1.0
-                u: 0.0
-                v: -0.5
-                w: 0.0
-                p: 1.0
-
+    parallel:
+        mpi: false
     immersed_boundaries:
         enabled: false
         objects: []
-
-    parallel:
-        mpi: false
-
-    stopping:
-        t_end: 0.25
-        max_steps: 0
-
     logging:
         every_steps: 10
         every_time: 0.0
-
     output:
         format: vtk
         directory: ../result
@@ -80,20 +18,8 @@ defaults:
 
 cases:
     smoke:
-        initial_condition:
-            type: structured_regions
-            interfaces:
-                x: [ ]
-                y: [ ]
-                z: [ ]
-            rho: [ 1.0 ]
-            u: [ 0.0 ]
-            v: [ 0.0 ]
-            w: [ 0.0 ]
-            p: [ 1.0 ]
-            stopping:
-                t_end: 0.2
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 100
@@ -103,27 +29,57 @@ cases:
                 x: 1.0
                 y: 1.0
                 z: 1.0
-
-    cylinder:
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
+        boundary_conditions:
+            x_min: inlet
+            x_max: outlet
+            y_min: free_stream
+            y_max: free_stream
+            states:
+                x_min:
+                    rho: 5.0
+                    u: 10.0
+                    v: 0.0
+                    w: 0.0
+                    p: 1.0
+                y_min:
+                    rho: 1.0
+                    u: 0.0
+                    v: 0.5
+                    w: 0.0
+                    p: 1.0
+                y_max:
+                    rho: 1.0
+                    u: 0.0
+                    v: -0.5
+                    w: 0.0
+                    p: 1.0
         initial_condition:
             type: structured_regions
             interfaces:
-                x: [ ]
-                y: [ ]
-                z: [ ]
-            rho: [ 1.0 ]
-            u: [ 0.3 ]
-            v: [ 0.0 ]
-            w: [ 0.0 ]
-            p: [ 1.0 ]
+                x: []
+                y: []
+                z: []
+            rho: [1.0]
+            u: [0.0]
+            v: [0.0]
+            w: [0.0]
+            p: [1.0]
+        stopping:
+            t_end: 0.2
+            max_steps: 0
 
-        immersed_boundaries:
-            enabled: true
-            objects:
-                - type: circle
-                  cx: 1.0
-                  cy: 1.0
-                  radius: 0.15
+    cylinder:
         mesh:
             type: structured
             dim: 2
@@ -135,40 +91,91 @@ cases:
                 x: 4.0
                 y: 2.0
                 z: 1.0
-
-        stopping:
-            t_end: 0.1
-
-    sod1:
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
+        boundary_conditions:
+            x_min: inlet
+            x_max: outlet
+            y_min: free_stream
+            y_max: free_stream
+            states:
+                x_min:
+                    rho: 5.0
+                    u: 10.0
+                    v: 0.0
+                    w: 0.0
+                    p: 1.0
+                y_min:
+                    rho: 1.0
+                    u: 0.0
+                    v: 0.5
+                    w: 0.0
+                    p: 1.0
+                y_max:
+                    rho: 1.0
+                    u: 0.0
+                    v: -0.5
+                    w: 0.0
+                    p: 1.0
+        immersed_boundaries:
+            enabled: true
+            objects:
+                - type: circle
+                  cx: 1.0
+                  cy: 1.0
+                  radius: 0.15
         initial_condition:
             type: structured_regions
             interfaces:
-                x: [0.5]
+                x: []
                 y: []
                 z: []
-            rho: [1.0, 0.125]
-            u:   [0.0, 0.0]
-            v:   [0.0, 0.0]
-            w:   [0.0, 0.0]
-            p:   [1.0, 0.1]
-            reactant_mass_fraction: [1.0, 1.0]
+            rho: [1.0]
+            u: [0.3]
+            v: [0.0]
+            w: [0.0]
+            p: [1.0]
         stopping:
-            t_end: 0.2
-        output:
-            every_steps: 1
+            t_end: 0.1
+            max_steps: 0
+
+    sod1:
+        mesh:
+            type: structured
+            dim: 1
+            cells:
+                x: 100
+                y: 3
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
         boundary_conditions:
             x_min: reflective
             x_max: reflective
             y_min: reflective
             y_max: reflective
-
-    sod1_2d:
-        mesh:
-            dim: 2
-            cells:
-                x: 100
-                y: 3
-                z: 1
         initial_condition:
             type: structured_regions
             interfaces:
@@ -176,27 +183,90 @@ cases:
                 y: []
                 z: []
             rho: [1.0, 0.125]
-            u:   [0.0, 0.0]
-            v:   [0.0, 0.0]
-            w:   [0.0, 0.0]
-            p:   [1.0, 0.1]
-#        boundary_conditions:
-#            x_min: reflective
-#            x_max: reflective
-#            y_min: reflective
-#            y_max: reflective
+            u: [0.0, 0.0]
+            v: [0.0, 0.0]
+            w: [0.0, 0.0]
+            p: [1.0, 0.1]
+            reactant_mass_fraction: [1.0, 1.0]
+        stopping:
+            t_end: 0.2
+            max_steps: 0
+        output:
+            every_steps: 1
+
+    sod1_2d:
+        mesh:
+            type: structured
+            dim: 2
+            cells:
+                x: 100
+                y: 3
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.5]
+                y: []
+                z: []
+            rho: [1.0, 0.125]
+            u: [0.0, 0.0]
+            v: [0.0, 0.0]
+            w: [0.0, 0.0]
+            p: [1.0, 0.1]
         output:
             every_steps: 20
         stopping:
             t_end: 0.25
+            max_steps: 0
 
     sod1_2d_y:
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 200
                 y: 200
                 z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
         initial_condition:
             type: structured_regions
             interfaces:
@@ -222,9 +292,11 @@ cases:
             every_steps: 100
         stopping:
             t_end: 0.25
+            max_steps: 0
 
     lax_liu_3:
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 400
@@ -239,7 +311,11 @@ cases:
             parameters:
                 gamma: 1.4
         numerics:
+            method: mader
             parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
                 cfl: 0.4
         boundary_conditions:
             x_min: reflective
@@ -257,7 +333,7 @@ cases:
                 - [0.5323, 1.5]
             u:
                 - [1.206, 1.206]
-                - [0.0,   0.0]
+                - [0.0, 0.0]
             v:
                 - [1.206, 0.0]
                 - [1.206, 0.0]
@@ -266,25 +342,35 @@ cases:
                 - [0.0, 0.0]
             p:
                 - [0.029, 0.3]
-                - [0.3,   1.5]
+                - [0.3, 1.5]
         output:
             every_steps: 20
         stopping:
             t_end: 1.5
+            max_steps: 0
 
     lax_liu_12:
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 400
                 y: 400
                 z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
         physics:
             eos: ideal_gas
             parameters:
                 gamma: 1.4
         numerics:
+            method: mader
             parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
                 cfl: 0.4
         boundary_conditions:
             x_min: reflective
@@ -305,7 +391,7 @@ cases:
                 - [0.7276, 0.0]
             v:
                 - [0.7276, 0.0]
-                - [0.0,    0.0]
+                - [0.0, 0.0]
             w:
                 - [0.0, 0.0]
                 - [0.0, 0.0]
@@ -316,14 +402,38 @@ cases:
             every_steps: 200
         stopping:
             t_end: 0.25
+            max_steps: 0
 
     octant_test:
         mesh:
+            type: structured
             dim: 3
             cells:
                 x: 100
                 y: 100
                 z: 100
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p1
+                riemann_solver: hllc
+                cfl: 0.3
+        boundary_conditions:
+            x_min: reflective
+            x_max: reflective
+            y_min: reflective
+            y_max: reflective
+            z_min: reflective
+            z_max: reflective
         initial_condition:
             type: structured_regions
             interfaces:
@@ -365,9 +475,13 @@ cases:
                 -
                     - [1.0, 1.0]
                     - [1.0, 1.0]
+        stopping:
+            t_end: 0.25
+            max_steps: 0
 
     detonation:
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 200
@@ -377,12 +491,20 @@ cases:
                 x: 10.0
                 y: 0.1
                 z: 1.0
-
         physics:
             eos: hugoniot_gruneisen
             parameters:
-                gamma: 3.0
-
+                hg_rho0: 1.84
+                hg_C: 0.2
+                hg_S: 2.0
+                hg_gamma_s: 1.0
+                hg_c_v: 1.0
+        chemistry:
+            enabled: true
+            z_freq: 5.0e9
+            activation_energy: 2.0e4
+            gas_constant: 1.0
+            heat_release: 0.0484
         numerics:
             method: mader
             parameters:
@@ -390,44 +512,33 @@ cases:
                 reconstruction: p0
                 riemann_solver: exact
                 cfl: 0.5
-                viscosity: true
-
+                viscosity: false
         boundary_conditions:
-            x_min: reflective
+            x_min: outlet
             x_max: outlet
             y_min: reflective
             y_max: reflective
-
-        chemistry:
-            enabled: true
-            z_freq: 5.0e9
-            activation_energy: 2.0e4
-            gas_constant: 1.0
-            heat_release: 0.0484
-
         initial_condition:
             type: structured_regions
             interfaces:
-                x: [1.0]
+                x: [0.1]
                 y: []
                 z: []
-
             rho: [2.4533333333, 1.84]
-            u:   [0.22, 0.0]
-            v:   [0.0, 0.0]
-            w:   [0.0, 0.0]
-            p:   [0.356224, 1.0e-6]
+            u: [0.22, 0.0]
+            v: [0.0, 0.0]
+            w: [0.0, 0.0]
+            p: [0.356224, 1.0e-6]
             reactant_mass_fraction: [0.0, 1.0]
-
         stopping:
-            t_end: 50
-
+            t_end: 50.0
+            max_steps: 0
         output:
             every_steps: 10
 
-
     corner:
         mesh:
+            type: structured
             dim: 2
             cells:
                 x: 140
@@ -437,43 +548,269 @@ cases:
                 x: 9.0
                 y: 4.0
                 z: 1.0
-
         physics:
-            eos: ideal_gas
+            eos: hugoniot_gruneisen
             parameters:
-                gamma: 3.0
-
+                hg_rho0: 1.84
+                hg_C: 0.2
+                hg_S: 2.0
+                hg_gamma_s: 1.0
+                hg_c_v: 1.0
+        chemistry:
+            enabled: true
+            z_freq: 5.0e9
+            activation_energy: 2.0e4
+            gas_constant: 1.0
+            heat_release: 0.0484
+        numerics:
+            method: mader
+            parameters:
+                time_integrator: mader
+                reconstruction: p0
+                riemann_solver: exact
+                cfl: 0.5
+                viscosity: false
         boundary_conditions:
             x_min: reflective
             x_max: outlet
             y_min: reflective
             y_max: reflective
+        immersed_boundaries:
+            enabled: true
+            objects:
+                - type: rectangle
+                  cx: 1.0
+                  cy: 1.5
+                  size_x: 2.0
+                  size_y: 3.0
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [0.05]
+                y: []
+                z: []
+            rho: [2.4533333333, 1.84]
+            u: [0.0, 0.0]
+            v: [0.0, 0.0]
+            w: [0.0, 0.0]
+            p: [0.35648, 1.0e-8]
+            reactant_mass_fraction: [0.0, 1.0]
+        stopping:
+            t_end: 1000.0
+            max_steps: 0
+        output:
+            every_steps: 10
+
+    cavity:
+        mesh:
+            type: structured
+            dim: 2
+            cells:
+                x: 31
+                y: 31
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+
+        numerics:
+            method: pimple
+            parameters:
+                cfl: 0.5
+                n_pressure_correctors: 2
+                n_outer_correctors: 2
+                alpha_u: 1.0
+                alpha_p: 1.0
+                kinematic_viscosity: 0.01
+
+        boundary_conditions:
+            x_min: wall
+            x_max: wall
+            y_min: wall
+            y_max: inlet
+
+            states:
+                y_max:
+                    rho: 1.0
+                    u: 1.0
+                    v: 0.0
+                    w: 0.0
+                    p: 0.0
+
+        immersed_boundaries:
+            enabled: false
+            objects: [ ]
+
+        parallel:
+            mpi: false
 
         initial_condition:
             type: structured_regions
             interfaces:
-                x: [ 0.05 ]
+                x: [ ]
                 y: [ ]
                 z: [ ]
-            rho: [ 2.4533333333, 1.84 ]
-            u: [ 0.0, 0.0 ]
-            v: [ 0.0, 0.0 ]
-            w: [ 0.0, 0.0 ]
-            p: [ 0.35648, 1.0e-8 ]
-            reactant_mass_fraction: [ 0.0, 1.0 ]
+            rho: [ 1.0 ]
+            u: [ 0.0 ]
+            v: [ 0.0 ]
+            w: [ 0.0 ]
+            p: [ 0.0 ]
+
+        stopping:
+            t_end: 15.0
+            max_steps: 0
+
+        logging:
+            every_steps: 10
+            every_time: 0.0
+
+        output:
+            format: vtk
+            directory: ../result
+            every_steps: 20
+            every_time: 0.0
+
+
+    taylor_green:
+        mesh:
+            type: structured
+            dim: 2
+            cells:
+                x: 64
+                y: 64
+                z: 1
+            domain:
+                x: 1.0
+                y: 1.0
+                z: 1.0
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+
+        numerics:
+            method: pimple
+            parameters:
+                cfl: 0.5
+                n_pressure_correctors: 2
+                n_outer_correctors: 2
+                alpha_u: 1.0
+                alpha_p: 1.0
+                kinematic_viscosity: 0.01
+
+        boundary_conditions:
+            x_min: periodic
+            x_max: periodic
+            y_min: periodic
+            y_max: periodic
+
+        immersed_boundaries:
+            enabled: false
+            objects: [ ]
+
+        parallel:
+            mpi: false
+
+        initial_condition:
+            type: taylor_green
+
+        stopping:
+            t_end: 1.0
+            max_steps: 0
+
+        logging:
+            every_steps: 20
+            every_time: 0.0
+
+        output:
+            format: vtk
+            directory: ../result
+            every_steps: 20
+            every_time: 0.0
+
+    step_inlet:
+        mesh:
+            type: structured
+            dim: 2
+            cells:
+                x: 600
+                y: 40
+                z: 1
+            domain:
+                x: 30.0
+                y: 1.0
+                z: 1.0
+
+        physics:
+            eos: ideal_gas
+            parameters:
+                gamma: 1.4
+
+        numerics:
+            method: piso
+            parameters:
+                cfl: 0.5
+                n_pressure_correctors: 1
+                n_outer_correctors: 1
+                alpha_u: 0.7
+                alpha_p: 0.3
+                kinematic_viscosity: 0.005
+
+        boundary_conditions:
+            x_min: inlet
+            x_max: outlet
+            y_min: wall
+            y_max: wall
+
+            states:
+                x_min:
+                    rho: 1.0
+                    u: 1.0
+                    v: 0.0
+                    w: 0.0
+                    p: 0.0
 
         immersed_boundaries:
             enabled: true
             objects:
                 - type: rectangle
-                  cx: 1
-                  cy: 1.5
-                  size_x: 2
-                  size_y: 3
+                  cx: 0
+                  cy: 0
+                  size_x: 5
+                  size_y: 1
 
         parallel:
             mpi: true
 
+        initial_condition:
+            type: structured_regions
+            interfaces:
+                x: [ ]
+                y: [ ]
+                z: [ ]
+            rho: [ 1.0 ]
+            u: [ 0.0 ]
+            v: [ 0.0 ]
+            w: [ 0.0 ]
+            p: [ 0.0 ]
+
         stopping:
-            t_end: 1000.0
+            t_end: 200.0
             max_steps: 0
+
+        logging:
+            every_steps: 20
+            every_time: 0.0
+
+        output:
+            format: vtk
+            directory: ../result
+            every_steps: 1
+            every_time: 0.0

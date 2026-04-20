@@ -9,6 +9,7 @@
 
 class DataLayer;
 class Mesh;
+class PressureVelocityState;
 
 /**
  * @class VTKWriter
@@ -16,7 +17,7 @@ class Mesh;
  */
 class VTKWriter : public StepWriter {
 public:
-    VTKWriter(const std::string& output_dir, bool is_analytical, int rank = 0, int size = 1);
+    VTKWriter(const std::string& output_dir, std::shared_ptr<EOS> eos, bool is_analytical, int rank = 0, int size = 1);
     ~VTKWriter();
 
     void Write(const DataLayer& layer,
@@ -33,6 +34,12 @@ public:
                std::size_t step,
                double time) const override;
 
+    void Write(const PressureVelocityState& state,
+               const Mesh& mesh,
+               const Settings& settings,
+               std::size_t step,
+               double time) const override;
+
     [[nodiscard]] auto RequiresFinalization() const -> bool override;
     void Finalize(const Settings& settings) override;
 
@@ -42,6 +49,7 @@ private:
     bool is_analytical_;
     int rank_ = 0;
     int size_ = 1;
+    std::shared_ptr<EOS> eos_;
 
     class Impl;
     std::unique_ptr<Impl> pimpl_;
@@ -50,6 +58,12 @@ private:
         -> std::string;
 
     void Write3D(const DataLayer& layer,
+                 const Mesh& mesh,
+                 const Settings& settings,
+                 std::size_t step,
+                 double time) const;
+
+    void Write3D(const PressureVelocityState& state,
                  const Mesh& mesh,
                  const Settings& settings,
                  std::size_t step,

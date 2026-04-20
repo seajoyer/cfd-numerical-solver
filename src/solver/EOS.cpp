@@ -127,8 +127,6 @@ EosCellOutput EOS::EvaluateHugoniotGruneisen(const EosCellInput& in) const {
     double P_H = 0.0;
     double I_H = 0.0;
 
-    // Если V >= V0 (разрежение), Hugoniot part usually should not dominate.
-    // Для простого рабочего варианта оставляем P_H = 0, I_H = 0 в разрежении.
     if (dV > 0.0) {
         P_H = hugoniot_gruneisen_params_.C * hugoniot_gruneisen_params_.C * dV
             / (denom_safe * denom_safe);
@@ -144,8 +142,6 @@ EosCellOutput EOS::EvaluateHugoniotGruneisen(const EosCellInput& in) const {
         + (I - hugoniot_gruneisen_params_.I_ref) / hugoniot_gruneisen_params_.c_v;
     T = std::max(T, hugoniot_gruneisen_params_.T_floor);
 
-    // Approximate sound speed by finite derivative of P(rho) at fixed I.
-    // Это не строгая формула, но полезно для CFL.
     const double drho = std::max(1e-6 * rho, 1e-8);
     const double rho_p = rho + drho;
     const double V_p = 1.0 / rho_p;
@@ -174,4 +170,50 @@ EosCellOutput EOS::EvaluateHugoniotGruneisen(const EosCellInput& in) const {
     out.T = T;
     out.c = c;
     return out;
+}
+
+
+double EOS::ComputeInternalEnergy(const double rho, const double P, const double lambda) const {
+    (void)lambda;
+    switch (type_) {
+    case EosType::IdealGas:
+        return ComputeInternalEnergyIdealGas(rho, P);
+
+    case EosType::HugoniotGruneisen:
+        return ComputeInternalEnergyHugoniotGruneisen(rho, P);
+
+    case EosType::Jwl:
+        throw std::logic_error("EOS::ComputeInternalEnergy: JWL is not implemented yet");
+    }
+
+    throw std::logic_error("EOS::ComputeInternalEnergy: unknown EOS type");
+}
+
+double EOS::ComputeInternalEnergyIdealGas(const double rho, const double P) const {
+    const double safe_rho = std::max(rho, ideal_gas_params_.rho_floor);
+    const double I = P / ((ideal_gas_params_.gamma - 1.0) * safe_rho);
+    return std::max(I, 0.0);
+}
+
+double EOS::ComputeInternalEnergyHugoniotGruneisen(const double rho, const double P) const {
+    const double safe_rho = std::max(rho, hugoniot_gruneisen_params_.rho_floor);
+    const double V = 1.0 / safe_rho;
+    const double V0 = 1.0 / hugoniot_gruneisen_params_.rho0;
+    const double dV = V0 - V;
+
+    const double denom = V0 - hugoniot_gruneisen_params_.S * dV;
+    const double denom_safe = (std::abs(denom) > 1e-14) ? denom : (denom >= 0.0 ? 1e-14 : -1e-14);
+
+    double P_H = 0.0;
+    double I_H = 0.0;
+
+    if (dV > 0.0) {
+        P_H = hugoniot_gruneisen_params_.C * hugoniot_gruneisen_params_.C * dV / (denom_safe * denom_safe);
+        I_H = 0.5 * P_H * dV;
+    }
+
+    const double gamma_s = std::max(hugoniot_gruneisen_params_.gamma_s, 1e-6); // Защита от деления на 0
+    const double I = I_H + (P - P_H) * V / gamma_s;
+
+    return std::max(I, 0.0);
 }

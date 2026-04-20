@@ -23,6 +23,9 @@ public:
     void BuildBoundaryState(const PrimitiveCell& fluid_state,
                             const ImmersedFaceInfo& face_info,
                             PrimitiveCell& boundary_state) const override;
+
+private:
+    double k_eps = 1e-14;
 };
 
 #endif  // SLIPWALLINTERNALBOUNDARY_HPP

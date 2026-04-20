@@ -14,12 +14,12 @@
 namespace {
     constexpr double k_eps = 1e-14;
 
-    inline double GetRhoFloor(const EOS& eos) {
-        if (eos.GetType() == EosType::IdealGas) {
-            return eos.GetIdealGasParameters().rho_floor;
+    inline double GetRhoFloor(std::shared_ptr<EOS> eos) {
+        if (eos->GetType() == EosType::IdealGas) {
+            return eos->GetIdealGasParameters().rho_floor;
         }
-        if (eos.GetType() == EosType::HugoniotGruneisen) {
-            return eos.GetHugoniotGruneisenParameters().rho_floor;
+        if (eos->GetType() == EosType::HugoniotGruneisen) {
+            return eos->GetHugoniotGruneisenParameters().rho_floor;
         }
         return 1e-14;
     }
@@ -180,11 +180,11 @@ MaderSpatialOperator::MaderSpatialOperator(const Settings& settings, std::shared
     SetChemistryParameters(chem);
 }
 
-void MaderSpatialOperator::SetEos(const EOS& eos) {
+void MaderSpatialOperator::SetEos(std::shared_ptr<EOS> eos) {
     eos_ = eos;
 }
 
-const EOS& MaderSpatialOperator::GetEos() const {
+std::shared_ptr<EOS> MaderSpatialOperator::GetEos() const {
     return eos_;
 }
 
@@ -375,7 +375,7 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                     .I = I_cell,
                     .lambda = lambda_old
                 };
-                const EosCellOutput eos_out_1 = eos_.Evaluate(eos_in_1);
+                const EosCellOutput eos_out_1 = eos_->Evaluate(eos_in_1);
 
                 double lambda_new = lambda_old;
 
@@ -412,7 +412,7 @@ void MaderSpatialOperator::ComputeCellCenteredThermodynamics(DataLayer& layer,
                     .I = I_cell,
                     .lambda = lambda_new
                 };
-                const EosCellOutput eos_out_2 = eos_.Evaluate(eos_in_2);
+                const EosCellOutput eos_out_2 = eos_->Evaluate(eos_in_2);
 
                 W(Workspace::k_rho, i, j, k) = rho;
                 W(Workspace::k_u, i, j, k) = u;
@@ -900,7 +900,7 @@ void MaderSpatialOperator::ApplyTransportAccumulators(DataLayer& layer,
                     .I = I_new,
                     .lambda = lambda_new
                 };
-                const EosCellOutput eos_out = eos_.Evaluate(eos_in);
+                const EosCellOutput eos_out = eos_->Evaluate(eos_in);
 
                 W(Workspace::k_rho, i, j, k) = rho_new;
                 W(Workspace::k_u, i, j, k) = u_new;
@@ -975,7 +975,7 @@ void MaderSpatialOperator::ReconstructCellFieldsFromConservative(DataLayer& laye
                     .I = I_cell,
                     .lambda = lambda
                 };
-                const EosCellOutput eos_out = eos_.Evaluate(eos_in);
+                const EosCellOutput eos_out = eos_->Evaluate(eos_in);
 
                 W(Workspace::k_rho, i, j, k) = rho;
                 W(Workspace::k_u, i, j, k) = u;

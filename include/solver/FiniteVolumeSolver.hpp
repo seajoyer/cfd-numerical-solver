@@ -16,6 +16,7 @@
 #include "solver/TimeStepCalculator.hpp"
 #include "spatial/SpatialOperator.hpp"
 #include "time/TimeIntegrator.hpp"
+#include "solver/EOS.hpp"
 
 class FiniteVolumeSolver final : public Solver {
 public:
@@ -23,7 +24,8 @@ public:
                        Mesh mesh,
                        std::shared_ptr<SpatialOperator> spatial_operator,
                        std::shared_ptr<TimeIntegrator> time_integrator,
-                       const MPIContext* mpi_context);
+                       const MPIContext* mpi_context,
+                       std::shared_ptr<EOS> eos);
 
     auto Step(DataLayer& layer, double& t_cur) -> double override;
     void SetCfl(double cfl) override;
@@ -40,6 +42,8 @@ private:
     std::unique_ptr<SolutionFilter> diffusion_;
 
     const MPIContext* mpi_context_ = nullptr;
+
+    std::shared_ptr<EOS> eos_;
 
     Workspace workspace_;
 

@@ -30,7 +30,7 @@
  * by calling Finalize() at the end of simulation.
  */
 class WriterFactory {
-   public:
+public:
     /**
      * @brief Creates a StepWriter instance for the specified output format.
      *
@@ -41,12 +41,12 @@ class WriterFactory {
      * @return Unique pointer to the created StepWriter.
      * @throws std::runtime_error If the output format is unrecognized.
      */
-    static auto Create(const std::string& output_format, 
+    static auto Create(const std::string& output_format,
                        const std::string& output_dir,
+                       std::shared_ptr<EOS> eos,
                        bool is_analytical = false,
                        int rank = 0,
-                       int size = 1)
-        -> std::unique_ptr<StepWriter>;
+                       int size = 1) -> std::unique_ptr<StepWriter>;
 
     /**
      * @brief Creates multiple StepWriter instances for the specified output formats.
@@ -59,10 +59,10 @@ class WriterFactory {
      */
     static auto CreateMultiple(const std::vector<std::string>& output_formats,
                                const std::string& output_dir,
+                               std::shared_ptr<EOS> eos,
                                bool is_analytical = false,
                                int rank = 0,
-                               int size = 1)
-        -> std::vector<std::unique_ptr<StepWriter>>;
+                               int size = 1) -> std::vector<std::unique_ptr<StepWriter>>;
 
     /**
      * @brief Check if a format is supported

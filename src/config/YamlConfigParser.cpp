@@ -144,6 +144,11 @@ void YamlConfigParser::ParseCases(
         if (initial_condition_type == "structured_regions") {
             ParseStructuredInitialCondition(ic_node, ic, effective_settings);
         }
+        else if (initial_condition_type == "taylor_green") {
+            // No region arrays are needed here.
+            // Taylor-Green will be initialized later directly into
+            // PressureVelocityState inside Simulation.
+        }
         else if (initial_condition_type == "region_markers") {
             throw std::runtime_error("initial_condition.type=region_markers is not implemented yet");
         }
@@ -192,10 +197,13 @@ void YamlConfigParser::ParsePhysics(const YAML::Node& node, Settings& settings) 
     if (node["parameters"]) {
         const YAML::Node parameters = node["parameters"];
         AssignIfPresent(parameters, "gamma", settings.gamma);
+        AssignIfPresent(parameters, "Q_user", settings.Q_user);
 
-        if (parameters["Q_user"]) {
-            settings.Q_user = parameters["Q_user"].as<double>();
-        }
+        AssignIfPresent(parameters, "hg_rho0", settings.hg_rho0);
+        AssignIfPresent(parameters, "hg_C", settings.hg_C);
+        AssignIfPresent(parameters, "hg_S", settings.hg_S);
+        AssignIfPresent(parameters, "hg_gamma_s", settings.hg_gamma_s);
+        AssignIfPresent(parameters, "hg_c_v", settings.hg_c_v);
     }
 }
 
@@ -236,6 +244,13 @@ void YamlConfigParser::ParseNumerics(const YAML::Node& node, Settings& settings)
     AssignIfPresent(parameters, "vacuum_fix_limiter", settings.vacuum_fix_limiter);
     AssignIfPresent(parameters, "viscosity", settings.viscosity);
     AssignIfPresent(parameters, "diffusion", settings.diffusion);
+
+    // pressure-velocity solvers
+    AssignIfPresent(parameters, "n_pressure_correctors", settings.n_pressure_correctors);
+    AssignIfPresent(parameters, "n_outer_correctors", settings.n_outer_correctors);
+    AssignIfPresent(parameters, "alpha_u", settings.alpha_u);
+    AssignIfPresent(parameters, "alpha_p", settings.alpha_p);
+    AssignIfPresent(parameters, "kinematic_viscosity", settings.kinematic_viscosity);
 }
 
 void YamlConfigParser::ParseBoundaryConditions(const YAML::Node& node, Settings& settings) {
@@ -344,10 +359,13 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
         if (physics_node["parameters"]) {
             const YAML::Node parameters = physics_node["parameters"];
             AssignOptionalIfPresent(parameters, "gamma", overrides.gamma);
-
-            if (parameters["reactant_mass_fraction"]) {
-                overrides.Q_user = parameters["reactant_mass_fraction"].as<double>();
-            }
+            AssignOptionalIfPresent(parameters, "Q_user", overrides.Q_user);
+            
+            AssignOptionalIfPresent(parameters, "hg_rho0", overrides.hg_rho0);
+            AssignOptionalIfPresent(parameters, "hg_C", overrides.hg_C);
+            AssignOptionalIfPresent(parameters, "hg_S", overrides.hg_S);
+            AssignOptionalIfPresent(parameters, "hg_gamma_s", overrides.hg_gamma_s);
+            AssignOptionalIfPresent(parameters, "hg_c_v", overrides.hg_c_v);
         }
     }
 
@@ -388,6 +406,13 @@ void YamlConfigParser::ApplyCaseOverrides(const YAML::Node& case_node, InitialCo
             AssignOptionalIfPresent(parameters, "vacuum_fix_limiter", overrides.vacuum_fix_limiter);
             AssignOptionalIfPresent(parameters, "viscosity", overrides.viscosity);
             AssignOptionalIfPresent(parameters, "diffusion", overrides.diffusion);
+
+            // pressure-velocity solvers
+            AssignOptionalIfPresent(parameters, "n_pressure_correctors", overrides.n_pressure_correctors);
+            AssignOptionalIfPresent(parameters, "n_outer_correctors", overrides.n_outer_correctors);
+            AssignOptionalIfPresent(parameters, "alpha_u", overrides.alpha_u);
+            AssignOptionalIfPresent(parameters, "alpha_p", overrides.alpha_p);
+            AssignOptionalIfPresent(parameters, "kinematic_viscosity", overrides.kinematic_viscosity);
         }
     }
 

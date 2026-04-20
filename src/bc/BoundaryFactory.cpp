@@ -55,3 +55,24 @@ auto BoundaryFactory::Create(const std::string& boundary_type,
 
     return Create(type);
 }
+
+auto BoundaryFactory::Create(const std::string& boundary_type,
+                             const BoundaryStateSettings& primitive_state,
+                             const Settings& settings,
+                             const int mpi_size) -> std::shared_ptr<BoundaryCondition> {
+    const std::string type = utils::ToLower(boundary_type);
+    const bool multi_rank_mpi = settings.mpi_enabled && mpi_size > 1;
+
+    if (type == "inlet") {
+        return std::make_shared<InletBoundary>(primitive_state);
+    }
+
+    if (type == "periodic") {
+        if (multi_rank_mpi) {
+            return nullptr;
+        }
+        return std::make_shared<PeriodicBoundary>();
+    }
+
+    return Create(type);
+}

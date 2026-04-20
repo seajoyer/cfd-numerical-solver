@@ -18,6 +18,8 @@ find_package(MPI REQUIRED)
 include(cmake/Dependencies.cmake)
 include(cmake/Documentation.cmake)
 
+find_package(Eigen3 REQUIRED)
+
 # Explicitly list your sources
 add_executable(${NAME}
     src/main.cpp
@@ -27,11 +29,20 @@ add_executable(${NAME}
 
     src/solver/SolverFactory.cpp
     src/solver/FiniteVolumeSolver.cpp
+    src/solver/PressureVelocitySolver.cpp
     src/solver/EOS.cpp
 #    src/solver/AnalyticalSolver.cpp
     include/solver/Solver.hpp
+    include/solver/PressureVelocitySolver.hpp
     src/solver/TimeStepCalculator.cpp
     src/solver/PositivityLimiter.cpp
+
+    src/pressure_velocity/SimpleSolver.cpp
+    src/pressure_velocity/PisoSolver.cpp
+    src/pressure_velocity/PimpleSolver.cpp
+    include/pressure_velocity/SimpleSolver.hpp
+    include/pressure_velocity/PisoSolver.hpp
+    include/pressure_velocity/PimpleSolver.hpp
 
     src/time/ForwardEulerTimeIntegrator.cpp
     src/time/MacCormackTimeIntegrator.cpp
@@ -79,6 +90,8 @@ add_executable(${NAME}
     src/data/DataLayer.cpp
     src/data/Variables.cpp
     src/data/Workspace.cpp
+    src/data/PressureVelocityState.cpp
+    src/data/PressureVelocityWorkspace.cpp
 
     src/data/Mesh.cpp
     include/data/geometry/GeometryPrimitive.hpp
@@ -109,21 +122,23 @@ add_executable(${NAME}
 
     include/bc/InternalBoundaryCondition.hpp
     src/bc/SlipWallInternalBoundary.cpp
+    src/bc/WallInternalBoundary.cpp
 
     src/utils/StringUtils.cpp
 )
 
 target_include_directories(${NAME}
-    PRIVATE
+        PRIVATE
         ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/include/external
 )
 
 target_link_libraries(${NAME}
-    PRIVATE
+        PRIVATE
         xtensor
         yaml-cpp::yaml-cpp
         cxxopts::cxxopts
+        Eigen3::Eigen
 
         VTK::CommonCore
         VTK::CommonDataModel

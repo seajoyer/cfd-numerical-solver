@@ -2,6 +2,8 @@
 #define INTERNALBOUNDARYCONDITION_HPP
 
 #include "data/Mesh.hpp"
+#include "data/PressureVelocityState.hpp"
+#include "data/PressureVelocityWorkspace.hpp"
 #include "data/Variables.hpp"
 
 /**
@@ -9,31 +11,53 @@
  * @brief Abstract base class for immersed internal boundary treatment.
  *
  * Internal boundary conditions are applied on fluid-solid interfaces inside the domain.
- * Unlike external boundary conditions, they are not tied to global domain sides and do
- * not fill outer ghost layers. Instead, they construct a boundary-compatible state for
- * an immersed face adjacent to a fluid cell.
  *
- * Typical usage:
- *  - Spatial operator detects an immersed face for a fluid cell.
- *  - Fluid-side primitive state is known.
- *  - InternalBoundaryCondition builds a mirrored / wall-compatible state on the solid side.
- *  - Riemann solver uses (fluid_state, boundary_state) at the immersed face.
+ * Two supported usages:
+ *  - compressible / Riemann-based branch via BuildBoundaryState(...)
+ *  - pressure-velocity branch via ApplyPressureVelocity... hooks
  */
 class InternalBoundaryCondition {
 public:
-    /** @brief Virtual destructor for safe polymorphic deletion. */
     virtual ~InternalBoundaryCondition() = default;
 
     /**
      * @brief Build boundary-compatible primitive state at an immersed face.
-     *
-     * @param fluid_state Primitive state in the adjacent fluid cell.
-     * @param face_info Immersed-face geometry data.
-     * @param boundary_state Output primitive state representing the solid-side boundary treatment.
      */
     virtual void BuildBoundaryState(const PrimitiveCell& fluid_state,
                                     const ImmersedFaceInfo& face_info,
                                     PrimitiveCell& boundary_state) const = 0;
+
+    /**
+     * @brief Apply immersed-face velocity constraints for pressure-velocity solvers.
+     *
+     * Default implementation does nothing.
+     */
+    virtual void ApplyPressureVelocityVelocityConstraints(PressureVelocityState& state,
+                                                          PressureVelocityWorkspace& workspace,
+                                                          const Mesh& mesh) const {
+        (void)state;
+        (void)workspace;
+        (void)mesh;
+    }
+
+    /**
+     * @brief Apply immersed-wall momentum coefficient corrections for pressure-velocity solvers.
+     *
+     * Default implementation does nothing.
+     */
+    virtual void ApplyPressureVelocityMomentumCorrections(PressureVelocityState& state,
+                                                          PressureVelocityWorkspace& workspace,
+                                                          const Mesh& mesh,
+                                                          bool steady,
+                                                          double dt,
+                                                          double nu) const {
+        (void)state;
+        (void)workspace;
+        (void)mesh;
+        (void)steady;
+        (void)dt;
+        (void)nu;
+    }
 };
 
 #endif  // INTERNALBOUNDARYCONDITION_HPP

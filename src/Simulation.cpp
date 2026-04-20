@@ -16,6 +16,7 @@
 #include "output/WriterFactory.hpp"
 #include "solver/SolverFactory.hpp"
 #include "utils/StringUtils.hpp"
+#include "solver/PressureVelocitySolver.hpp"
 
 Simulation::Simulation(Settings settings, const InitialConditions& initial_conditions)
     : settings_(std::move(settings)),
@@ -23,24 +24,31 @@ Simulation::Simulation(Settings settings, const InitialConditions& initial_condi
       boundary_manager_(std::make_shared<BoundaryManager>(nullptr)) {}
 
 auto Simulation::CreateSolver() -> std::unique_ptr<Solver> {
-    return SolverFactory::Create(settings_, *mesh_, boundary_manager_, mpi_context_.get());
+    return SolverFactory::Create(settings_, *mesh_, boundary_manager_, mpi_context_.get(), eos_);
 }
 
-auto Simulation::PrimitiveToFarfieldConservative(const BoundaryStateSettings& s, double gamma) -> FarfieldConservative {
+auto Simulation::PrimitiveToFarfieldConservative(const BoundaryStateSettings& s) -> FarfieldConservative {
     FarfieldConservative out;
     out.rho = s.rho;
     out.rhoU = s.rho * s.u;
     out.rhoV = s.rho * s.v;
     out.rhoW = s.rho * s.w;
 
-    const double kinetic = 0.5 * s.rho * (s.u * s.u + s.v * s.v + s.w * s.w);
-    out.E = s.p / (gamma - 1.0) + kinetic;
+    const double kinetic = 0.5 * (s.u * s.u + s.v * s.v + s.w * s.w);
+
+    const double I = eos_->ComputeInternalEnergy(s.rho, s.p, 1.0);
+
+    out.E = s.rho * (I + kinetic);
     return out;
+}
+
+auto Simulation::IsPressureVelocitySolver() const -> bool {
+    const std::string solver = utils::ToLower(settings_.solver);
+    return solver == "simple" || solver == "piso" || solver == "pimple";
 }
 
 void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
     const int dim = mesh.GetDim();
-    const double gamma = settings_.gamma;
 
     const int i0 = mesh.GetCoreStartX();
     const int i1 = mesh.GetCoreEndExclusiveX();
@@ -55,12 +63,15 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
                            : nullptr;
 
     auto write_conservative = [&](int i, int j, int k,
-                                  double rho, double u, double v, double w, double P) {
+                                  double rho, double u, double v, double w, double P, double lambda_val) {
         const double rhoU = rho * u;
         const double rhoV = rho * v;
         const double rhoW = rho * w;
-        const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
-        const double E = P / (gamma - 1.0) + kinetic;
+
+        const double kinetic_specific = 0.5 * (u * u + v * v + w * w);
+
+        const double I = eos_->ComputeInternalEnergy(rho, P, lambda_val);
+        const double E = rho * (I + kinetic_specific);
 
         U(DataLayer::k_rho, i, j, k) = rho;
         U(DataLayer::k_rhoU, i, j, k) = rhoU;
@@ -146,12 +157,13 @@ void Simulation::ApplyInitialConditions(DataLayer& layer, Mesh& mesh) {
                     w = 0.0;
                 }
 
-                write_conservative(i, j, k, rho, u, v, w, P);
-
+                double lambda_val = 1.0;
                 if (lambda_ptr) {
-                    const double W = initial_conditions_.reactant_mass_fraction->At(ix, iy, iz);
-                    (*lambda_ptr)(i, j, k) = W;
+                    lambda_val = initial_conditions_.reactant_mass_fraction->At(ix, iy, iz);
+                    (*lambda_ptr)(i, j, k) = lambda_val;
                 }
+
+                write_conservative(i, j, k, rho, u, v, w, P, lambda_val);
             }
         }
     }
@@ -174,6 +186,12 @@ void Simulation::InitializeParallel() {
 }
 
 auto Simulation::DeterminePadding() const -> int {
+    const std::string solver = utils::ToLower(settings_.solver);
+
+    if (solver == "simple" || solver == "piso" || solver == "pimple") {
+        return 1;
+    }
+
     int padding = 1;
 
     const std::string reconstruction = utils::ToLower(settings_.reconstruction);
@@ -242,6 +260,143 @@ void Simulation::ValidateConfiguration() const {
         throw std::runtime_error("Unknown solver type: " + settings_.solver);
     }
 
+    for (const auto& format : settings_.output_formats) {
+        if (!IsKnownOutputFormat(format)) {
+            throw std::runtime_error("Unsupported output format: " + format);
+        }
+    }
+
+    if (settings_.immersed_enabled) {
+        for (const auto& object : settings_.immersed_objects) {
+            const std::string type = utils::ToLower(object.type);
+
+            if (type != "circle" && type != "rectangle") {
+                throw std::runtime_error("Unknown immersed object type: " + object.type);
+            }
+
+            if (settings_.dim == 1) {
+                throw std::runtime_error("Immersed objects are not supported for dim = 1");
+            }
+
+            if (type == "circle") {
+                if (object.radius <= 0.0) {
+                    throw std::runtime_error("Circle immersed object must have positive radius");
+                }
+            }
+
+            if (type == "rectangle") {
+                if (object.size_x <= 0.0 || object.size_y <= 0.0) {
+                    throw std::runtime_error("Rectangle immersed object must have positive size_x and size_y");
+                }
+            }
+        }
+    }
+
+    const std::string solver = utils::ToLower(settings_.solver);
+    const bool is_pressure_velocity =
+        solver == "simple" || solver == "piso" || solver == "pimple";
+
+    auto validate_periodic_pair = [](const std::string& left_name,
+                                     const std::string& right_name,
+                                     const std::string& axis_name) -> void {
+        const bool left_periodic = utils::ToLower(left_name) == "periodic";
+        const bool right_periodic = utils::ToLower(right_name) == "periodic";
+
+        if (left_periodic != right_periodic) {
+            throw std::runtime_error(
+                "Periodic boundary on axis " + axis_name +
+                " must be specified on both sides"
+            );
+        }
+    };
+
+    auto require_boundary_state = [&](const std::string& bc_name,
+                                      const std::optional<BoundaryStateSettings>& state,
+                                      const std::string& side_name) {
+        const std::string bc = utils::ToLower(bc_name);
+        if ((bc == "inlet" || bc == "free_stream") && !state.has_value()) {
+            throw std::runtime_error(
+                "Boundary '" + side_name + "' uses " + bc +
+                " but no boundary state is provided in boundary_conditions.states"
+            );
+        }
+    };
+
+    if (is_pressure_velocity) {
+        if (settings_.dim != 2) {
+            throw std::runtime_error("simple/piso/pimple currently support only dim = 2");
+        }
+
+        if (settings_.density <= 0.0) {
+            throw std::runtime_error("density must be positive for pressure-velocity solvers");
+        }
+
+        if (settings_.kinematic_viscosity <= 0.0) {
+            throw std::runtime_error("kinematic_viscosity must be positive for pressure-velocity solvers");
+        }
+
+        if (settings_.n_pressure_correctors <= 0) {
+            throw std::runtime_error("n_pressure_correctors must be > 0");
+        }
+
+        if (settings_.pressure_max_iterations <= 0) {
+            throw std::runtime_error("pressure_max_iterations must be > 0");
+        }
+
+        if (settings_.momentum_max_iterations <= 0) {
+            throw std::runtime_error("momentum_max_iterations must be > 0");
+        }
+
+        if (settings_.pressure_tolerance <= 0.0) {
+            throw std::runtime_error("pressure_tolerance must be > 0");
+        }
+
+        if (settings_.steady_tolerance <= 0.0) {
+            throw std::runtime_error("steady_tolerance must be > 0");
+        }
+
+        if (solver == "simple") {
+            if (settings_.velocity_relaxation <= 0.0 || settings_.velocity_relaxation > 1.0) {
+                throw std::runtime_error("velocity_relaxation for SIMPLE must be in (0, 1]");
+            }
+            if (settings_.pressure_relaxation <= 0.0 || settings_.pressure_relaxation > 1.0) {
+                throw std::runtime_error("pressure_relaxation for SIMPLE must be in (0, 1]");
+            }
+        }
+
+        if (solver == "pimple") {
+            if (settings_.n_outer_correctors <= 0) {
+                throw std::runtime_error("n_outer_correctors must be > 0 for PIMPLE");
+            }
+            if (settings_.velocity_relaxation <= 0.0 || settings_.velocity_relaxation > 1.0) {
+                throw std::runtime_error("velocity_relaxation for PIMPLE must be in (0, 1]");
+            }
+            if (settings_.pressure_relaxation <= 0.0 || settings_.pressure_relaxation > 1.0) {
+                throw std::runtime_error("pressure_relaxation for PIMPLE must be in (0, 1]");
+            }
+        }
+
+        if (!IsKnownBoundaryCondition(settings_.left_boundary) ||
+            !IsKnownBoundaryCondition(settings_.right_boundary)) {
+            throw std::runtime_error("Unknown x-boundary condition");
+        }
+
+        if (!IsKnownBoundaryCondition(settings_.bottom_boundary) ||
+            !IsKnownBoundaryCondition(settings_.top_boundary)) {
+            throw std::runtime_error("Unknown y-boundary condition");
+        }
+
+        validate_periodic_pair(settings_.left_boundary, settings_.right_boundary, "X");
+        validate_periodic_pair(settings_.bottom_boundary, settings_.top_boundary, "Y");
+
+        require_boundary_state(settings_.left_boundary, settings_.boundary_states.x_min, "x_min");
+        require_boundary_state(settings_.right_boundary, settings_.boundary_states.x_max, "x_max");
+        require_boundary_state(settings_.bottom_boundary, settings_.boundary_states.y_min, "y_min");
+        require_boundary_state(settings_.top_boundary, settings_.boundary_states.y_max, "y_max");
+
+        return;
+    }
+
     if (!IsKnownTimeIntegrator(settings_.time_integrator)) {
         throw std::runtime_error("Unknown time integrator type: " + settings_.time_integrator);
     }
@@ -273,13 +428,6 @@ void Simulation::ValidateConfiguration() const {
         }
     }
 
-    for (const auto& format : settings_.output_formats) {
-        if (!IsKnownOutputFormat(format)) {
-            throw std::runtime_error("Unsupported output format: " + format);
-        }
-    }
-
-    const std::string solver = utils::ToLower(settings_.solver);
     const std::string reconstruction = utils::ToLower(settings_.reconstruction);
     const std::string time_integrator = utils::ToLower(settings_.time_integrator);
 
@@ -305,43 +453,6 @@ void Simulation::ValidateConfiguration() const {
         throw std::runtime_error("Mader solver requires initial_condition.reactant_mass_fraction");
     }
 
-    if (settings_.immersed_enabled) {
-        for (const auto& object : settings_.immersed_objects) {
-            const std::string type = utils::ToLower(object.type);
-
-            if (type != "circle" && type != "rectangle") {
-                throw std::runtime_error("Unknown immersed object type: " + object.type);
-            }
-
-            if (settings_.dim == 1) {
-                throw std::runtime_error("Immersed objects are not supported for dim = 1");
-            }
-
-            if (type == "circle") {
-                if (object.radius <= 0.0) {
-                    throw std::runtime_error("Circle immersed object must have positive radius");
-                }
-            }
-
-            if (type == "rectangle") {
-                if (object.size_x <= 0.0 || object.size_y <= 0.0) {
-                    throw std::runtime_error("Rectangle immersed object must have positive size_x and size_y");
-                }
-            }
-        }
-    }
-    auto require_boundary_state = [&](const std::string& bc_name,
-                                      const std::optional<BoundaryStateSettings>& state,
-                                      const std::string& side_name) {
-        const std::string bc = utils::ToLower(bc_name);
-        if ((bc == "free_stream" || bc == "inlet") && !state.has_value()) {
-            throw std::runtime_error(
-                "Boundary '" + side_name + "' uses " + bc +
-                " but no boundary state is provided in boundary_conditions.states"
-            );
-        }
-    };
-
     require_boundary_state(settings_.left_boundary, settings_.boundary_states.x_min, "x_min");
     require_boundary_state(settings_.right_boundary, settings_.boundary_states.x_max, "x_max");
 
@@ -354,20 +465,6 @@ void Simulation::ValidateConfiguration() const {
         require_boundary_state(settings_.back_boundary, settings_.boundary_states.z_min, "z_min");
         require_boundary_state(settings_.front_boundary, settings_.boundary_states.z_max, "z_max");
     }
-
-    auto validate_periodic_pair = [](const std::string& left_name,
-                                     const std::string& right_name,
-                                     const std::string& axis_name) -> void {
-        const bool left_periodic = utils::ToLower(left_name) == "periodic";
-        const bool right_periodic = utils::ToLower(right_name) == "periodic";
-
-        if (left_periodic != right_periodic) {
-            throw std::runtime_error(
-                "Periodic boundary on axis " + axis_name +
-                " must be specified on both sides"
-            );
-        }
-    };
 
     validate_periodic_pair(settings_.left_boundary, settings_.right_boundary, "X");
 
@@ -420,7 +517,9 @@ void Simulation::InitializeDataLayer() {
         mesh_->GetSz()
     );
 
-    ApplyInitialConditions(*layer_, *mesh_);
+    if (!IsPressureVelocitySolver()) {
+        ApplyInitialConditions(*layer_, *mesh_);
+    }
 }
 
 void Simulation::InitializeGeometry() {
@@ -437,8 +536,6 @@ void Simulation::InitializeGeometry() {
 }
 
 void Simulation::InitializeBoundaryConditions() {
-    const double gamma = settings_.gamma;
-
     FarfieldConservative x_min_state{};
     FarfieldConservative x_max_state{};
     FarfieldConservative y_min_state{};
@@ -447,22 +544,22 @@ void Simulation::InitializeBoundaryConditions() {
     FarfieldConservative z_max_state{};
 
     if (settings_.boundary_states.x_min) {
-        x_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_min, gamma);
+        x_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_min);
     }
     if (settings_.boundary_states.x_max) {
-        x_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_max, gamma);
+        x_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.x_max);
     }
     if (settings_.boundary_states.y_min) {
-        y_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_min, gamma);
+        y_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_min);
     }
     if (settings_.boundary_states.y_max) {
-        y_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_max, gamma);
+        y_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.y_max);
     }
     if (settings_.boundary_states.z_min) {
-        z_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_min, gamma);
+        z_min_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_min);
     }
     if (settings_.boundary_states.z_max) {
-        z_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_max, gamma);
+        z_max_state = PrimitiveToFarfieldConservative(*settings_.boundary_states.z_max);
     }
 
     int mpi_size = 1;
@@ -470,19 +567,55 @@ void Simulation::InitializeBoundaryConditions() {
         mpi_size = mpi_context_->Size();
     }
 
-    auto left_bc = BoundaryFactory::Create(settings_.left_boundary, x_min_state, settings_, mpi_size);
-    auto right_bc = BoundaryFactory::Create(settings_.right_boundary, x_max_state, settings_, mpi_size);
+    const std::string solver = utils::ToLower(settings_.solver);
+    const bool is_pressure_velocity =
+        solver == "simple" || solver == "piso" || solver == "pimple";
+
+    auto create_bc = [&](const std::string& bc_name,
+                         const std::optional<BoundaryStateSettings>& primitive_state,
+                         const FarfieldConservative& farfield_state) -> std::shared_ptr<BoundaryCondition> {
+        const std::string type = utils::ToLower(bc_name);
+
+        if (is_pressure_velocity) {
+            if (type == "inlet") {
+                if (!primitive_state.has_value()) {
+                    throw std::runtime_error(
+                        "Inlet boundary requires primitive boundary state for pressure-velocity solvers");
+                }
+                return BoundaryFactory::Create(type, *primitive_state, settings_, mpi_size);
+            }
+
+            return BoundaryFactory::Create(type);
+        }
+
+        return BoundaryFactory::Create(type, farfield_state, settings_, mpi_size);
+    };
+
+    auto left_bc = create_bc(settings_.left_boundary,
+                             settings_.boundary_states.x_min,
+                             x_min_state);
+    auto right_bc = create_bc(settings_.right_boundary,
+                              settings_.boundary_states.x_max,
+                              x_max_state);
     boundary_manager_->Set(Axis::X, left_bc, right_bc);
 
     if (settings_.dim >= 2) {
-        auto bottom_bc = BoundaryFactory::Create(settings_.bottom_boundary, y_min_state, settings_, mpi_size);
-        auto top_bc = BoundaryFactory::Create(settings_.top_boundary, y_max_state, settings_, mpi_size);
+        auto bottom_bc = create_bc(settings_.bottom_boundary,
+                                   settings_.boundary_states.y_min,
+                                   y_min_state);
+        auto top_bc = create_bc(settings_.top_boundary,
+                                settings_.boundary_states.y_max,
+                                y_max_state);
         boundary_manager_->Set(Axis::Y, bottom_bc, top_bc);
     }
 
     if (settings_.dim >= 3) {
-        auto back_bc = BoundaryFactory::Create(settings_.back_boundary, z_min_state, settings_, mpi_size);
-        auto front_bc = BoundaryFactory::Create(settings_.front_boundary, z_max_state, settings_, mpi_size);
+        auto back_bc = create_bc(settings_.back_boundary,
+                                 settings_.boundary_states.z_min,
+                                 z_min_state);
+        auto front_bc = create_bc(settings_.front_boundary,
+                                  settings_.boundary_states.z_max,
+                                  z_max_state);
         boundary_manager_->Set(Axis::Z, back_bc, front_bc);
     }
 }
@@ -552,9 +685,85 @@ void Simulation::InitializeCoordinates() {
     mesh_->SetAllCellsFluid();
 }
 
+void Simulation::InitializePressureVelocityInitialConditions() {
+    auto* pv_solver = dynamic_cast<PressureVelocitySolver*>(solver_.get());
+    if (!pv_solver) {
+        throw std::runtime_error(
+            "InitializePressureVelocityInitialConditions: solver is not PressureVelocitySolver");
+    }
+
+    auto& state = pv_solver->GetState();
+    state.ResizeFrom(*mesh_);
+    state.ZeroAll();
+
+    if (mesh_->GetDim() != 2) {
+        throw std::runtime_error(
+            "Pressure-velocity initial conditions are currently supported only for dim = 2");
+    }
+
+    if (initial_conditions_.ic_type != "taylor_green") {
+        // For now we only support Taylor-Green initialization
+        // in the pressure-velocity branch.
+        state.CopyCurrentToOld();
+        boundary_manager_->ApplyPhysicalBc(state, *mesh_);
+        return;
+    }
+
+    const int i0 = mesh_->GetCoreStartX();
+    const int i1 = mesh_->GetCoreEndExclusiveX();
+    const int j0 = mesh_->GetCoreStartY();
+    const int j1 = mesh_->GetCoreEndExclusiveY();
+
+    const auto& xc = mesh_->Xc();
+    const auto& yc = mesh_->Yc();
+    const auto& xb = mesh_->Xb();
+    const auto& yb = mesh_->Yb();
+
+    auto& p = state.Pressure();
+    auto& ux = state.Ux();
+    auto& vy = state.Vy();
+    auto& wz = state.Wz();
+
+    for (int j = j0; j < j1; ++j) {
+        for (int i = i0; i < i1; ++i) {
+            const double x = xc(static_cast<std::size_t>(i));
+            const double y = yc(static_cast<std::size_t>(j));
+
+            p(i, j, 0) =
+                -0.25 * (std::cos(2.0 * M_PI * x) + std::cos(2.0 * M_PI * y));
+        }
+    }
+
+    for (int j = j0; j < j1; ++j) {
+        const double y = yc(static_cast<std::size_t>(j));
+        for (int i = i0; i <= i1; ++i) {
+            const double x = xb(static_cast<std::size_t>(i));
+            ux(i, j, 0) = -std::cos(M_PI * x) * std::sin(M_PI * y);
+        }
+    }
+
+    for (int j = j0; j <= j1; ++j) {
+        const double y = yb(static_cast<std::size_t>(j));
+        for (int i = i0; i < i1; ++i) {
+            const double x = xc(static_cast<std::size_t>(i));
+            vy(i, j, 0) = std::sin(M_PI * x) * std::cos(M_PI * y);
+        }
+    }
+
+    wz.fill(0.0);
+
+    state.CopyCurrentToOld();
+    boundary_manager_->ApplyPhysicalBc(state, *mesh_);
+    pv_solver->ApplyImmersedVelocityConstraints();
+}
+
 void Simulation::InitializeSolver() {
     solver_ = CreateSolver();
     solver_->SetCfl(settings_.cfl);
+
+    if (IsPressureVelocitySolver()) {
+        InitializePressureVelocityInitialConditions();
+    }
 }
 
 void Simulation::InitializeWriter() {
@@ -592,7 +801,31 @@ void Simulation::InitializeWriter() {
         mpi_context_->Barrier();
     }
 
-    vtk_writer_ = WriterFactory::Create("vtk", vtk_dir, false, rank, size);
+    vtk_writer_ = WriterFactory::Create("vtk", vtk_dir, eos_, false, rank, size);
+}
+
+
+void Simulation::InitializeEos() {
+    eos_ = std::make_shared<EOS>();
+
+    const std::string eos_name = settings_.EOS.has_value() ? utils::ToLower(*settings_.EOS) : "ideal_gas";
+
+    if (eos_name == "hugoniot_gruneisen") {
+        eos_->SetType(EosType::HugoniotGruneisen);
+        HugoniotGruneisenEosParameters hg_params;
+        if (settings_.hg_rho0) hg_params.rho0 = settings_.hg_rho0;
+        if (settings_.hg_C) hg_params.C = settings_.hg_C;
+        if (settings_.hg_S) hg_params.S = settings_.hg_S;
+        if (settings_.hg_gamma_s) hg_params.gamma_s = settings_.hg_gamma_s;
+        if (settings_.hg_c_v) hg_params.c_v = settings_.hg_c_v;
+        eos_->SetHugoniotGruneisenParameters(hg_params);
+    }
+    else {
+        eos_->SetType(EosType::IdealGas);
+        IdealGasEosParameters ig_params;
+        ig_params.gamma = settings_.gamma;
+        eos_->SetIdealGasParameters(ig_params);
+    }
 }
 
 auto Simulation::IsKnownSolver(const std::string& solver) const -> bool {
@@ -601,7 +834,10 @@ auto Simulation::IsKnownSolver(const std::string& solver) const -> bool {
         s == "godunov-kolgan" ||
         s == "godunov-kolgan-rodionov" ||
         s == "flic" ||
-        s == "mader";
+        s == "mader" ||
+        s == "simple" ||
+        s == "piso" ||
+        s == "pimple";
 }
 
 auto Simulation::IsKnownTimeIntegrator(const std::string& time_integrator) const -> bool {
@@ -655,6 +891,7 @@ void Simulation::Initialize() {
     if (is_root_) {
         std::cout << "Initializing simulation...\n";
     }
+    InitializeEos();
     InitializeMesh();
     InitializeCoordinates();
     InitializeDataLayer();
@@ -794,19 +1031,33 @@ void Simulation::WriteInitialState() const {
         std::cout << "Writing the initial state...\n";
     }
 
-    if (vtk_writer_) {
-        vtk_writer_->Write(*layer_, *mesh_, settings_, 0, 0.0);
+    if (!vtk_writer_) {
+        return;
     }
+
+    if (const auto* pv_solver = dynamic_cast<const PressureVelocitySolver*>(solver_.get())) {
+        vtk_writer_->Write(pv_solver->GetState(), *mesh_, settings_, 0, 0.0);
+        return;
+    }
+
+    vtk_writer_->Write(*layer_, *mesh_, settings_, 0, 0.0);
 }
 
-void Simulation::WriteStepState(double t_cur, std::size_t step_cur) const {
+void Simulation::WriteStepState(const double t_cur, const std::size_t step_cur) const {
     if (!ShouldWrite()) {
         return;
     }
 
-    if (vtk_writer_) {
-        vtk_writer_->Write(*layer_, *mesh_, settings_, step_cur, t_cur);
+    if (!vtk_writer_) {
+        return;
     }
+
+    if (const auto* pv_solver = dynamic_cast<const PressureVelocitySolver*>(solver_.get())) {
+        vtk_writer_->Write(pv_solver->GetState(), *mesh_, settings_, step_cur, t_cur);
+        return;
+    }
+
+    vtk_writer_->Write(*layer_, *mesh_, settings_, step_cur, t_cur);
 }
 
 void Simulation::PrintLog() const {

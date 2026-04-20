@@ -152,8 +152,8 @@ public:
 
     // -------------------- configuration --------------------
 
-    void SetEos(const EOS& eos);
-    [[nodiscard]] const EOS& GetEos() const;
+    void SetEos(std::shared_ptr<EOS> eos);
+    [[nodiscard]] std::shared_ptr<EOS> GetEos() const;
 
     void SetChemistryParameters(const MaderChemistryParameters& params);
     [[nodiscard]] const MaderChemistryParameters& GetChemistryParameters() const;
@@ -299,7 +299,7 @@ private:
                                                double gamma) const;
 
     Settings settings_;
-    EOS eos_;
+    std::shared_ptr<EOS> eos_;
     MaderChemistryParameters chemistry_params_;
     MaderViscosityParameters viscosity_params_;
     MaderTransportParameters transport_params_;

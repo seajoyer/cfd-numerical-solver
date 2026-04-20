@@ -4,13 +4,16 @@
 #include <cmath>
 #include <limits>
 
+#include "config/Settings.hpp"
 #include "data/DataLayer.hpp"
 #include "data/Mesh.hpp"
+#include "solver/EOS.hpp"
 
 auto TimeStepCalculator::ComputeDt(const DataLayer& layer,
                                    const Mesh& mesh,
-                                   const double gamma,
-                                   const double cfl) -> double {
+                                   const Settings& settings,
+                                   std::shared_ptr<EOS> eos) -> double {
+    const double cfl = settings.cfl;
     if (cfl <= 0.0) {
         return 0.0;
     }
@@ -37,6 +40,8 @@ auto TimeStepCalculator::ComputeDt(const DataLayer& layer,
     const auto& dy = mesh.Dy();
     const auto& dz = mesh.Dz();
 
+    const bool has_chemistry = settings.chemistry_enabled;
+
     double dt_min = std::numeric_limits<double>::infinity();
     bool has_dt = false;
 
@@ -57,20 +62,24 @@ auto TimeStepCalculator::ComputeDt(const DataLayer& layer,
                 const double v = U(DataLayer::k_rhoV, i, j, k) * inv_rho;
                 const double w = U(DataLayer::k_rhoW, i, j, k) * inv_rho;
 
-                const double kinetic = 0.5 * rho * (u * u + v * v + w * w);
-                const double E = U(DataLayer::k_E, i, j, k);
-                const double eint = E - kinetic;
-                const double P = (gamma - 1.0) * eint;
+                const double kinetic = 0.5 * (u * u + v * v + w * w);
+                const double E_in = U(DataLayer::k_E, i, j, k);
 
-                if (P <= 0.0) {
+                const double I_cell = std::max(E_in * inv_rho - kinetic, 0.0);
+
+                double lambda = 0.0;
+                if (has_chemistry) {
+                    lambda = layer.ReactantMassFraction()(i, j, k);
+                }
+
+                EosCellInput eos_in{rho, I_cell, lambda};
+                EosCellOutput eos_out = eos->Evaluate(eos_in);
+
+                if (eos_out.P <= 0.0 || eos_out.c <= 0.0) {
                     continue;
                 }
 
-                const double c2 = gamma * P * inv_rho;
-                if (c2 <= 0.0) {
-                    continue;
-                }
-                const double c = std::sqrt(c2);
+                const double c = eos_out.c;
 
                 if (active_x) {
                     const double s = std::abs(u) + c;

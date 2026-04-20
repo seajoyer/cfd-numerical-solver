@@ -4,14 +4,15 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
-#include "parallel/HaloExchange.hpp"
+
+#include "bc/BoundaryCondition.hpp"
 #include "data/Variables.hpp"
-
-
+#include "parallel/HaloExchange.hpp"
 
 class DataLayer;
 class Mesh;
-class BoundaryCondition;
+class PressureVelocityState;
+class PressureVelocityWorkspace;
 
 /**
  * @struct AxisBc
@@ -24,42 +25,42 @@ struct AxisBc final {
 
 /**
  * @class BoundaryManager
- * @brief Manages halo update (stub for MPI) and physical boundary conditions.
- *
- * Contract:
- *  - UpdateHalo() handles internal subdomain interfaces (MPI later). For now: no-op.
- *  - ApplyPhysicalBc() applies only physical BC on global external boundaries,
- *    as indicated by Mesh boundary flags.
+ * @brief Manages halo update and physical boundary conditions.
  */
 class BoundaryManager final {
 public:
-    /** @brief Constructs boundary manager for three axes. */
     explicit BoundaryManager(std::shared_ptr<HaloExchange> halo_exchange = nullptr);
 
-    /**
-     * @brief Assign boundary conditions for an axis.
-     * @param axis Axis (X/Y/Z).
-     * @param left_bc Boundary at lower/min side.
-     * @param right_bc Boundary at upper/max side.
-     */
     void Set(Axis axis,
              std::shared_ptr<BoundaryCondition> left_bc,
              std::shared_ptr<BoundaryCondition> right_bc);
 
-    /**
-     * @brief Halo exchange/update for internal interfaces (MPI later).
-     * @details For now: no-op.
-     */
     void UpdateHalo(DataLayer& layer, const Mesh& mesh) const;
+    void UpdateHalo(PressureVelocityState& state, const Mesh& mesh) const;
+
+    void ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const;
+    void ApplyPhysicalBc(PressureVelocityState& state, const Mesh& mesh) const;
+
+    void ApplyPressureVelocityBoundary(PressureVelocityState& state,
+                                       PressureVelocityWorkspace& workspace,
+                                       const Mesh& mesh,
+                                       PvAssemblyStage stage,
+                                       bool steady,
+                                       double dt,
+                                       double nu) const;
+
+    [[nodiscard]] const AxisBc& Get(Axis axis) const;
 
     /**
-     * @brief Apply physical boundary conditions on global external boundaries.
-     * @details Uses Mesh::IsGlobalBoundary(axis, side) to decide whether to apply.
+     * @brief Get BC object for one axis/side.
+     * @return Raw pointer or nullptr if unset.
      */
-    void ApplyPhysicalBc(DataLayer& layer, const Mesh& mesh) const;
+    [[nodiscard]] const BoundaryCondition* GetCondition(Axis axis, Side side) const;
 
-    /** @brief Get boundary pair for an axis. */
-    [[nodiscard]] const AxisBc& Get(Axis axis) const;
+    /**
+     * @brief Check whether a boundary side is periodic.
+     */
+    [[nodiscard]] bool IsPeriodic(Axis axis, Side side) const;
 
 private:
     std::vector<AxisBc> axes_;

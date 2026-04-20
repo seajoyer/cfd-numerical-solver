@@ -5,19 +5,39 @@
 
 /**
  * @class WallBoundary
- * @brief Stationary wall boundary for conservative Euler state U.
+ * @brief Stationary no-slip wall boundary.
  *
- * Implementation:
- * - copies rho and E from the nearest interior core layer
- * - sets all momentum components (rhoU, rhoV, rhoW) to zero in ghost cells
+ * Conservative branch:
+ *  - copies scalar quantities from the nearest interior layer
+ *  - sets momentum components in ghost cells to zero
  *
- * Note:
- * For inviscid Euler, reflective/slip-wall is usually more physical.
- * This boundary enforces zero velocity in ghost cells.
+ * Pressure-velocity branch:
+ *  - pressure uses zero normal gradient
+ *  - normal face velocity at the wall is zero
+ *  - tangential face velocities use odd reflection in ghost layers
+ *
+ * Pressure-velocity assembly:
+ *  - modifies near-wall momentum coefficients using half-cell diffusion distance
+ *  - pressure-correction stage keeps zero-normal-gradient behavior
  */
 class WallBoundary final : public BoundaryCondition {
 public:
     void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+
+    void Apply(PressureVelocityState& state,
+               const Mesh& mesh,
+               Axis axis,
+               Side side) const override;
+
+    void ApplyPressureVelocityBoundary(PressureVelocityState& state,
+                                       PressureVelocityWorkspace& workspace,
+                                       const Mesh& mesh,
+                                       Axis axis,
+                                       Side side,
+                                       PvAssemblyStage stage,
+                                       bool steady,
+                                       double dt,
+                                       double nu) const override;
 };
 
 #endif  // WALLBOUNDARY_HPP

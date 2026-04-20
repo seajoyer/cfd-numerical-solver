@@ -14,11 +14,11 @@ class MPIContext;
  * @brief Conservative far-field state (rho, rhoU, rhoV, rhoW, E).
  */
 struct FarfieldConservative final {
-    double rho  = 0.0;
+    double rho = 0.0;
     double rhoU = 0.0;
     double rhoV = 0.0;
     double rhoW = 0.0;
-    double E    = 0.0;
+    double E = 0.0;
 };
 
 /**
@@ -31,6 +31,11 @@ public:
 
     static auto Create(const std::string& boundary_type,
                        const FarfieldConservative& farfield_U,
+                       const Settings& settings,
+                       int mpi_size) -> std::shared_ptr<BoundaryCondition>;
+
+    static auto Create(const std::string& boundary_type,
+                       const BoundaryStateSettings& primitive_state,
                        const Settings& settings,
                        int mpi_size) -> std::shared_ptr<BoundaryCondition>;
 };

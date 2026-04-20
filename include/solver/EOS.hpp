@@ -107,6 +107,12 @@ public:
      */
     [[nodiscard]] EosCellOutput Evaluate(const EosCellInput& in) const;
 
+    /**
+     * @brief Compute specific internal energy (I) from density and pressure.
+     * Required for setting up initial and boundary conditions from primitive variables.
+     */
+    [[nodiscard]] double ComputeInternalEnergy(double rho, double P, double lambda) const;
+
 private:
     EosType type_ = EosType::IdealGas;
 
@@ -115,6 +121,10 @@ private:
 
     [[nodiscard]] EosCellOutput EvaluateIdealGas(const EosCellInput& in) const;
     [[nodiscard]] EosCellOutput EvaluateHugoniotGruneisen(const EosCellInput& in) const;
+
+    [[nodiscard]] double ComputeInternalEnergyIdealGas(double rho, double P) const;
+    [[nodiscard]] double ComputeInternalEnergyHugoniotGruneisen(double rho, double P) const;
+
 };
 
 #endif  // EOS_HPP

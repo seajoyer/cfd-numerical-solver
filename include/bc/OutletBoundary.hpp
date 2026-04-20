@@ -5,23 +5,40 @@
 
 /**
  * @class OutletBoundary
- * @brief Outlet (zero-gradient / Neumann) boundary condition for conservative state U.
+ * @brief Zero-gradient outlet boundary.
  *
- * The outlet condition copies the nearest interior (core) layer into ghost layers
- * along the selected axis, enforcing zero normal gradient at the boundary.
+ * Conservative branch:
+ *  - copies the nearest interior layer into ghost layers
  *
- * Works only with conservative state U(var,i,j,k).
+ * Pressure-velocity branch:
+ *  - applies zero normal gradient to pressure and velocity components
+ *
+ * Assembly branch:
+ *  - currently leaves momentum and pressure-correction operators unchanged
+ *    and relies on natural zero-gradient behavior of the discrete stencil
+ *
+ * @note
+ * This class represents a Neumann-type outlet.
+ * A fixed-pressure outlet should be implemented as a separate boundary class.
  */
 class OutletBoundary final : public BoundaryCondition {
 public:
-    /**
-     * @brief Apply outlet BC along the specified axis and side.
-     * @param layer Data layer to modify (ghost cells of U will be written).
-     * @param mesh Structured mesh with ranges and metadata.
-     * @param axis Axis (X/Y/Z).
-     * @param side Side (Left/Right).
-     */
     void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+
+    void Apply(PressureVelocityState& state,
+               const Mesh& mesh,
+               Axis axis,
+               Side side) const override;
+
+    void ApplyPressureVelocityBoundary(PressureVelocityState& state,
+                                       PressureVelocityWorkspace& workspace,
+                                       const Mesh& mesh,
+                                       Axis axis,
+                                       Side side,
+                                       PvAssemblyStage stage,
+                                       bool steady,
+                                       double dt,
+                                       double nu) const override;
 };
 
 #endif  // OUTLETBOUNDARY_HPP

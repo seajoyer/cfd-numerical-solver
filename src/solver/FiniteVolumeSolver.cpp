@@ -4,11 +4,14 @@ FiniteVolumeSolver::FiniteVolumeSolver(const Settings& settings,
                                        Mesh mesh,
                                        std::shared_ptr<SpatialOperator> spatial_operator,
                                        std::shared_ptr<TimeIntegrator> time_integrator,
-                                       const MPIContext* mpi_context) : settings_(settings),
+                                       const MPIContext* mpi_context,
+                                       std::shared_ptr<EOS> eos)
+    : settings_(settings),
       mesh_(std::move(mesh)),
       spatial_operator_(std::move(spatial_operator)),
       time_integrator_(std::move(time_integrator)),
-      mpi_context_(mpi_context) {
+      mpi_context_(mpi_context),
+      eos_(eos) {
     cfl_ = settings_.cfl;
 
     if (!spatial_operator_) {
@@ -45,7 +48,7 @@ void FiniteVolumeSolver::EnsureWorkspaceSized() {
 auto FiniteVolumeSolver::Step(DataLayer& layer, double& t_cur) -> double {
     EnsureWorkspaceSized();
 
-    double dt_local = TimeStepCalculator::ComputeDt(layer, mesh_, settings_.gamma, cfl_);
+    double dt_local = TimeStepCalculator::ComputeDt(layer, mesh_, settings_, eos_);
     double dt = dt_local;
 
     if (mpi_context_) {

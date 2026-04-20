@@ -19,6 +19,8 @@
 class ReflectiveBoundary final : public BoundaryCondition {
 public:
     void Apply(DataLayer& layer, const Mesh& mesh, Axis axis, Side side) const override;
+
+    void Apply(PressureVelocityState& state, const Mesh& mesh, Axis axis, Side side) const override;
 };
 
 #endif  // REFLECTIVEBOUNDARY_HPP
