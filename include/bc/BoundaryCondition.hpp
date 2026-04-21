@@ -6,7 +6,7 @@
 class DataLayer;
 class Mesh;
 class Face;
-
+// CHECK: GHOST_STATE
 /**
  * @class BoundaryCondition
  * @brief Abstract physical boundary condition for one boundary face.

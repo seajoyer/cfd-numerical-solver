@@ -8,7 +8,7 @@
 #include "geometry/Cell.hpp"
 #include "geometry/Face.hpp"
 #include "geometry/Node.hpp"
-
+// CHECK: MESH_STRUCTS
 /**
  * @brief Single-process or MPI-local unstructured mesh owner for cell-centered finite volume methods.
  *

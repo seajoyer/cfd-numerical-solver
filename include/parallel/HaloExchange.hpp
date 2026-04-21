@@ -11,7 +11,7 @@
 
 class DataLayer;
 class MPIContext;
-
+// CHECK: HALO_EXCHANGE
 /**
  * @class HaloExchange
  * @brief Exchanges ghost-cell conservative state between neighboring MPI ranks.

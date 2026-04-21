@@ -10,7 +10,7 @@
 class Reconstruction;
 class RiemannSolver;
 class Face;
-
+// CHECK: UNSTRUCT_SCHEMES
 /**
  * @class GodunovSpatialOperator
  * @brief Face-based Godunov finite-volume operator for generic meshes.

@@ -8,7 +8,7 @@
 #include "geometry/Mesh.hpp"
 
 class MPIContext;
-
+// CHECK: DECOMPOSITION
 /**
  * @class DomainDecomposition
  * @brief Builds MPI-local mesh partition and halo metadata from a global mesh.

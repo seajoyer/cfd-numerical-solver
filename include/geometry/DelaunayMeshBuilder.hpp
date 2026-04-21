@@ -13,7 +13,7 @@
 
 struct Point2D;
 struct BoundaryLoop;
-
+// CHECK: BUILD_FACES
 /**
  * @brief Builder that constructs a 2D mesh from .geo geometry using a point set
  *        and an in-house Delaunay triangulator.
