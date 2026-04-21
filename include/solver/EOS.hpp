@@ -84,7 +84,7 @@ struct HugoniotGruneisenEosParameters final {
     double p_floor = 0.0;
     double T_floor = 0.0;
 };
-
+// CHECK: MADER_EOS
 /**
  * @class EOS
  * @brief Cell-wise equation of state evaluator.

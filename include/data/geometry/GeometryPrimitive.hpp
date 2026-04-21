@@ -24,7 +24,7 @@ struct GeometryVector final {
     double y = 0.0;
     double z = 0.0;
 };
-
+// CHECK: STEP_BLOCK
 /**
  * @class GeometryPrimitive
  * @brief Abstract base class for embedded geometric primitives on Cartesian mesh.

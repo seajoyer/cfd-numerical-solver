@@ -9,7 +9,7 @@ public:
                  Mesh mesh,
                  std::shared_ptr<BoundaryManager> boundary_manager,
                  const MPIContext* mpi_context);
-
+    // CHECK: SIMPLE_LOOP
     auto Step(DataLayer& layer, double& t_cur) -> double override;
 };
 

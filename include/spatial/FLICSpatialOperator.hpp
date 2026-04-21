@@ -46,18 +46,18 @@ public:
 
 private:
     std::shared_ptr<ArtificialViscosity> viscosity_;
-
+    // CHECK: FLIC_LAGRANGE
     void ComputeLagrangianRhs(const Mesh& mesh,
                               const xt::xtensor<double, 4>& W,
                               xt::xtensor<double, 4>& rhs) const;
-
+    // CHECK: FLIC_CONSERV
     void BuildUStar(const DataLayer& layer,
                     const Mesh& mesh,
                     const xt::xtensor<double, 4>& U,
                     const xt::xtensor<double, 4>& rhs_lag,
                     double dt,
                     xt::xtensor<double, 4>& U_star) const;
-
+    // CHECK: FLIC_EULER
     void ComputeEulerianAdvectionRhs(const Mesh& mesh,
                                      const xt::xtensor<double, 4>& U_star,
                                      xt::xtensor<double, 4>& rhs) const;

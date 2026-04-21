@@ -2,7 +2,7 @@
 #define WENORECONSTRUCTION_HPP
 
 #include "reconstruction/Reconstruction.hpp"
-
+// CHECK: RECONSTRUCTION
 /**
  * @class WENOReconstruction
  * @brief WENO-JS reconstruction (WENO3 or WENO5) for axis-aligned faces on primitives W.

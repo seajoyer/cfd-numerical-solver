@@ -16,6 +16,8 @@ class EOS;
  */
 class TimeStepCalculator final {
 public:
+    // CHECK: CFL_2D
+    // CHECK: FLIC_CFL
     /**
      * @brief Computes stable explicit timestep dt.
      * @param layer DataLayer with conservative state U.

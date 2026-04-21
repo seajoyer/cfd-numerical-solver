@@ -10,7 +10,7 @@
 #include "data/PressureVelocityState.hpp"
 #include "data/Variables.hpp"
 #include "parallel/MPIContext.hpp"
-
+// CHECK: HALO_EXCHANGE
 /**
  * @class HaloExchange
  * @brief MPI halo exchange for structured Cartesian subdomains.

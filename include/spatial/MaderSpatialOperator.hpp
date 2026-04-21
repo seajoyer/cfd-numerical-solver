@@ -103,7 +103,7 @@ public:
                     Workspace& workspace,
                     double gamma,
                     double dt) const override;
-
+    // CHECK: MADER_ARRHENIUS
     // ------------------------------------------------------------
     // Phase I: EOS + chemistry
     // ------------------------------------------------------------
@@ -112,7 +112,7 @@ public:
                                 Workspace& workspace,
                                 double gamma,
                                 double dt) const;
-
+    // CHECK: MADER_VISC
     // ------------------------------------------------------------
     // Phase II: pressure forces + artificial viscosity
     // updates face-centered velocities
@@ -122,7 +122,7 @@ public:
                                Workspace& workspace,
                                double gamma,
                                double dt) const;
-
+    // CHECK: MADER_ZIP
     // ------------------------------------------------------------
     // Phase III: ZIP energy + intermediate density
     // ------------------------------------------------------------
@@ -131,7 +131,7 @@ public:
                           Workspace& workspace,
                           double gamma,
                           double dt) const;
-
+    // CHECK: MADER_DONOR
     // ------------------------------------------------------------
     // Phase IV: transport accumulation
     // ------------------------------------------------------------
@@ -140,7 +140,7 @@ public:
                           Workspace& workspace,
                           double gamma,
                           double dt) const;
-
+    // CHECK: MADER_REPARTITION
     // ------------------------------------------------------------
     // Phase V: repartition / apply accumulated increments
     // ------------------------------------------------------------
@@ -312,7 +312,7 @@ private:
 
     [[nodiscard]] double ComputeTransferredReactantFractionStandard(
         double donor_w) const;
-
+    // CHECK: SHARGATOV
     [[nodiscard]] double ComputeTransferredReactantFractionShargatovR(
         const Mesh& mesh,
         const DataLayer& layer,

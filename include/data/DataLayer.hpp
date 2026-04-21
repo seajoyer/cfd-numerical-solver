@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <xtensor.hpp>
-
+// CHECK: STATE_VECTOR_2D
 /**
  * @brief Storage owner for conservative state only.
  *

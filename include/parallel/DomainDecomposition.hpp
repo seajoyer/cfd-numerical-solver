@@ -8,7 +8,7 @@
 #include "data/Mesh.hpp"
 #include "data/Variables.hpp"
 #include "parallel/MPIContext.hpp"
-
+// CHECK: DECOMPOSITION
 /**
  * @class DomainDecomposition
  * @brief Balanced Cartesian MPI domain decomposition for structured grids.

@@ -55,6 +55,7 @@ protected:
 
     void BuildMomentumCoefficients(double dt, double nu);
     void SolveMomentumPredictor(double dt, double alpha_u);
+    // CHECK: CORRECTION
     void BuildPressureCorrectionEquation(double dt, double nu);
     void SolvePressureCorrection();
     void ApplyPressureCorrection(double alpha_p);

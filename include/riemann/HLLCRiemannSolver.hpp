@@ -2,7 +2,7 @@
 #define HLLCRIEMANNSOLVER_HPP
 
 #include "riemann/RiemannSolver.hpp"
-
+// CHECK: HLLC_SOLVER
 /**
  * @class HLLCRiemannSolver
  * @brief HLLC approximate Riemann solver (restores contact wave).

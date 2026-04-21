@@ -700,7 +700,7 @@ void Simulation::InitializePressureVelocityInitialConditions() {
         throw std::runtime_error(
             "Pressure-velocity initial conditions are currently supported only for dim = 2");
     }
-
+    // CHECK: TG_INIT
     if (initial_conditions_.ic_type != "taylor_green") {
         // For now we only support Taylor-Green initialization
         // in the pressure-velocity branch.
