@@ -113,6 +113,7 @@ public:
                                 double gamma,
                                 double dt) const;
     // CHECK: MADER_VISC
+    // CHECK: MADER_VELOCITY
     // ------------------------------------------------------------
     // Phase II: pressure forces + artificial viscosity
     // updates face-centered velocities

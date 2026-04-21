@@ -54,6 +54,8 @@ protected:
     [[nodiscard]] double ComputeDt(double t_cur) const;
 
     void BuildMomentumCoefficients(double dt, double nu);
+    // CHECK: PREDICTOR_U
+    // CHECK: PREDICTOR_V
     void SolveMomentumPredictor(double dt, double alpha_u);
     // CHECK: CORRECTION
     void BuildPressureCorrectionEquation(double dt, double nu);

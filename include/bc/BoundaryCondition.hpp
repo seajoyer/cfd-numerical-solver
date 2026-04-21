@@ -35,7 +35,7 @@ enum class PvAssemblyStage : std::uint8_t {
     MomentumCoefficients = 0,
     PressureCorrectionEquation = 1
 };
-// CHECK: TG_BC
+
 /**
  * @class BoundaryCondition
  * @brief Abstract base class for physical boundary conditions on a structured grid.

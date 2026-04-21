@@ -5,7 +5,7 @@
 #include <xtensor.hpp>
 
 class Mesh;
-
+// CHECK: STAGGERED_GRID
 /**
  * @class PressureVelocityState
  * @brief Persistent solution fields for pressure-velocity coupling solvers
